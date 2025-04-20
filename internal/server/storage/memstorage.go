@@ -41,6 +41,7 @@ func (s *MemStorage) Save(m item.MetricDTO) error {
 	return nil
 }
 
+// FindByKey - поиск по ключу
 func (s *MemStorage) FindByKey(key string) (*item.MetricDTO, error) {
 
 	entity, ok := s.metrics[key]
@@ -56,6 +57,7 @@ func (s *MemStorage) FindByKey(key string) (*item.MetricDTO, error) {
 	}, nil
 }
 
+// GetAll - вернуть все метрики
 func (s *MemStorage) GetAll() map[string]item.MetricDTO {
 	dtos := make(map[string]item.MetricDTO, len(s.metrics))
 	for key, m := range s.metrics {

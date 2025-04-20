@@ -2,11 +2,27 @@ build:
 	go build -o ./cmd/server/server ./cmd/server/*.go
 	go build -o ./cmd/agent/agent ./cmd/agent/*.go
 
-run-autotest: \
-	run-autotest-1
+run-test: \
+	build \
+	run-test-a \
+	run-test-u \
+	run-test-s
 
-run-autotest-1:
-	metricstest -test.v -test.run=^TestIteration1$$ -binary-path=./cmd/server/server
-
-run-test:
+run-test-u:
 	go test ./...
+
+run-test-s:
+	go vet -vettool=$$(which statictest) ./...
+
+run-test-a: \
+	run-test-a1 \
+	run-test-a2
+
+run-test-a1:
+	metricstest -test.v -test.run=^TestIteration1$$ -binary-path=./cmd/server/server
+run-test-a2:
+	metricstest -test.v -test.run=^TestIteration2[AB]*$$ -source-path=. -agent-binary-path=./cmd/agent/agent
+
+update-tpl:
+	# git remote add -m main template https://github.com/Yandex-Practicum/go-musthave-metrics-tpl.git
+	git fetch template && git checkout template/main .github
