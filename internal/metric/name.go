@@ -1,5 +1,6 @@
 package metric
 
+// GaugeMetric - тип собираемых метрик.
 type GaugeMetric string
 
 const (
@@ -35,6 +36,7 @@ const (
 	PollCount   string = "PollCount"
 )
 
+// String - название метрики в строку.
 func (m GaugeMetric) String() string {
 	return string(m)
 }

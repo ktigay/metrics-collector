@@ -5,6 +5,7 @@ import (
 	"runtime"
 )
 
+// MapGaugeFromMemStats - преобразует метрики из runtime в map.
 func MapGaugeFromMemStats(m runtime.MemStats) map[metric.GaugeMetric]float64 {
 	return map[metric.GaugeMetric]float64{
 		metric.Alloc:         float64(m.Alloc),

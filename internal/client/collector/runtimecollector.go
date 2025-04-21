@@ -6,15 +6,18 @@ import (
 	"runtime"
 )
 
+// RuntimeMetricCollector - сборщик метрик.
 type RuntimeMetricCollector struct {
 	counter uint64
 	stat    MetricCollectDTO
 }
 
+// NewRuntimeMetricCollector - конструктор.
 func NewRuntimeMetricCollector() *RuntimeMetricCollector {
 	return &RuntimeMetricCollector{}
 }
 
+// PollStat - собирает метрики.
 func (c *RuntimeMetricCollector) PollStat() {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
@@ -28,6 +31,7 @@ func (c *RuntimeMetricCollector) PollStat() {
 	}
 }
 
+// GetStat - возвращает метрики.
 func (c *RuntimeMetricCollector) GetStat() MetricCollectDTO {
 	return c.stat
 }

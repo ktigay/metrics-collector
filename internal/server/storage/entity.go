@@ -1,12 +1,28 @@
 package storage
 
-import "github.com/ktigay/metrics-collector/internal/metric"
+import (
+	"fmt"
+	"github.com/ktigay/metrics-collector/internal/metric"
+)
 
-// MemStorageEntity - структура для сохранения в in-memory storage.
-type MemStorageEntity struct {
-	Key        string
-	Type       metric.Type
-	Name       string
-	IntValue   int64
-	FloatValue float64
+// Entity - сущность для сохранения в storage.
+type Entity struct {
+	Key   string
+	Type  metric.Type
+	Name  string
+	Value interface{}
+}
+
+// GetValueAsString - возвращает значение как строку.
+func (s *Entity) GetValueAsString() string {
+	if s == nil {
+		return ""
+	}
+	switch s.Value.(type) {
+	case int64:
+		return fmt.Sprintf("%d", s.Value)
+	case float64:
+		return fmt.Sprintf("%g", s.Value)
+	}
+	return ""
 }

@@ -13,16 +13,19 @@ const (
 	contentType = "text/plain"
 )
 
+// MetricHandler - хендлер.
 type MetricHandler struct {
 	url string
 }
 
+// NewMetricHandler - конструктор.
 func NewMetricHandler(url string) *MetricHandler {
 	return &MetricHandler{
 		url: url,
 	}
 }
 
+// SendMetrics - отправляет метрики на сервер.
 func (ms *MetricHandler) SendMetrics(c collector.MetricCollectDTO) {
 	ms.sendGaugeMetrics(c)
 	ms.sendRand(c)

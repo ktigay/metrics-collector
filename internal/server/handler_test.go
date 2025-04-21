@@ -1,6 +1,7 @@
 package server
 
 import (
+	"github.com/gorilla/mux"
 	"github.com/ktigay/metrics-collector/internal/server/collector"
 	"github.com/ktigay/metrics-collector/internal/server/storage"
 	"github.com/stretchr/testify/require"
@@ -46,29 +47,29 @@ func TestServer_CollectHandler(t *testing.T) {
 				contentType: "text/plain",
 			},
 			wantStatus:      http.StatusNotFound,
-			wantContentType: "text/plain",
+			wantContentType: "text/plain; charset=utf-8",
 		},
 		{
-			name: "Bad request test",
+			name: "Not found test #2",
 			args: args{
 				requests: []string{
 					"/update/gauge/222.33",
 				},
 				contentType: "text/plain",
 			},
-			wantStatus:      http.StatusBadRequest,
-			wantContentType: "text/plain",
+			wantStatus:      http.StatusNotFound,
+			wantContentType: "text/plain; charset=utf-8",
 		},
 		{
-			name: "Bad request test #2",
+			name: "Not found test #3",
 			args: args{
 				requests: []string{
 					"/update/gauge/Alloc/222.33/111",
 				},
 				contentType: "text/plain",
 			},
-			wantStatus:      http.StatusBadRequest,
-			wantContentType: "text/plain",
+			wantStatus:      http.StatusNotFound,
+			wantContentType: "text/plain; charset=utf-8",
 		},
 	}
 
@@ -78,8 +79,14 @@ func TestServer_CollectHandler(t *testing.T) {
 				storage.NewMemStorage(),
 			))
 
-			router := http.NewServeMux()
-			router.HandleFunc("/update/", h.CollectHandler)
+			router := mux.NewRouter()
+			router.Use(func(next http.Handler) http.Handler {
+				return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", tt.args.contentType)
+					next.ServeHTTP(w, r)
+				})
+			})
+			router.HandleFunc("/update/{type}/{name}/{value}", h.CollectHandler)
 
 			svr := httptest.NewServer(router)
 			defer svr.Close()

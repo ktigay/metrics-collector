@@ -1,20 +1,33 @@
 package main
 
 import (
+	"github.com/gorilla/mux"
+
 	"github.com/ktigay/metrics-collector/internal/server"
 	"github.com/ktigay/metrics-collector/internal/server/collector"
 	"github.com/ktigay/metrics-collector/internal/server/storage"
+
 	"net/http"
 )
 
 func main() {
 	c := collector.NewMetricCollector(storage.NewMemStorage())
-	server := server.NewServer(c)
+	s := server.NewServer(c)
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/update/", server.CollectHandler)
+	router := mux.NewRouter()
 
-	err := http.ListenAndServe(":8080", mux)
+	router.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("content-type", "text/plain; charset=utf-8")
+			next.ServeHTTP(w, r)
+		})
+	})
+
+	router.HandleFunc("/update/{type}/{name}/{value}", s.CollectHandler).Methods(http.MethodPost)
+	router.HandleFunc("/value/{type}/{name}", s.GetValueHandler).Methods(http.MethodGet)
+	router.HandleFunc("/", s.GetAllHandler).Methods(http.MethodGet)
+
+	err := http.ListenAndServe(":8080", router)
 	if err != nil {
 		panic(err)
 	}

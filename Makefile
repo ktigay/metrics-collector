@@ -16,12 +16,15 @@ run-test-s:
 
 run-test-a: \
 	run-test-a1 \
-	run-test-a2
+	run-test-a2 \
+	run-test-a3
 
 run-test-a1:
 	metricstest -test.v -test.run=^TestIteration1$$ -binary-path=./cmd/server/server
 run-test-a2:
 	metricstest -test.v -test.run=^TestIteration2[AB]*$$ -source-path=. -agent-binary-path=./cmd/agent/agent
+run-test-a3:
+	metricstest -test.v -test.run=^TestIteration3[AB]*$$ -source-path=. -agent-binary-path=cmd/agent/agent -binary-path=cmd/server/server
 
 update-tpl:
 	# git remote add -m main template https://github.com/Yandex-Practicum/go-musthave-metrics-tpl.git
