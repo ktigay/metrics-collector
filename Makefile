@@ -1,4 +1,4 @@
-SERVER_PORT=8080
+SERVER_PORT=12345
 
 build:
 	go build -o ./cmd/server/server ./cmd/server/*.go

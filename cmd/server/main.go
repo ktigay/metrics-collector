@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/gorilla/mux"
+	"log"
 
 	"github.com/ktigay/metrics-collector/internal/server"
 	"github.com/ktigay/metrics-collector/internal/server/collector"
@@ -11,6 +12,11 @@ import (
 )
 
 func main() {
+
+	if err := parseFlags(); err != nil {
+		log.Fatal(err)
+	}
+
 	c := collector.NewMetricCollector(storage.NewMemStorage())
 	s := server.NewServer(c)
 
@@ -27,7 +33,7 @@ func main() {
 	router.HandleFunc("/value/{type}/{name}", s.GetValueHandler).Methods(http.MethodGet)
 	router.HandleFunc("/", s.GetAllHandler).Methods(http.MethodGet)
 
-	err := http.ListenAndServe(":8080", router)
+	err := http.ListenAndServe(config.ServerHost, router)
 	if err != nil {
 		panic(err)
 	}
