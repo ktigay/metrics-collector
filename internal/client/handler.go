@@ -26,35 +26,37 @@ func NewMetricHandler(url string) *MetricHandler {
 }
 
 // SendMetrics - отправляет метрики на сервер.
-func (ms *MetricHandler) SendMetrics(c collector.MetricCollectDTO) {
-	ms.sendGaugeMetrics(c)
-	ms.sendRand(c)
-	ms.sendCounter(c)
+func (mh *MetricHandler) SendMetrics(c collector.MetricCollectDTO) {
+	mh.sendGaugeMetrics(c)
+	mh.sendRand(c)
+	mh.sendCounter(c)
 }
 
-func (ms *MetricHandler) sendGaugeMetrics(c collector.MetricCollectDTO) {
+func (mh *MetricHandler) sendGaugeMetrics(c collector.MetricCollectDTO) {
 	for n, m := range c.MemStats {
 		func() {
-			ms.post(fmt.Sprintf(ms.url+"/update/%s/%s/%v", metric.TypeGauge, n, m))
+			mh.post(fmt.Sprintf(mh.url+"/update/%s/%s/%v", metric.TypeGauge, n, m))
 		}()
 	}
 }
 
-func (ms *MetricHandler) sendRand(c collector.MetricCollectDTO) {
-	ms.post(fmt.Sprintf(ms.url+"/update/%s/%s/%v", metric.TypeGauge, metric.RandomValue, c.Rand))
+func (mh *MetricHandler) sendRand(c collector.MetricCollectDTO) {
+	mh.post(fmt.Sprintf(mh.url+"/update/%s/%s/%v", metric.TypeGauge, metric.RandomValue, c.Rand))
 }
 
-func (ms *MetricHandler) sendCounter(c collector.MetricCollectDTO) {
-	ms.post(fmt.Sprintf(ms.url+"/update/%s/%s/%d", metric.TypeCounter, metric.PollCount, c.Counter))
+func (mh *MetricHandler) sendCounter(c collector.MetricCollectDTO) {
+	mh.post(fmt.Sprintf(mh.url+"/update/%s/%s/%d", metric.TypeCounter, metric.PollCount, c.Counter))
 }
 
-func (ms *MetricHandler) post(url string) {
+func (mh *MetricHandler) post(url string) {
 	body := strings.NewReader("")
 	resp, err := http.Post(url, contentType, body)
 	if err != nil {
 		log.Print(err)
 	}
 	defer func() {
-		_ = resp.Body.Close()
+		if resp != nil {
+			_ = resp.Body.Close()
+		}
 	}()
 }

@@ -7,18 +7,16 @@ import (
 	"time"
 )
 
-const (
-	serverURL      = "http://127.0.0.1:8080"
-	pollInterval   = 2
-	reportInterval = 10
-)
-
 func main() {
+	if err := parseFlags(); err != nil {
+		panic(err)
+	}
+
 	var wg sync.WaitGroup
 	wg.Add(2)
 
 	c := collector.NewRuntimeMetricCollector()
-	h := client.NewMetricHandler(serverURL)
+	h := client.NewMetricHandler(config.ServerProtocol + "://" + config.ServerHost)
 	go pollStat(c)
 	go sendStat(c, h)
 
@@ -28,13 +26,13 @@ func main() {
 func pollStat(c *collector.RuntimeMetricCollector) {
 	for {
 		c.PollStat()
-		time.Sleep(time.Duration(pollInterval) * time.Second)
+		time.Sleep(time.Duration(config.PollInterval) * time.Second)
 	}
 }
 
 func sendStat(c *collector.RuntimeMetricCollector, h *client.MetricHandler) {
 	for {
-		time.Sleep(time.Duration(reportInterval) * time.Second)
+		time.Sleep(time.Duration(config.ReportInterval) * time.Second)
 		h.SendMetrics(c.GetStat())
 	}
 }

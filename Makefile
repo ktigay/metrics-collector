@@ -1,3 +1,5 @@
+SERVER_PORT=8080
+
 build:
 	go build -o ./cmd/server/server ./cmd/server/*.go
 	go build -o ./cmd/agent/agent ./cmd/agent/*.go
@@ -17,14 +19,17 @@ run-test-s:
 run-test-a: \
 	run-test-a1 \
 	run-test-a2 \
-	run-test-a3
+	run-test-a3 \
+	run-test-a4
 
 run-test-a1:
 	metricstest -test.v -test.run=^TestIteration1$$ -binary-path=./cmd/server/server
 run-test-a2:
 	metricstest -test.v -test.run=^TestIteration2[AB]*$$ -source-path=. -agent-binary-path=./cmd/agent/agent
 run-test-a3:
-	metricstest -test.v -test.run=^TestIteration3[AB]*$$ -source-path=. -agent-binary-path=cmd/agent/agent -binary-path=cmd/server/server
+	metricstest -test.v -test.run=^TestIteration3[AB]*$$ -source-path=. -agent-binary-path=./cmd/agent/agent -binary-path=./cmd/server/server
+run-test-a4:
+	metricstest -test.v -test.run=^TestIteration4$$ -agent-binary-path=./cmd/agent/agent -binary-path=./cmd/server/server -server-port=$(SERVER_PORT) -source-path=.
 
 update-tpl:
 	# git remote add -m main template https://github.com/Yandex-Practicum/go-musthave-metrics-tpl.git
