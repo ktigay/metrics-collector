@@ -3,7 +3,6 @@ package main
 import (
 	"github.com/ktigay/metrics-collector/internal/client"
 	"github.com/ktigay/metrics-collector/internal/client/collector"
-	"sync"
 	"time"
 )
 
@@ -12,15 +11,11 @@ func main() {
 		panic(err)
 	}
 
-	var wg sync.WaitGroup
-	wg.Add(2)
-
 	c := collector.NewRuntimeMetricCollector()
 	h := client.NewMetricHandler(config.ServerProtocol + "://" + config.ServerHost)
 	go pollStat(c)
-	go sendStat(c, h)
 
-	wg.Wait()
+	sendStat(c, h)
 }
 
 func pollStat(c *collector.RuntimeMetricCollector) {
