@@ -5,13 +5,15 @@ import (
 	"fmt"
 	"os"
 	"slices"
+
+	"github.com/caarlos0/env/v6"
 )
 
 var config = struct {
 	ServerProtocol string
-	ServerHost     string
-	ReportInterval int
-	PollInterval   int
+	ServerHost     string `env:"ADDRESS"`
+	ReportInterval int    `env:"REPORT_INTERVAL"`
+	PollInterval   int    `env:"POLL_INTERVAL"`
 }{
 	ServerProtocol: "http",
 }
@@ -24,6 +26,10 @@ func parseFlags() error {
 	flag.IntVar(&config.PollInterval, "p", 2, "interval between polls")
 
 	flag.Parse()
+
+	if err := env.Parse(&config); err != nil {
+		return err
+	}
 
 	if config.ServerHost == "" {
 		return fmt.Errorf("host flag is required")

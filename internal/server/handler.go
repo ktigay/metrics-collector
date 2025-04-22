@@ -71,6 +71,7 @@ func (c *Server) GetValueHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(dto.GetValue()))
 }
 
+// GetAllHandler - обработчик для получения списка метрик.
 func (c *Server) GetAllHandler(w http.ResponseWriter, r *http.Request) {
 	metrics := c.collector.GetAll()
 
