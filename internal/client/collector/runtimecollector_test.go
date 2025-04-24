@@ -17,7 +17,7 @@ func TestRuntimeMetricCollector_PollStat(t *testing.T) {
 		want   uint64
 	}{
 		{
-			name: "Positive test",
+			name: "Positive_test",
 			fields: fields{
 				stat: MetricCollectDTO{
 					MemStats: map[metric.GaugeMetric]float64{},

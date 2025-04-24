@@ -1,23 +1,30 @@
 package server
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/ktigay/metrics-collector/internal/metric"
-	"github.com/ktigay/metrics-collector/internal/server/collector"
-	"github.com/ktigay/metrics-collector/internal/server/metric/item"
+	"github.com/ktigay/metrics-collector/internal/server/storage"
 	"net/http"
 	"strconv"
-	"strings"
 )
+
+// CollectorInterface - Интерфейс сборщика статистики.
+type CollectorInterface interface {
+	Save(t metric.Type, n string, v any) error
+	GetAll() map[string]*storage.Entity
+	FindByKey(key string) (*storage.Entity, error)
+}
 
 // Server - структура с обработчиками запросов.
 type Server struct {
-	collector *collector.MetricCollector
+	collector CollectorInterface
 }
 
 // NewServer - конструктор.
-func NewServer(collector *collector.MetricCollector) Server {
-	return Server{collector}
+func NewServer(collector CollectorInterface) *Server {
+	return &Server{collector}
 }
 
 // CollectHandler - обработчик для сборка метрик.
@@ -35,13 +42,7 @@ func (c *Server) CollectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	m := item.MetricDTO{
-		Type:  t,
-		Name:  vars["name"],
-		Value: vars["value"],
-	}
-
-	if err := c.collector.Save(m); err != nil {
+	if err := c.collector.Save(t, vars["name"], vars["value"]); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -58,28 +59,28 @@ func (c *Server) GetValueHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	dto, err := c.collector.FindByKey(metric.GetKey(vars["type"], vars["name"]))
+	entity, err := c.collector.FindByKey(metric.GetKey(vars["type"], vars["name"]))
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 	}
-	if dto == nil {
+	if entity == nil {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(dto.GetValue()))
+	w.Write([]byte(fmt.Sprintf("%v", entity.GetValue())))
 }
 
 // GetAllHandler - обработчик для получения списка метрик.
 func (c *Server) GetAllHandler(w http.ResponseWriter, r *http.Request) {
 	metrics := c.collector.GetAll()
 
-	names := make([]string, 0)
+	names := make([]string, len(metrics))
 	for _, m := range metrics {
 		names = append(names, m.Name)
 	}
 
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(strings.Join(names, "\n")))
+	json.NewEncoder(w).Encode(names)
 }

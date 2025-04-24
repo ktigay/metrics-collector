@@ -2,7 +2,6 @@ package collector
 
 import (
 	"github.com/ktigay/metrics-collector/internal/metric"
-	"github.com/ktigay/metrics-collector/internal/server/metric/item"
 	"github.com/ktigay/metrics-collector/internal/server/storage"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -13,16 +12,20 @@ func TestMetricCollector_Save(t *testing.T) {
 		metrics map[string]*storage.Entity
 	}
 	type args struct {
-		m []item.MetricDTO
+		m []struct {
+			Type  metric.Type
+			Name  string
+			Value string
+		}
 	}
 	tests := []struct {
 		name   string
 		fields fields
 		args   args
-		want   map[string]item.MetricDTO
+		want   map[string]*storage.Entity
 	}{
 		{
-			name: "Positive test",
+			name: "Positive_test",
 			fields: fields{
 				metrics: map[string]*storage.Entity{
 					"counter:PollCount": {
@@ -40,7 +43,11 @@ func TestMetricCollector_Save(t *testing.T) {
 				},
 			},
 			args: args{
-				m: []item.MetricDTO{
+				m: []struct {
+					Type  metric.Type
+					Name  string
+					Value string
+				}{
 					{
 						Type:  metric.TypeCounter,
 						Name:  metric.PollCount,
@@ -58,21 +65,24 @@ func TestMetricCollector_Save(t *testing.T) {
 					},
 				},
 			},
-			want: map[string]item.MetricDTO{
+			want: map[string]*storage.Entity{
 				"counter:PollCount": {
+					Key:   "counter:PollCount",
 					Type:  metric.TypeCounter,
 					Name:  metric.PollCount,
-					Value: "9",
+					Value: int64(9),
 				},
 				"gauge:Alloc": {
+					Key:   "gauge:Alloc",
 					Type:  metric.TypeGauge,
 					Name:  string(metric.Alloc),
-					Value: "12",
+					Value: 12.000,
 				},
 				"gauge:BuckHashSys": {
+					Key:   "gauge:BuckHashSys",
 					Type:  metric.TypeGauge,
 					Name:  string(metric.BuckHashSys),
-					Value: "22",
+					Value: 22.000,
 				},
 			},
 		},
@@ -84,7 +94,7 @@ func TestMetricCollector_Save(t *testing.T) {
 			})
 
 			for _, m := range tt.args.m {
-				_ = c.Save(m)
+				_ = c.Save(m.Type, m.Name, m.Value)
 			}
 
 			assert.Equal(t, tt.want, c.GetAll())

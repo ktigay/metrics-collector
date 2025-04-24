@@ -1,9 +1,17 @@
 package metric
 
+import "fmt"
+
+// Type - тип метрики.
+type Type string
+
 // GaugeMetric - тип собираемых метрик.
 type GaugeMetric string
 
 const (
+	TypeGauge   Type = "gauge"
+	TypeCounter Type = "counter"
+
 	Alloc         GaugeMetric = "Alloc"
 	BuckHashSys   GaugeMetric = "BuckHashSys"
 	Frees         GaugeMetric = "Frees"
@@ -39,4 +47,21 @@ const (
 // String - название метрики в строку.
 func (m GaugeMetric) String() string {
 	return string(m)
+}
+
+// ResolveType - получает из строки тип.
+func ResolveType(s string) (m Type, err error) {
+	switch s {
+	case string(TypeGauge):
+		return TypeGauge, nil
+	case string(TypeCounter):
+		return TypeCounter, nil
+	default:
+		return m, fmt.Errorf("unknown metric type: %s", s)
+	}
+}
+
+// GetKey - возвращает ключ по типу и наименованию метрики.
+func GetKey(mType string, mName string) string {
+	return string(mType) + ":" + mName
 }

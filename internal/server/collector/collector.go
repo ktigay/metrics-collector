@@ -1,8 +1,8 @@
 package collector
 
 import (
+	"errors"
 	"github.com/ktigay/metrics-collector/internal/metric"
-	"github.com/ktigay/metrics-collector/internal/server/metric/item"
 	"github.com/ktigay/metrics-collector/internal/server/storage"
 	"strconv"
 )
@@ -25,36 +25,52 @@ func NewMetricCollector(storage StorageInterface) *MetricCollector {
 }
 
 // Save - собирает статистику.
-func (c *MetricCollector) Save(m item.MetricDTO) error {
-	k := m.GetKey()
+func (c *MetricCollector) Save(t metric.Type, n string, v any) error {
+	k := metric.GetKey(string(t), n)
 	memItem, err := c.storage.FindByKey(k)
 	if err != nil {
 		return err
 	}
 
 	if memItem == nil {
-		memItem = &storage.Entity{}
-		memItem.Key = m.GetKey()
-		memItem.Name = m.Name
-		memItem.Type = m.Type
+		memItem = &storage.Entity{
+			Key:  k,
+			Name: n,
+			Type: t,
+		}
 	}
 
-	switch m.Type {
+	switch t {
 	case metric.TypeCounter:
-		if v, err := strconv.ParseInt(m.Value, 10, 64); err == nil {
-			if memItem.Value == nil {
-				memItem.Value = v
-			} else {
-				memItem.Value = memItem.Value.(int64) + v
+		var val int64
+		switch t := v.(type) {
+		case string:
+			val, err = strconv.ParseInt(t, 10, 64)
+			if err != nil {
+				return err
 			}
+		case int64:
+			val = t
+		default:
+			return errors.New("invalid type")
+		}
+
+		if memItem.Value == nil {
+			memItem.Value = val
 		} else {
-			return err
+			memItem.Value = memItem.Value.(int64) + val
 		}
 	case metric.TypeGauge:
-		if v, err := strconv.ParseFloat(m.Value, 64); err == nil {
-			memItem.Value = v
-		} else {
-			return err
+		switch t := v.(type) {
+		case string:
+			memItem.Value, err = strconv.ParseFloat(t, 64)
+			if err != nil {
+				return err
+			}
+		case float64:
+			memItem.Value = t
+		default:
+			return errors.New("invalid type")
 		}
 	}
 
@@ -62,22 +78,12 @@ func (c *MetricCollector) Save(m item.MetricDTO) error {
 }
 
 // GetAll - возвращает все записи в виде DTO.
-func (c *MetricCollector) GetAll() map[string]item.MetricDTO {
-	entities := c.storage.GetAll()
-	dtoMap := make(map[string]item.MetricDTO, len(entities))
-	for key, m := range entities {
-		dtoMap[key] = item.MetricDTO{
-			Name:  m.Name,
-			Type:  m.Type,
-			Value: m.GetValueAsString(),
-		}
-	}
-
-	return dtoMap
+func (c *MetricCollector) GetAll() map[string]*storage.Entity {
+	return c.storage.GetAll()
 }
 
 // FindByKey - находит запись по ключу.
-func (c *MetricCollector) FindByKey(key string) (*item.MetricDTO, error) {
+func (c *MetricCollector) FindByKey(key string) (*storage.Entity, error) {
 	entity, err := c.storage.FindByKey(key)
 	if err != nil {
 		return nil, err
@@ -86,9 +92,5 @@ func (c *MetricCollector) FindByKey(key string) (*item.MetricDTO, error) {
 		return nil, nil
 	}
 
-	return &item.MetricDTO{
-		Name:  entity.Name,
-		Type:  entity.Type,
-		Value: entity.GetValueAsString(),
-	}, nil
+	return entity, nil
 }

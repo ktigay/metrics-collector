@@ -23,7 +23,7 @@ func TestServer_CollectHandler(t *testing.T) {
 		wantContentType string
 	}{
 		{
-			name: "Positive test",
+			name: "Positive_test",
 			args: args{
 				requests: []string{
 					"/update/gauge/Alloc/122.1",
@@ -39,7 +39,7 @@ func TestServer_CollectHandler(t *testing.T) {
 			wantContentType: "text/plain",
 		},
 		{
-			name: "Not found test",
+			name: "Not_found_test",
 			args: args{
 				requests: []string{
 					"/update/gauge/",
@@ -50,7 +50,7 @@ func TestServer_CollectHandler(t *testing.T) {
 			wantContentType: "text/plain; charset=utf-8",
 		},
 		{
-			name: "Not found test #2",
+			name: "Not_found_test_#2",
 			args: args{
 				requests: []string{
 					"/update/gauge/222.33",
@@ -61,7 +61,7 @@ func TestServer_CollectHandler(t *testing.T) {
 			wantContentType: "text/plain; charset=utf-8",
 		},
 		{
-			name: "Not found test #3",
+			name: "Not_found_test_#3",
 			args: args{
 				requests: []string{
 					"/update/gauge/Alloc/222.33/111",

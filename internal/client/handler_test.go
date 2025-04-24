@@ -21,7 +21,7 @@ func TestMetricSender_sendCounter(t *testing.T) {
 		want string
 	}{
 		{
-			name: "Positive test",
+			name: "Positive_test",
 			args: args{
 				c: collector.MetricCollectDTO{
 					Counter: 15,
@@ -59,7 +59,7 @@ func TestMetricSender_sendGaugeMetrics(t *testing.T) {
 		want string
 	}{
 		{
-			name: "Positive test",
+			name: "Positive_test",
 			args: args{
 				c: collector.MetricCollectDTO{
 					MemStats: map[metric.GaugeMetric]float64{
@@ -70,7 +70,7 @@ func TestMetricSender_sendGaugeMetrics(t *testing.T) {
 			want: "/update/gauge/Alloc/12.345",
 		},
 		{
-			name: "Positive test #2",
+			name: "Positive_test_#2",
 			args: args{
 				c: collector.MetricCollectDTO{
 					MemStats: map[metric.GaugeMetric]float64{
@@ -110,7 +110,7 @@ func TestMetricSender_sendRand(t *testing.T) {
 		want string
 	}{
 		{
-			name: "Positive test",
+			name: "Positive_test",
 			args: args{
 				c: collector.MetricCollectDTO{
 					Rand: 1222.222,
@@ -145,14 +145,14 @@ func TestNewMetricHandler(t *testing.T) {
 	tests := []struct {
 		name string
 		args args
-		want *MetricHandler
+		want *Sender
 	}{
 		{
-			name: "Positive test",
+			name: "Positive_test",
 			args: args{
 				url: "http://localhost",
 			},
-			want: &MetricHandler{
+			want: &Sender{
 				url: "http://localhost",
 			},
 		},

@@ -6,22 +6,31 @@ import (
 	"github.com/caarlos0/env/v6"
 )
 
-var config = struct {
+const (
+	defaultServerHost = ":8080"
+)
+
+// Config - конфигурация сервера.
+type Config struct {
 	ServerHost string `env:"ADDRESS"`
-}{}
+}
 
-func parseFlags() error {
-	flag.StringVar(&config.ServerHost, "a", ":8080", "address and port to run server")
+func parseFlags(args []string) (*Config, error) {
+	config := &Config{}
+	flags := flag.NewFlagSet("server flags", flag.ContinueOnError)
+	flags.StringVar(&config.ServerHost, "a", defaultServerHost, "address and port to run server")
 
-	flag.Parse()
+	if err := flags.Parse(args); err != nil {
+		return nil, err
+	}
 
-	if err := env.Parse(&config); err != nil {
-		return err
+	if err := env.Parse(config); err != nil {
+		return nil, err
 	}
 
 	if config.ServerHost == "" {
-		return fmt.Errorf("host flag is required")
+		return nil, fmt.Errorf("host flag is required")
 	}
 
-	return nil
+	return config, nil
 }

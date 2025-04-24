@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/gorilla/mux"
 	"log"
+	"os"
 
 	"github.com/ktigay/metrics-collector/internal/server"
 	"github.com/ktigay/metrics-collector/internal/server/collector"
@@ -12,8 +13,8 @@ import (
 )
 
 func main() {
-
-	if err := parseFlags(); err != nil {
+	config, err := parseFlags(os.Args[1:])
+	if err != nil {
 		log.Fatal(err)
 	}
 
@@ -33,8 +34,7 @@ func main() {
 	router.HandleFunc("/value/{type}/{name}", s.GetValueHandler).Methods(http.MethodGet)
 	router.HandleFunc("/", s.GetAllHandler).Methods(http.MethodGet)
 
-	err := http.ListenAndServe(config.ServerHost, router)
-	if err != nil {
-		panic(err)
+	if err := http.ListenAndServe(config.ServerHost, router); err != nil {
+		log.Fatal(err)
 	}
 }

@@ -3,48 +3,56 @@ package main
 import (
 	"flag"
 	"fmt"
-	"os"
-	"slices"
-
 	"github.com/caarlos0/env/v6"
+	"strings"
 )
 
-var config = struct {
+const (
+	defaultServerHost     = "localhost:8080"
+	defaultReportInterval = 10
+	defaultPollInterval   = 2
+	defaultServerProtocol = "http"
+)
+
+// Config - конфигурация клиента.
+type Config struct {
 	ServerProtocol string
 	ServerHost     string `env:"ADDRESS"`
 	ReportInterval int    `env:"REPORT_INTERVAL"`
 	PollInterval   int    `env:"POLL_INTERVAL"`
-}{
-	ServerProtocol: "http",
 }
 
-var flags = []string{"a", "r", "p"}
-
-func parseFlags() error {
-	flag.StringVar(&config.ServerHost, "a", "localhost:8080", "address and port to run server")
-	flag.IntVar(&config.ReportInterval, "r", 10, "interval between reports")
-	flag.IntVar(&config.PollInterval, "p", 2, "interval between polls")
-
-	flag.Parse()
-
-	if err := env.Parse(&config); err != nil {
-		return err
+func parseFlags(args []string) (*Config, error) {
+	config := &Config{
+		ServerProtocol: defaultServerProtocol,
 	}
+
+	flags := flag.NewFlagSet("agent flags", flag.ContinueOnError)
+
+	flags.StringVar(&config.ServerHost, "a", defaultServerHost, "address and port to run server")
+	flags.IntVar(&config.ReportInterval, "r", defaultReportInterval, "interval between reports")
+	flags.IntVar(&config.PollInterval, "p", defaultPollInterval, "interval between polls")
+
+	err := flags.Parse(args)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := env.Parse(config); err != nil {
+		return nil, err
+	}
+
+	config.ServerHost = strings.TrimSpace(config.ServerHost)
 
 	if config.ServerHost == "" {
-		return fmt.Errorf("host flag is required")
+		return nil, fmt.Errorf("host flag is required")
 	}
 	if config.ReportInterval < 1 {
-		return fmt.Errorf("report interval flag is required")
+		return nil, fmt.Errorf("report interval flag is required")
 	}
 	if config.PollInterval < 1 {
-		return fmt.Errorf("poll interval flag is required")
+		return nil, fmt.Errorf("poll interval flag is required")
 	}
 
-	for _, v := range os.Args[1:] {
-		if !slices.Contains(flags, v[1:2]) {
-			return fmt.Errorf("unknown flag: %s", v)
-		}
-	}
-	return nil
+	return config, nil
 }

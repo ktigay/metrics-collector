@@ -7,22 +7,32 @@ import (
 
 // Entity - сущность для сохранения в storage.
 type Entity struct {
-	Key   string
+	Key   string `json:",omitempty"`
 	Type  metric.Type
 	Name  string
-	Value interface{}
+	Value any
 }
 
-// GetValueAsString - возвращает значение как строку.
-func (s *Entity) GetValueAsString() string {
-	if s == nil {
+// GetKey - возвращает уникальный ключ метрики.
+func (e *Entity) GetKey() string {
+	return metric.GetKey(string(e.Type), e.Name)
+}
+
+// GetValue - возвращает значение.
+func (e *Entity) GetValue() any {
+	return e.Value
+}
+
+// ValueAsString - возвращает значение как строку.
+func (e *Entity) ValueAsString() string {
+	if e == nil {
 		return ""
 	}
-	switch s.Value.(type) {
+	switch e.Value.(type) {
 	case int64:
-		return fmt.Sprintf("%d", s.Value)
+		return fmt.Sprintf("%d", e.Value)
 	case float64:
-		return fmt.Sprintf("%g", s.Value)
+		return fmt.Sprintf("%g", e.Value)
 	}
 	return ""
 }

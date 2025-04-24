@@ -16,7 +16,7 @@ func TestResolveType(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "Positive test",
+			name: "Positive_test",
 			args: args{
 				s: "gauge",
 			},
