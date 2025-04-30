@@ -6,6 +6,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/ktigay/metrics-collector/internal/metric"
 	"github.com/ktigay/metrics-collector/internal/server/storage"
+	"go.uber.org/zap"
 	"net/http"
 	"strconv"
 )
@@ -20,11 +21,12 @@ type CollectorInterface interface {
 // Server - структура с обработчиками запросов.
 type Server struct {
 	collector CollectorInterface
+	logger    *zap.Logger
 }
 
 // NewServer - конструктор.
-func NewServer(collector CollectorInterface) *Server {
-	return &Server{collector}
+func NewServer(collector CollectorInterface, logger *zap.Logger) *Server {
+	return &Server{collector, logger}
 }
 
 // CollectHandler - обработчик для сборка метрик.
@@ -69,18 +71,22 @@ func (c *Server) GetValueHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(fmt.Sprintf("%v", entity.GetValue())))
+	if _, err := fmt.Fprintf(w, "%v", entity.GetValue()); err != nil {
+		c.logger.Sugar().Errorln("Failed to write response", zap.Error(err))
+	}
 }
 
 // GetAllHandler - обработчик для получения списка метрик.
-func (c *Server) GetAllHandler(w http.ResponseWriter, r *http.Request) {
+func (c *Server) GetAllHandler(w http.ResponseWriter, _ *http.Request) {
 	metrics := c.collector.GetAll()
 
-	names := make([]string, len(metrics))
+	names := make([]string, 0, len(metrics))
 	for _, m := range metrics {
 		names = append(names, m.Name)
 	}
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(names)
+	if err := json.NewEncoder(w).Encode(names); err != nil {
+		c.logger.Sugar().Errorln("Failed to write response", zap.Error(err))
+	}
 }

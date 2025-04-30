@@ -5,6 +5,7 @@ import (
 	"github.com/ktigay/metrics-collector/internal/server/collector"
 	"github.com/ktigay/metrics-collector/internal/server/storage"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -75,9 +76,12 @@ func TestServer_CollectHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			h := NewServer(collector.NewMetricCollector(
-				storage.NewMemStorage(),
-			))
+			h := NewServer(
+				collector.NewMetricCollector(
+					storage.NewMemStorage(),
+				),
+				zap.NewNop(),
+			)
 
 			router := mux.NewRouter()
 			router.Use(func(next http.Handler) http.Handler {
