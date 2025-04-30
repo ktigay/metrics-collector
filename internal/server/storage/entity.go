@@ -7,7 +7,7 @@ import (
 
 // Entity - сущность для сохранения в storage.
 type Entity struct {
-	Key   string `json:",omitempty"`
+	Key   string
 	Type  metric.Type
 	Name  string
 	Value any
