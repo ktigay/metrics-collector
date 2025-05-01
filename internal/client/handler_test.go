@@ -35,7 +35,7 @@ func TestMetricSender_sendCounter(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 
 			router := http.NewServeMux()
-			router.HandleFunc("/update/", func(writer http.ResponseWriter, request *http.Request) {
+			router.HandleFunc("/update/{type}/{name}/{value}", func(writer http.ResponseWriter, request *http.Request) {
 				require.Equal(t, http.MethodPost, request.Method)
 				assert.Equal(t, tt.want, request.RequestURI)
 			})
@@ -86,7 +86,7 @@ func TestMetricSender_sendGaugeMetrics(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 
 			router := http.NewServeMux()
-			router.HandleFunc("/update/", func(writer http.ResponseWriter, request *http.Request) {
+			router.HandleFunc("/update/{type}/{name}/{value}", func(writer http.ResponseWriter, request *http.Request) {
 				require.Equal(t, http.MethodPost, request.Method)
 				assert.Equal(t, tt.want, request.RequestURI)
 			})
@@ -124,7 +124,7 @@ func TestMetricSender_sendRand(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 
 			router := http.NewServeMux()
-			router.HandleFunc("/update/", func(writer http.ResponseWriter, request *http.Request) {
+			router.HandleFunc("/update/{type}/{name}/{value}", func(writer http.ResponseWriter, request *http.Request) {
 				require.Equal(t, http.MethodPost, request.Method)
 				assert.Equal(t, tt.want, request.RequestURI)
 			})

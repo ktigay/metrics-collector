@@ -61,7 +61,7 @@ func (c *Server) GetValueHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	entity, err := c.collector.FindByKey(metric.GetKey(vars["type"], vars["name"]))
+	entity, err := c.collector.FindByKey(metric.Key(vars["type"], vars["name"]))
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 	}
@@ -88,5 +88,86 @@ func (c *Server) GetAllHandler(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(names); err != nil {
 		c.logger.Sugar().Errorln("Failed to write response", zap.Error(err))
+	}
+}
+
+// UpdateJSONHandler обработчик обновления метрики.
+func (c *Server) UpdateJSONHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Header.Get("content-type") != "application/json" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("content-type", "application/json")
+
+	sugar := c.logger.Sugar()
+	m := new(metric.Metrics)
+
+	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
+		sugar.Errorln("Failed to write response", zap.Error(err))
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	t, err := metric.ResolveType(m.MType)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		sugar.Errorln("resolve type error", zap.Error(err))
+		return
+	}
+
+	if err := c.collector.Save(t, m.ID, m.ValueByType()); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	entity, err := c.collector.FindByKey(m.Key())
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if entity == nil {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+
+	um := mapEntityToMetrics(*entity)
+	if err := json.NewEncoder(w).Encode(um); err != nil {
+		sugar.Errorln("Failed to write response", zap.Error(err))
+	}
+}
+
+func (c *Server) GetJSONValueHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Header.Get("content-type") != "application/json" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("content-type", "application/json")
+	sugar := c.logger.Sugar()
+
+	var m metric.Metrics
+	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	entity, err := c.collector.FindByKey(m.Key())
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if entity == nil {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+
+	um := mapEntityToMetrics(*entity)
+	if err := json.NewEncoder(w).Encode(um); err != nil {
+		sugar.Errorln("Failed to write response", zap.Error(err))
 	}
 }

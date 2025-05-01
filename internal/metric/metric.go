@@ -61,7 +61,31 @@ func ResolveType(s string) (m Type, err error) {
 	}
 }
 
-// GetKey - возвращает ключ по типу и наименованию метрики.
-func GetKey(mType string, mName string) string {
-	return string(mType) + ":" + mName
+// Key - возвращает ключ по типу и наименованию метрики.
+func Key(mType string, mName string) string {
+	return mType + ":" + mName
+}
+
+// Metrics структура для обновления метрик.
+type Metrics struct {
+	ID    string   `json:"id"`              // имя метрики
+	MType string   `json:"type"`            // параметр, принимающий значение gauge или counter
+	Delta *int64   `json:"delta,omitempty"` // значение метрики в случае передачи counter
+	Value *float64 `json:"value,omitempty"` // значение метрики в случае передачи gauge
+}
+
+// ValueByType значение метрики в зависимости от типа.
+func (m *Metrics) ValueByType() any {
+	switch m.MType {
+	case string(TypeGauge):
+		return *m.Value
+	case string(TypeCounter):
+		return *m.Delta
+	}
+	return nil
+}
+
+// Key ключ метрики.
+func (m *Metrics) Key() string {
+	return Key(m.MType, m.ID)
 }

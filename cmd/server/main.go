@@ -2,20 +2,20 @@ package main
 
 import (
 	"github.com/gorilla/mux"
+	"github.com/ktigay/metrics-collector/internal/server"
+	"github.com/ktigay/metrics-collector/internal/server/collector"
+	"github.com/ktigay/metrics-collector/internal/server/logger"
+	"github.com/ktigay/metrics-collector/internal/server/middleware"
+	"github.com/ktigay/metrics-collector/internal/server/storage"
 	"go.uber.org/zap"
 	"log"
 	"os"
-
-	"github.com/ktigay/metrics-collector/internal/server"
-	"github.com/ktigay/metrics-collector/internal/server/collector"
-	"github.com/ktigay/metrics-collector/internal/server/midleware"
-	"github.com/ktigay/metrics-collector/internal/server/storage"
 
 	"net/http"
 )
 
 func main() {
-	l, err := newLogger("info")
+	l, err := logger.Initialize("debug")
 	if err != nil {
 		log.Fatalf("can't initialize zap logger: %v", err)
 	}
@@ -35,30 +35,27 @@ func main() {
 
 	router := mux.NewRouter()
 
-	router.Use(
-		midleware.WithContentType,
-		func(next http.Handler) http.Handler {
-			return midleware.WithLogging(l, next)
-		},
-	)
-
-	router.HandleFunc("/update/{type}/{name}/{value}", s.CollectHandler).Methods(http.MethodPost)
-	router.HandleFunc("/value/{type}/{name}", s.GetValueHandler).Methods(http.MethodGet)
-	router.HandleFunc("/", s.GetAllHandler).Methods(http.MethodGet)
+	registerMiddleware(router, l)
+	registerRoutes(router, s)
 
 	if err := http.ListenAndServe(config.ServerHost, router); err != nil {
 		l.Sugar().Errorln("can't start http server:", err)
 	}
 }
 
-func newLogger(level string) (*zap.Logger, error) {
-	lvl, err := zap.ParseAtomicLevel(level)
-	if err != nil {
-		return nil, err
-	}
+func registerMiddleware(router *mux.Router, l *zap.Logger) {
+	router.Use(
+		middleware.WithContentType,
+		func(next http.Handler) http.Handler {
+			return middleware.WithLogging(l, next)
+		},
+	)
+}
 
-	cfg := zap.NewProductionConfig()
-	cfg.Level = lvl
-
-	return cfg.Build()
+func registerRoutes(router *mux.Router, s *server.Server) {
+	router.HandleFunc("/update/{type}/{name}/{value}", s.CollectHandler).Methods(http.MethodPost)
+	router.HandleFunc("/update/", s.UpdateJSONHandler).Methods(http.MethodPost)
+	router.HandleFunc("/value/{type}/{name}", s.GetValueHandler).Methods(http.MethodGet)
+	router.HandleFunc("/value/", s.GetJSONValueHandler).Methods(http.MethodPost)
+	router.HandleFunc("/", s.GetAllHandler).Methods(http.MethodGet)
 }

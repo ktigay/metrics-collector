@@ -1,4 +1,4 @@
-package midleware
+package middleware
 
 import (
 	"github.com/ktigay/metrics-collector/internal/server"
@@ -10,8 +10,11 @@ import (
 // WithContentType - устанавливает в ResponseWriter Content-Type.
 func WithContentType(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("content-type", "text/plain; charset=utf-8")
 		next.ServeHTTP(w, r)
+
+		if w.Header().Get("content-type") == "" {
+			w.Header().Set("content-type", "text/plain; charset=utf-8")
+		}
 	})
 }
 
