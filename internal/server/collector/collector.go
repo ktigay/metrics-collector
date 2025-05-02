@@ -26,7 +26,7 @@ func NewMetricCollector(storage StorageInterface) *MetricCollector {
 
 // Save - собирает статистику.
 func (c *MetricCollector) Save(t metric.Type, n string, v any) error {
-	k := metric.GetKey(string(t), n)
+	k := metric.Key(string(t), n)
 	memItem, err := c.storage.FindByKey(k)
 	if err != nil {
 		return err

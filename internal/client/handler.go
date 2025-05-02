@@ -1,16 +1,16 @@
 package client
 
 import (
-	"fmt"
+	"bytes"
+	"encoding/json"
 	"github.com/ktigay/metrics-collector/internal/client/collector"
 	"github.com/ktigay/metrics-collector/internal/metric"
 	"log"
 	"net/http"
-	"strings"
 )
 
 const (
-	contentType = "text/plain"
+	contentType = "application/json"
 )
 
 // Sender - хендлер.
@@ -34,27 +34,59 @@ func (mh *Sender) SendMetrics(c collector.MetricCollectDTO) {
 
 func (mh *Sender) sendGaugeMetrics(c collector.MetricCollectDTO) {
 	for n, m := range c.MemStats {
-		mh.post(fmt.Sprintf(mh.url+"/update/%s/%s/%v", metric.TypeGauge, n, m))
+		mh.post(mh.url+"/update/", metric.TypeGauge, string(n), m)
 	}
 }
 
 func (mh *Sender) sendRand(c collector.MetricCollectDTO) {
-	mh.post(fmt.Sprintf(mh.url+"/update/%s/%s/%v", metric.TypeGauge, metric.RandomValue, c.Rand))
+	mh.post(mh.url+"/update/", metric.TypeGauge, metric.RandomValue, c.Rand)
 }
 
 func (mh *Sender) sendCounter(c collector.MetricCollectDTO) {
-	mh.post(fmt.Sprintf(mh.url+"/update/%s/%s/%d", metric.TypeCounter, metric.PollCount, c.Counter))
+	mh.post(mh.url+"/update/", metric.TypeCounter, metric.PollCount, c.Counter)
 }
 
-func (mh *Sender) post(url string) {
-	body := strings.NewReader("")
-	resp, err := http.Post(url, contentType, body)
+func (mh *Sender) post(url string, t metric.Type, id string, v any) {
+
+	m := makeMetrics(t, id, v)
+	b, err := json.Marshal(m)
+
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	resp, err := http.Post(url, contentType, bytes.NewReader(b))
+
 	if err != nil {
 		log.Print(err)
 	}
+	if resp != nil && resp.StatusCode != http.StatusOK {
+		log.Printf("Status code is not OK %d", resp.StatusCode)
+	}
+
 	defer func() {
 		if resp != nil {
 			_ = resp.Body.Close()
 		}
 	}()
+}
+
+func makeMetrics(t metric.Type, id string, v any) metric.Metrics {
+	var delta int64
+	var val float64
+
+	switch t := v.(type) {
+	case int64:
+		delta = t
+	case float64:
+		val = t
+	}
+
+	return metric.Metrics{
+		ID:    id,
+		MType: string(t),
+		Delta: &delta,
+		Value: &val,
+	}
 }

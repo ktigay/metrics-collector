@@ -7,7 +7,7 @@ import (
 
 // Entity - сущность для сохранения в storage.
 type Entity struct {
-	Key   string `json:",omitempty"`
+	Key   string
 	Type  metric.Type
 	Name  string
 	Value any
@@ -15,7 +15,7 @@ type Entity struct {
 
 // GetKey - возвращает уникальный ключ метрики.
 func (e *Entity) GetKey() string {
-	return metric.GetKey(string(e.Type), e.Name)
+	return metric.Key(string(e.Type), e.Name)
 }
 
 // GetValue - возвращает значение.
