@@ -78,6 +78,7 @@ func (c *Server) GetValueHandler(w http.ResponseWriter, r *http.Request) {
 
 // GetAllHandler - обработчик для получения списка метрик.
 func (c *Server) GetAllHandler(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("content-type", "text/html; charset=utf-8")
 	metrics := c.collector.GetAll()
 
 	names := make([]string, 0, len(metrics))
@@ -101,7 +102,7 @@ func (c *Server) UpdateJSONHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("content-type", "application/json")
 
 	sugar := c.logger.Sugar()
-	m := new(metric.Metrics)
+	var m metric.Metrics
 
 	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
 		sugar.Errorln("Failed to write response", zap.Error(err))

@@ -1,4 +1,4 @@
-package server
+package http
 
 import "net/http"
 
@@ -8,29 +8,29 @@ type (
 		Size   int
 	}
 
-	ResponseWriter struct {
+	Writer struct {
 		http.ResponseWriter
 		responseData *ResponseData
 	}
 )
 
-// NewResponseWriter - конструктор.
-func NewResponseWriter(w http.ResponseWriter, d *ResponseData) *ResponseWriter {
-	return &ResponseWriter{
+// NewWriter - конструктор.
+func NewWriter(w http.ResponseWriter, d *ResponseData) *Writer {
+	return &Writer{
 		ResponseWriter: w,
 		responseData:   d,
 	}
 }
 
 // Write - запись ответа.
-func (r *ResponseWriter) Write(b []byte) (int, error) {
+func (r *Writer) Write(b []byte) (int, error) {
 	size, err := r.ResponseWriter.Write(b)
 	r.responseData.Size += size
 	return size, err
 }
 
 // WriteHeader устанавливает статус.
-func (r *ResponseWriter) WriteHeader(statusCode int) {
+func (r *Writer) WriteHeader(statusCode int) {
 	r.ResponseWriter.WriteHeader(statusCode)
 	r.responseData.Status = statusCode
 }

@@ -44,7 +44,7 @@ func TestMetricSender_sendCounter(t *testing.T) {
 			defer svr.Close()
 
 			c := NewMetricHandler(svr.URL)
-			c.sendCounter(tt.args.c)
+			_ = c.sendCounter(tt.args.c)
 		})
 	}
 }
@@ -95,7 +95,7 @@ func TestMetricSender_sendGaugeMetrics(t *testing.T) {
 			defer svr.Close()
 
 			c := NewMetricHandler(svr.URL)
-			c.sendGaugeMetrics(tt.args.c)
+			_ = c.sendGaugeMetrics(tt.args.c)
 		})
 	}
 }
@@ -133,7 +133,7 @@ func TestMetricSender_sendRand(t *testing.T) {
 			defer svr.Close()
 
 			c := NewMetricHandler(svr.URL)
-			c.sendRand(tt.args.c)
+			_ = c.sendRand(tt.args.c)
 		})
 	}
 }

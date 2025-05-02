@@ -15,7 +15,12 @@ import (
 )
 
 func main() {
-	l, err := logger.Initialize("debug")
+	config, err := parseFlags(os.Args[1:])
+	if err != nil {
+		log.Fatalf("can't parse flags: %v", err)
+	}
+
+	l, err := logger.Initialize(config.LogLevel)
 	if err != nil {
 		log.Fatalf("can't initialize zap logger: %v", err)
 	}
@@ -24,11 +29,6 @@ func main() {
 			log.Fatalf("can't sync logger: %v", err)
 		}
 	}()
-
-	var config *Config
-	if config, err = parseFlags(os.Args[1:]); err != nil {
-		l.Sugar().Errorln("can't parse flags: ", err)
-	}
 
 	c := collector.NewMetricCollector(storage.NewMemStorage())
 	s := server.NewServer(c, l)
@@ -49,6 +49,7 @@ func registerMiddleware(router *mux.Router, l *zap.Logger) {
 		func(next http.Handler) http.Handler {
 			return middleware.WithLogging(l, next)
 		},
+		middleware.CompressHandler,
 	)
 }
 

@@ -2,15 +2,19 @@ package client
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
+	"fmt"
 	"github.com/ktigay/metrics-collector/internal/client/collector"
 	"github.com/ktigay/metrics-collector/internal/metric"
+	"io"
 	"log"
 	"net/http"
 )
 
 const (
-	contentType = "application/json"
+	contentType     = "application/json"
+	contentEncoding = "gzip"
 )
 
 // Sender - хендлер.
@@ -27,42 +31,65 @@ func NewMetricHandler(url string) *Sender {
 
 // SendMetrics - отправляет метрики на сервер.
 func (mh *Sender) SendMetrics(c collector.MetricCollectDTO) {
-	mh.sendGaugeMetrics(c)
-	mh.sendRand(c)
-	mh.sendCounter(c)
-}
-
-func (mh *Sender) sendGaugeMetrics(c collector.MetricCollectDTO) {
-	for n, m := range c.MemStats {
-		mh.post(mh.url+"/update/", metric.TypeGauge, string(n), m)
+	if err := mh.sendGaugeMetrics(c); err != nil {
+		log.Println(err)
+		return
+	}
+	if err := mh.sendRand(c); err != nil {
+		log.Println(err)
+		return
+	}
+	if err := mh.sendCounter(c); err != nil {
+		log.Println(err)
 	}
 }
 
-func (mh *Sender) sendRand(c collector.MetricCollectDTO) {
-	mh.post(mh.url+"/update/", metric.TypeGauge, metric.RandomValue, c.Rand)
+func (mh *Sender) sendGaugeMetrics(c collector.MetricCollectDTO) error {
+	for n, m := range c.MemStats {
+		_, err := mh.post(mh.url+"/update/", metric.TypeGauge, string(n), m)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-func (mh *Sender) sendCounter(c collector.MetricCollectDTO) {
-	mh.post(mh.url+"/update/", metric.TypeCounter, metric.PollCount, c.Counter)
+func (mh *Sender) sendRand(c collector.MetricCollectDTO) error {
+	_, err := mh.post(mh.url+"/update/", metric.TypeGauge, metric.RandomValue, c.Rand)
+	return err
 }
 
-func (mh *Sender) post(url string, t metric.Type, id string, v any) {
+func (mh *Sender) sendCounter(c collector.MetricCollectDTO) error {
+	_, err := mh.post(mh.url+"/update/", metric.TypeCounter, metric.PollCount, c.Counter)
+	return err
+}
+
+func (mh *Sender) post(url string, t metric.Type, id string, v any) ([]byte, error) {
 
 	m := makeMetrics(t, id, v)
 	b, err := json.Marshal(m)
 
 	if err != nil {
-		log.Println(err)
-		return
+		return nil, err
 	}
 
-	resp, err := http.Post(url, contentType, bytes.NewReader(b))
-
+	cb, err := compress(b)
 	if err != nil {
-		log.Print(err)
+		return nil, err
 	}
-	if resp != nil && resp.StatusCode != http.StatusOK {
-		log.Printf("Status code is not OK %d", resp.StatusCode)
+
+	req, err := http.NewRequest(http.MethodPost, url, cb)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Content-Type", contentType)
+	req.Header.Set("Content-Encoding", contentEncoding)
+
+	client := http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
 	}
 
 	defer func() {
@@ -70,6 +97,12 @@ func (mh *Sender) post(url string, t metric.Type, id string, v any) {
 			_ = resp.Body.Close()
 		}
 	}()
+
+	if resp != nil && (resp.StatusCode > 300 || resp.StatusCode < 200) {
+		return nil, fmt.Errorf("status code is not OK %d", resp.StatusCode)
+	}
+
+	return io.ReadAll(resp.Body)
 }
 
 func makeMetrics(t metric.Type, id string, v any) metric.Metrics {
@@ -89,4 +122,23 @@ func makeMetrics(t metric.Type, id string, v any) metric.Metrics {
 		Delta: &delta,
 		Value: &val,
 	}
+}
+
+func compress(b []byte) (*bytes.Buffer, error) {
+	var gb bytes.Buffer
+	w, err := gzip.NewWriterLevel(&gb, gzip.BestCompression)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if w != nil {
+			_ = w.Close()
+		}
+	}()
+
+	if _, err := w.Write(b); err != nil {
+		return nil, err
+	}
+
+	return &gb, nil
 }
