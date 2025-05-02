@@ -78,9 +78,13 @@ type Metrics struct {
 func (m *Metrics) ValueByType() any {
 	switch m.MType {
 	case string(TypeGauge):
-		return *m.Value
+		if m.Value != nil {
+			return *m.Value
+		}
 	case string(TypeCounter):
-		return *m.Delta
+		if m.Delta != nil {
+			return *m.Delta
+		}
 	}
 	return nil
 }

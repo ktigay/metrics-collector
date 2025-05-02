@@ -154,6 +154,12 @@ func (c *Server) GetJSONValueHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if _, err := metric.ResolveType(m.MType); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		sugar.Errorln("resolve type error", zap.Error(err))
+		return
+	}
+
 	entity, err := c.collector.FindByKey(m.Key())
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
