@@ -2,10 +2,11 @@ package client
 
 import (
 	"bytes"
-	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"github.com/ktigay/metrics-collector/internal/client/collector"
+	cio "github.com/ktigay/metrics-collector/internal/client/io"
+	"github.com/ktigay/metrics-collector/internal/compress"
 	"github.com/ktigay/metrics-collector/internal/metric"
 	"io"
 	"log"
@@ -13,8 +14,8 @@ import (
 )
 
 const (
-	contentType     = "application/json"
-	contentEncoding = "gzip"
+	contentType  = "application/json"
+	compressType = compress.Gzip
 )
 
 // Sender - хендлер.
@@ -73,18 +74,25 @@ func (mh *Sender) post(url string, t metric.Type, id string, v any) ([]byte, err
 		return nil, err
 	}
 
-	cb, err := compress(b)
+	var bb bytes.Buffer
+	cw, err := cio.NewCompressWriter(compressType, &bb)
 	if err != nil {
 		return nil, err
 	}
+	if _, err = cw.Write(b); err != nil {
+		return nil, err
+	}
+	if err = cw.Close(); err != nil {
+		return nil, err
+	}
 
-	req, err := http.NewRequest(http.MethodPost, url, cb)
+	req, err := http.NewRequest(http.MethodPost, url, &bb)
 	if err != nil {
 		return nil, err
 	}
 
 	req.Header.Set("Content-Type", contentType)
-	req.Header.Set("Content-Encoding", contentEncoding)
+	req.Header.Set("Content-Encoding", string(compressType))
 
 	client := http.Client{}
 	resp, err := client.Do(req)
@@ -122,23 +130,4 @@ func makeMetrics(t metric.Type, id string, v any) metric.Metrics {
 		Delta: &delta,
 		Value: &val,
 	}
-}
-
-func compress(b []byte) (*bytes.Buffer, error) {
-	var gb bytes.Buffer
-	w, err := gzip.NewWriterLevel(&gb, gzip.BestCompression)
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		if w != nil {
-			_ = w.Close()
-		}
-	}()
-
-	if _, err := w.Write(b); err != nil {
-		return nil, err
-	}
-
-	return &gb, nil
 }

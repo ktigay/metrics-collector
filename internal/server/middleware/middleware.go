@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"github.com/ktigay/metrics-collector/internal/compress"
 	serverhttp "github.com/ktigay/metrics-collector/internal/server/http"
 	serverio "github.com/ktigay/metrics-collector/internal/server/io"
 	"strings"
@@ -8,10 +9,6 @@ import (
 	"go.uber.org/zap"
 	"net/http"
 	"time"
-)
-
-const (
-	gzipCompression = "gzip"
 )
 
 var acceptTypes = []string{"text/html", "application/json", "*/*"}
@@ -60,8 +57,8 @@ func CompressHandler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		contentEncoding := r.Header.Get("Content-Encoding")
-		if strings.Contains(contentEncoding, gzipCompression) {
-			cr, err := serverio.CompressReaderFactory(gzipCompression, r.Body)
+		if ceAlg := compress.TypeFromString(contentEncoding); ceAlg != "" {
+			cr, err := serverio.CompressReaderFactory(ceAlg, r.Body)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				return
@@ -79,12 +76,15 @@ func CompressHandler(next http.Handler) http.Handler {
 			}
 			return false
 		}()
-		if isAccepted && strings.Contains(acceptEncoding, gzipCompression) {
-			cw, cb := serverhttp.CompressWriterFactory(gzipCompression, w)
-			w = cw
-			defer func() {
-				_ = cb()
-			}()
+
+		if isAccepted {
+			if aeAlg := compress.TypeFromString(acceptEncoding); string(aeAlg) != "" {
+				cw := serverhttp.CompressWriterFactory(aeAlg, w)
+				w = cw
+				defer func() {
+					_ = cw.Close()
+				}()
+			}
 		}
 
 		next.ServeHTTP(w, r)
