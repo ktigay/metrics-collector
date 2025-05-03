@@ -35,7 +35,7 @@ func TestMetricSender_sendCounter(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 
 			router := http.NewServeMux()
-			router.HandleFunc("/update/", func(writer http.ResponseWriter, request *http.Request) {
+			router.HandleFunc("/update/{type}/{name}/{value}", func(writer http.ResponseWriter, request *http.Request) {
 				require.Equal(t, http.MethodPost, request.Method)
 				assert.Equal(t, tt.want, request.RequestURI)
 			})
@@ -44,7 +44,7 @@ func TestMetricSender_sendCounter(t *testing.T) {
 			defer svr.Close()
 
 			c := NewMetricHandler(svr.URL)
-			c.sendCounter(tt.args.c)
+			_ = c.sendCounter(tt.args.c)
 		})
 	}
 }
@@ -86,7 +86,7 @@ func TestMetricSender_sendGaugeMetrics(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 
 			router := http.NewServeMux()
-			router.HandleFunc("/update/", func(writer http.ResponseWriter, request *http.Request) {
+			router.HandleFunc("/update/{type}/{name}/{value}", func(writer http.ResponseWriter, request *http.Request) {
 				require.Equal(t, http.MethodPost, request.Method)
 				assert.Equal(t, tt.want, request.RequestURI)
 			})
@@ -95,7 +95,7 @@ func TestMetricSender_sendGaugeMetrics(t *testing.T) {
 			defer svr.Close()
 
 			c := NewMetricHandler(svr.URL)
-			c.sendGaugeMetrics(tt.args.c)
+			_ = c.sendGaugeMetrics(tt.args.c)
 		})
 	}
 }
@@ -124,7 +124,7 @@ func TestMetricSender_sendRand(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 
 			router := http.NewServeMux()
-			router.HandleFunc("/update/", func(writer http.ResponseWriter, request *http.Request) {
+			router.HandleFunc("/update/{type}/{name}/{value}", func(writer http.ResponseWriter, request *http.Request) {
 				require.Equal(t, http.MethodPost, request.Method)
 				assert.Equal(t, tt.want, request.RequestURI)
 			})
@@ -133,7 +133,7 @@ func TestMetricSender_sendRand(t *testing.T) {
 			defer svr.Close()
 
 			c := NewMetricHandler(svr.URL)
-			c.sendRand(tt.args.c)
+			_ = c.sendRand(tt.args.c)
 		})
 	}
 }

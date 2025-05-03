@@ -8,7 +8,7 @@ import (
 
 // RuntimeMetricCollector - сборщик метрик.
 type RuntimeMetricCollector struct {
-	counter uint64
+	counter int64
 	stat    MetricCollectDTO
 }
 
