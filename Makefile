@@ -1,6 +1,7 @@
 SERVER_PORT=12345
 AGENT_PATH=./cmd/agent/agent
 SERVER_PATH=./cmd/server/server
+TEMP_FILE=/tmp/metric_storage.txt
 
 build:
 	go build -o $(SERVER_PATH) ./cmd/server/*.go
@@ -45,6 +46,8 @@ run-test-a7:
 	metricstest -test.v -test.run=^TestIteration7$$ -agent-binary-path=$(AGENT_PATH) -binary-path=$(SERVER_PATH) -server-port=$(SERVER_PORT) -source-path=.
 run-test-a8:
 	export LOG_LEVEL="error" && metricstest -test.v -test.run=^TestIteration8$$ -agent-binary-path=$(AGENT_PATH) -binary-path=$(SERVER_PATH) -server-port=$(SERVER_PORT) -source-path=.
+run-test-a9:
+	metricstest -test.v -test.run=^TestIteration9$$ -agent-binary-path=$(AGENT_PATH) -binary-path=$(SERVER_PATH) -file-storage-path=$(TEMP_FILE) -server-port=$(SERVER_PORT) -source-path=.
 
 update-tpl:
 	# git remote add -m main template https://github.com/Yandex-Practicum/go-musthave-metrics-tpl.git

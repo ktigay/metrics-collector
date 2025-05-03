@@ -14,7 +14,7 @@ import (
 // CollectorInterface - Интерфейс сборщика статистики.
 type CollectorInterface interface {
 	Save(t metric.Type, n string, v any) error
-	GetAll() map[string]*storage.Entity
+	GetAll() *map[string]*storage.Entity
 	FindByKey(key string) (*storage.Entity, error)
 }
 
@@ -71,7 +71,7 @@ func (c *Server) GetValueHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	if _, err := fmt.Fprintf(w, "%v", entity.GetValue()); err != nil {
+	if _, err := fmt.Fprintf(w, "%v", entity.GetValueByType()); err != nil {
 		c.logger.Sugar().Errorln("Failed to write response", zap.Error(err))
 	}
 }
@@ -79,7 +79,7 @@ func (c *Server) GetValueHandler(w http.ResponseWriter, r *http.Request) {
 // GetAllHandler - обработчик для получения списка метрик.
 func (c *Server) GetAllHandler(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("content-type", "text/html; charset=utf-8")
-	metrics := c.collector.GetAll()
+	metrics := *c.collector.GetAll()
 
 	names := make([]string, 0, len(metrics))
 	for _, m := range metrics {
@@ -92,7 +92,7 @@ func (c *Server) GetAllHandler(w http.ResponseWriter, _ *http.Request) {
 	}
 }
 
-// UpdateJSONHandler обработчик обновления метрики.
+// UpdateJSONHandler обработчик обновления метрики из json-строки.
 func (c *Server) UpdateJSONHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("content-type") != "application/json" {
 		w.WriteHeader(http.StatusBadRequest)
@@ -140,6 +140,7 @@ func (c *Server) UpdateJSONHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// GetJSONValueHandler возвращает структуру в виде json-строки.
 func (c *Server) GetJSONValueHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("content-type") != "application/json" {
 		w.WriteHeader(http.StatusBadRequest)

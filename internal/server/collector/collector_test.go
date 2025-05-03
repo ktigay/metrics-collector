@@ -32,7 +32,7 @@ func TestMetricCollector_Save(t *testing.T) {
 						Key:   "counter:PollCount",
 						Type:  metric.TypeCounter,
 						Name:  metric.PollCount,
-						Value: int64(5),
+						Delta: int64(5),
 					},
 					"gauge:Alloc": {
 						Key:   "gauge:Alloc",
@@ -70,7 +70,7 @@ func TestMetricCollector_Save(t *testing.T) {
 					Key:   "counter:PollCount",
 					Type:  metric.TypeCounter,
 					Name:  metric.PollCount,
-					Value: int64(9),
+					Delta: int64(9),
 				},
 				"gauge:Alloc": {
 					Key:   "gauge:Alloc",
@@ -97,7 +97,7 @@ func TestMetricCollector_Save(t *testing.T) {
 				_ = c.Save(m.Type, m.Name, m.Value)
 			}
 
-			assert.Equal(t, tt.want, c.GetAll())
+			assert.Equal(t, tt.want, *c.GetAll())
 		})
 	}
 }

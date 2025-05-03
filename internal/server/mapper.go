@@ -11,11 +11,11 @@ func mapEntityToMetrics(entity storage.Entity) metric.Metrics {
 		MType: string(entity.Type),
 	}
 
-	switch t := entity.Value.(type) {
-	case int64:
-		m.Delta = &t
-	case float64:
-		m.Value = &t
+	switch entity.Type {
+	case metric.TypeCounter:
+		m.Delta = &entity.Delta
+	case metric.TypeGauge:
+		m.Value = &entity.Value
 	}
 
 	return m

@@ -80,7 +80,7 @@ func TestServer_CollectHandler(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			h := NewServer(
 				collector.NewMetricCollector(
-					storage.NewMemStorage(),
+					storage.NewMemStorage(nil),
 				),
 				zap.NewNop(),
 			)
@@ -133,7 +133,7 @@ func TestServer_UpdateJSONHandler(t *testing.T) {
 			name: "Positive_test",
 			fields: fields{
 				collector: collector.NewMetricCollector(
-					storage.NewMemStorage(),
+					storage.NewMemStorage(nil),
 				),
 				logger: zap.NewNop(),
 			},
@@ -158,7 +158,7 @@ func TestServer_UpdateJSONHandler(t *testing.T) {
 								Key:   "counter:TestSet91",
 								Name:  "TestSet91",
 								Type:  "counter",
-								Value: int64(10),
+								Delta: int64(10),
 							},
 						},
 					},
@@ -180,7 +180,7 @@ func TestServer_UpdateJSONHandler(t *testing.T) {
 			name: "Bad_Request_Wrong_ContentType",
 			fields: fields{
 				collector: collector.NewMetricCollector(
-					storage.NewMemStorage(),
+					storage.NewMemStorage(nil),
 				),
 				logger: zap.NewNop(),
 			},
@@ -199,7 +199,7 @@ func TestServer_UpdateJSONHandler(t *testing.T) {
 			name: "Bad_Request_Broken_Body",
 			fields: fields{
 				collector: collector.NewMetricCollector(
-					storage.NewMemStorage(),
+					storage.NewMemStorage(nil),
 				),
 				logger: zap.NewNop(),
 			},
@@ -218,7 +218,7 @@ func TestServer_UpdateJSONHandler(t *testing.T) {
 			name: "Bad_Request_Wrong_Type",
 			fields: fields{
 				collector: collector.NewMetricCollector(
-					storage.NewMemStorage(),
+					storage.NewMemStorage(nil),
 				),
 				logger: zap.NewNop(),
 			},
@@ -326,7 +326,7 @@ func TestServer_GetJSONValueHandler(t *testing.T) {
 								Key:   "counter:TestSet91",
 								Name:  "TestSet91",
 								Type:  "counter",
-								Value: int64(10),
+								Delta: int64(10),
 							},
 						},
 					},
@@ -348,7 +348,7 @@ func TestServer_GetJSONValueHandler(t *testing.T) {
 			name: "Bad_Request_Not_Found",
 			fields: fields{
 				collector: collector.NewMetricCollector(
-					storage.NewMemStorage(),
+					storage.NewMemStorage(nil),
 				),
 				logger: zap.NewNop(),
 			},
@@ -367,7 +367,7 @@ func TestServer_GetJSONValueHandler(t *testing.T) {
 			name: "Bad_Request_Broken_Body",
 			fields: fields{
 				collector: collector.NewMetricCollector(
-					storage.NewMemStorage(),
+					storage.NewMemStorage(nil),
 				),
 				logger: zap.NewNop(),
 			},
@@ -386,7 +386,7 @@ func TestServer_GetJSONValueHandler(t *testing.T) {
 			name: "Bad_Request_Wrong_Type",
 			fields: fields{
 				collector: collector.NewMetricCollector(
-					storage.NewMemStorage(),
+					storage.NewMemStorage(nil),
 				),
 				logger: zap.NewNop(),
 			},
@@ -405,7 +405,7 @@ func TestServer_GetJSONValueHandler(t *testing.T) {
 			name: "Bad_Request_Wrong_ContentType",
 			fields: fields{
 				collector: collector.NewMetricCollector(
-					storage.NewMemStorage(),
+					storage.NewMemStorage(nil),
 				),
 				logger: zap.NewNop(),
 			},

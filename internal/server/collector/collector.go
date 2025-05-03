@@ -10,7 +10,7 @@ import (
 // StorageInterface - интерфейс хранилища.
 type StorageInterface interface {
 	Save(m *storage.Entity) error
-	GetAll() map[string]*storage.Entity
+	GetAll() *map[string]*storage.Entity
 	FindByKey(key string) (*storage.Entity, error)
 }
 
@@ -55,11 +55,7 @@ func (c *MetricCollector) Save(t metric.Type, n string, v any) error {
 			return errors.New("invalid type")
 		}
 
-		if memItem.Value == nil {
-			memItem.Value = val
-		} else {
-			memItem.Value = memItem.Value.(int64) + val
-		}
+		memItem.Delta = memItem.Delta + val
 	case metric.TypeGauge:
 		switch t := v.(type) {
 		case string:
@@ -78,7 +74,7 @@ func (c *MetricCollector) Save(t metric.Type, n string, v any) error {
 }
 
 // GetAll - возвращает все записи в виде DTO.
-func (c *MetricCollector) GetAll() map[string]*storage.Entity {
+func (c *MetricCollector) GetAll() *map[string]*storage.Entity {
 	return c.storage.GetAll()
 }
 

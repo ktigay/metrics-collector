@@ -1,16 +1,16 @@
 package storage
 
 import (
-	"fmt"
 	"github.com/ktigay/metrics-collector/internal/metric"
 )
 
 // Entity - сущность для сохранения в storage.
 type Entity struct {
-	Key   string
-	Type  metric.Type
-	Name  string
-	Value any
+	Key   string      `json:"key"`
+	Type  metric.Type `json:"type"`
+	Name  string      `json:"name"`
+	Delta int64       `json:"delta"`
+	Value float64     `json:"value"`
 }
 
 // GetKey - возвращает уникальный ключ метрики.
@@ -18,21 +18,23 @@ func (e *Entity) GetKey() string {
 	return metric.Key(string(e.Type), e.Name)
 }
 
-// GetValue - возвращает значение.
+// GetValue - возвращает значение для типа gauge.
 func (e *Entity) GetValue() any {
 	return e.Value
 }
 
-// ValueAsString - возвращает значение как строку.
-func (e *Entity) ValueAsString() string {
-	if e == nil {
-		return ""
+// GetDelta возвращает значение для типа counter.
+func (e *Entity) GetDelta() int64 {
+	return e.Delta
+}
+
+// GetValueByType возвращает значение в зависимости от типа.
+func (e *Entity) GetValueByType() any {
+	switch e.Type {
+	case metric.TypeCounter:
+		return e.Delta
+	case metric.TypeGauge:
+		return e.Value
 	}
-	switch e.Value.(type) {
-	case int64:
-		return fmt.Sprintf("%d", e.Value)
-	case float64:
-		return fmt.Sprintf("%g", e.Value)
-	}
-	return ""
+	return nil
 }

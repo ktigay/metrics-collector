@@ -1,18 +1,32 @@
 package main
 
 import (
+	"errors"
+	"github.com/ktigay/metrics-collector/internal/server/snapshot"
+	"log"
+	"net/http"
+	"os"
+	"time"
+
 	"github.com/gorilla/mux"
+	"go.uber.org/zap"
+
 	"github.com/ktigay/metrics-collector/internal/server"
 	"github.com/ktigay/metrics-collector/internal/server/collector"
 	"github.com/ktigay/metrics-collector/internal/server/logger"
 	"github.com/ktigay/metrics-collector/internal/server/middleware"
 	"github.com/ktigay/metrics-collector/internal/server/storage"
-	"go.uber.org/zap"
-	"log"
-	"os"
-
-	"net/http"
 )
+
+func init() {
+	path := "./cache"
+	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
+		err := os.Mkdir(path, os.ModePerm)
+		if err != nil {
+			log.Println(err)
+		}
+	}
+}
 
 func main() {
 	config, err := parseFlags(os.Args[1:])
@@ -30,7 +44,10 @@ func main() {
 		}
 	}()
 
-	c := collector.NewMetricCollector(storage.NewMemStorage())
+	c, err := initCollector(config)
+	if err != nil {
+		log.Fatalf("can't initialize collector: %v", err)
+	}
 	s := server.NewServer(c, l)
 
 	router := mux.NewRouter()
@@ -38,7 +55,17 @@ func main() {
 	registerMiddleware(router, l)
 	registerRoutes(router, s)
 
-	if err := http.ListenAndServe(config.ServerHost, router); err != nil {
+	stop := make(chan bool)
+	defer func() {
+		stop <- true
+	}()
+	go func() {
+		if err = saveStatisticsSnapshot(stop, config, c); err != nil {
+			l.Sugar().Errorf("can't save statistics: %v", err)
+		}
+	}()
+
+	if err = http.ListenAndServe(config.ServerHost, router); err != nil {
 		l.Sugar().Errorln("can't start http server:", err)
 	}
 }
@@ -59,4 +86,40 @@ func registerRoutes(router *mux.Router, s *server.Server) {
 	router.HandleFunc("/value/{type}/{name}", s.GetValueHandler).Methods(http.MethodGet)
 	router.HandleFunc("/value/", s.GetJSONValueHandler).Methods(http.MethodPost)
 	router.HandleFunc("/", s.GetAllHandler).Methods(http.MethodGet)
+}
+
+func initCollector(config *Config) (*collector.MetricCollector, error) {
+	var m *map[string]*storage.Entity
+
+	if config.Restore {
+		s, err := snapshot.FileRead[map[string]*storage.Entity](config.FileStoragePath)
+		if err != nil {
+			return nil, err
+		}
+		m = s
+	}
+
+	return collector.NewMetricCollector(storage.NewMemStorage(m)), nil
+}
+
+func saveStatisticsSnapshot(stop <-chan bool, config *Config, c *collector.MetricCollector) error {
+	save := func() error {
+		e := c.GetAll()
+		return snapshot.FileWrite[map[string]*storage.Entity](config.FileStoragePath, e)
+	}
+
+	for {
+		select {
+		default:
+			time.Sleep(time.Duration(config.StoreInterval) * time.Second)
+			if err := save(); err != nil {
+				return err
+			}
+		case <-stop:
+			if err := save(); err != nil {
+				return err
+			}
+			return nil
+		}
+	}
 }

@@ -10,18 +10,22 @@ import (
 	"io"
 )
 
+// CompressWriter структура для записи сжатых данных.
 type CompressWriter struct {
 	cmp io.WriteCloser
 }
 
+// Write запись.
 func (w *CompressWriter) Write(b []byte) (int, error) {
 	return w.cmp.Write(b)
 }
 
+// Close закрытие.
 func (w *CompressWriter) Close() error {
 	return w.cmp.Close()
 }
 
+// NewCompressWriter конструктор.
 func NewCompressWriter(t iio.Type, bb *bytes.Buffer) (*CompressWriter, error) {
 	cmp, err := writer(t, bb)
 	if err != nil {
