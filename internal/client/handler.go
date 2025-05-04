@@ -4,13 +4,15 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	"log"
+	"net/http"
+
+	"github.com/ktigay/metrics-collector/internal"
 	"github.com/ktigay/metrics-collector/internal/client/collector"
 	cio "github.com/ktigay/metrics-collector/internal/client/io"
 	"github.com/ktigay/metrics-collector/internal/compress"
 	"github.com/ktigay/metrics-collector/internal/metric"
-	"io"
-	"log"
-	"net/http"
 )
 
 const (
@@ -102,7 +104,7 @@ func (mh *Sender) post(url string, t metric.Type, id string, v any) ([]byte, err
 
 	defer func() {
 		if resp != nil {
-			_ = resp.Body.Close()
+			internal.Quite(resp.Body.Close)
 		}
 	}()
 

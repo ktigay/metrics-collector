@@ -3,11 +3,13 @@ package http
 import "net/http"
 
 type (
+	// ResponseData статистика по ответу.
 	ResponseData struct {
 		Status int
 		Size   int
 	}
 
+	// Writer структура для вывода данных.
 	Writer struct {
 		http.ResponseWriter
 		responseData *ResponseData

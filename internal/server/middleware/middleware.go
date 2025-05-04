@@ -1,14 +1,16 @@
 package middleware
 
 import (
+	"net/http"
+	"strings"
+	"time"
+
+	"go.uber.org/zap"
+
+	"github.com/ktigay/metrics-collector/internal"
 	"github.com/ktigay/metrics-collector/internal/compress"
 	serverhttp "github.com/ktigay/metrics-collector/internal/server/http"
 	serverio "github.com/ktigay/metrics-collector/internal/server/io"
-	"strings"
-
-	"go.uber.org/zap"
-	"net/http"
-	"time"
 )
 
 var acceptTypes = []string{"text/html", "application/json", "*/*"}
@@ -81,9 +83,7 @@ func CompressHandler(next http.Handler) http.Handler {
 			if aeAlg := compress.TypeFromString(acceptEncoding); string(aeAlg) != "" {
 				cw := serverhttp.CompressWriterFactory(aeAlg, w)
 				w = cw
-				defer func() {
-					_ = cw.Close()
-				}()
+				defer internal.Quite(cw.Close)
 			}
 		}
 

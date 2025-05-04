@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+
+	"github.com/ktigay/metrics-collector/internal"
 )
 
 // FileRead чтение из файла json-строки и распаковка в объект.
@@ -12,9 +14,7 @@ func FileRead[T any](path string) (*T, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		_ = file.Close()
-	}()
+	defer internal.Quite(file.Close)
 
 	var e T
 	if err := json.NewDecoder(file).Decode(&e); err != nil {
@@ -29,9 +29,7 @@ func FileWrite[T any](path string, e *T) error {
 	if err != nil {
 		return err
 	}
-	defer func() {
-		_ = file.Close()
-	}()
+	defer internal.Quite(file.Close)
 
 	if err := json.NewEncoder(file).Encode(e); err != nil {
 		return fmt.Errorf("failed write event: %v", err)
