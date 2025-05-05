@@ -89,10 +89,10 @@ func registerRoutes(router *mux.Router, s *server.Server) {
 }
 
 func initCollector(config *Config) (*collector.MetricCollector, error) {
-	var m *map[string]*storage.Entity
+	var m []*storage.Entity
 
 	if config.Restore {
-		s, err := snapshot.FileRead[map[string]*storage.Entity](config.FileStoragePath)
+		s, err := snapshot.FileReadAll[*storage.Entity](config.FileStoragePath)
 		if err != nil {
 			return nil, err
 		}
@@ -105,7 +105,7 @@ func initCollector(config *Config) (*collector.MetricCollector, error) {
 func saveStatisticsSnapshot(stop <-chan bool, config *Config, c *collector.MetricCollector) error {
 	save := func() error {
 		e := c.GetAll()
-		return snapshot.FileWrite[map[string]*storage.Entity](config.FileStoragePath, e)
+		return snapshot.FileWriteAll[storage.Entity](config.FileStoragePath, e)
 	}
 
 	for {

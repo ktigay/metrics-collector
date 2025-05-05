@@ -22,7 +22,7 @@ func TestMetricCollector_Save(t *testing.T) {
 		name   string
 		fields fields
 		args   args
-		want   map[string]*storage.Entity
+		want   []*storage.Entity
 	}{
 		{
 			name: "Positive_test",
@@ -65,20 +65,20 @@ func TestMetricCollector_Save(t *testing.T) {
 					},
 				},
 			},
-			want: map[string]*storage.Entity{
-				"counter:PollCount": {
+			want: []*storage.Entity{
+				{
 					Key:   "counter:PollCount",
 					Type:  metric.TypeCounter,
 					Name:  metric.PollCount,
 					Delta: int64(9),
 				},
-				"gauge:Alloc": {
+				{
 					Key:   "gauge:Alloc",
 					Type:  metric.TypeGauge,
 					Name:  string(metric.Alloc),
 					Value: 12.000,
 				},
-				"gauge:BuckHashSys": {
+				{
 					Key:   "gauge:BuckHashSys",
 					Type:  metric.TypeGauge,
 					Name:  string(metric.BuckHashSys),
@@ -97,7 +97,10 @@ func TestMetricCollector_Save(t *testing.T) {
 				_ = c.Save(m.Type, m.Name, m.Value)
 			}
 
-			assert.Equal(t, tt.want, *c.GetAll())
+			a := c.GetAll()
+			for _, m := range tt.want {
+				assert.Contains(t, a, m)
+			}
 		})
 	}
 }

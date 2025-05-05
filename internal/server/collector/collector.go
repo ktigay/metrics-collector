@@ -10,8 +10,9 @@ import (
 // StorageInterface - интерфейс хранилища.
 type StorageInterface interface {
 	Save(m *storage.Entity) error
-	GetAll() *map[string]*storage.Entity
+	GetAll() []*storage.Entity
 	FindByKey(key string) (*storage.Entity, error)
+	RemoveByKey(key string) error
 }
 
 // MetricCollector - сборщик статистики.
@@ -74,7 +75,7 @@ func (c *MetricCollector) Save(t metric.Type, n string, v any) error {
 }
 
 // GetAll - возвращает все записи в виде DTO.
-func (c *MetricCollector) GetAll() *map[string]*storage.Entity {
+func (c *MetricCollector) GetAll() []*storage.Entity {
 	return c.storage.GetAll()
 }
 
@@ -89,4 +90,9 @@ func (c *MetricCollector) FindByKey(key string) (*storage.Entity, error) {
 	}
 
 	return entity, nil
+}
+
+// RemoveByKey удаление записи по ключу.
+func (c *MetricCollector) RemoveByKey(key string) error {
+	return c.storage.RemoveByKey(key)
 }

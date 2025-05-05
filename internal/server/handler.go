@@ -14,8 +14,9 @@ import (
 // CollectorInterface - Интерфейс сборщика статистики.
 type CollectorInterface interface {
 	Save(t metric.Type, n string, v any) error
-	GetAll() *map[string]*storage.Entity
+	GetAll() []*storage.Entity
 	FindByKey(key string) (*storage.Entity, error)
+	RemoveByKey(key string) error
 }
 
 // Server - структура с обработчиками запросов.
@@ -79,7 +80,7 @@ func (c *Server) GetValueHandler(w http.ResponseWriter, r *http.Request) {
 // GetAllHandler - обработчик для получения списка метрик.
 func (c *Server) GetAllHandler(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("content-type", "text/html; charset=utf-8")
-	metrics := *c.collector.GetAll()
+	metrics := c.collector.GetAll()
 
 	names := make([]string, 0, len(metrics))
 	for _, m := range metrics {

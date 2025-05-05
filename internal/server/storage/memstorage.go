@@ -6,12 +6,12 @@ type MemStorage struct {
 }
 
 // NewMemStorage - конструктор.
-func NewMemStorage(m *map[string]*Entity) *MemStorage {
-	if m == nil {
-		mp := make(map[string]*Entity)
-		m = &mp
+func NewMemStorage(ms []*Entity) *MemStorage {
+	var mm = make(map[string]*Entity)
+	for _, m := range ms {
+		mm[m.Key] = m
 	}
-	return &MemStorage{*m}
+	return &MemStorage{mm}
 }
 
 // Save - сохраняет метрику.
@@ -31,6 +31,15 @@ func (s *MemStorage) FindByKey(key string) (*Entity, error) {
 }
 
 // GetAll - вернуть все метрики
-func (s *MemStorage) GetAll() *map[string]*Entity {
-	return &s.Metrics
+func (s *MemStorage) GetAll() []*Entity {
+	var all = make([]*Entity, 0)
+	for _, v := range s.Metrics {
+		all = append(all, v)
+	}
+	return all
+}
+
+func (s *MemStorage) RemoveByKey(key string) error {
+	delete(s.Metrics, key)
+	return nil
 }
