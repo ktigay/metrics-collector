@@ -42,7 +42,7 @@ func FileWrite[T any](path string, e *T) error {
 }
 
 // FileWriteAll запись структур в виде json-строк в файл.
-func FileWriteAll[T any](path string, e []*T) error {
+func FileWriteAll[T any](path string, e []T) error {
 	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
 		return err

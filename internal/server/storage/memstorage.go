@@ -2,12 +2,12 @@ package storage
 
 // MemStorage - in-memory хранилище.
 type MemStorage struct {
-	Metrics map[string]*Entity
+	Metrics map[string]Entity
 }
 
 // NewMemStorage - конструктор.
-func NewMemStorage(ms []*Entity) *MemStorage {
-	var mm = make(map[string]*Entity)
+func NewMemStorage(ms []Entity) *MemStorage {
+	var mm = make(map[string]Entity)
 	for _, m := range ms {
 		mm[m.Key] = m
 	}
@@ -15,7 +15,7 @@ func NewMemStorage(ms []*Entity) *MemStorage {
 }
 
 // Save - сохраняет метрику.
-func (s *MemStorage) Save(m *Entity) error {
+func (s *MemStorage) Save(m Entity) error {
 	s.Metrics[m.Key] = m
 	return nil
 }
@@ -27,12 +27,12 @@ func (s *MemStorage) FindByKey(key string) (*Entity, error) {
 		return nil, nil
 	}
 
-	return entity, nil
+	return &entity, nil
 }
 
 // GetAll - вернуть все метрики
-func (s *MemStorage) GetAll() []*Entity {
-	var all = make([]*Entity, 0)
+func (s *MemStorage) GetAll() []Entity {
+	var all = make([]Entity, 0)
 	for _, v := range s.Metrics {
 		all = append(all, v)
 	}

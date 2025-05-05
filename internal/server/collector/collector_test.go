@@ -9,7 +9,7 @@ import (
 
 func TestMetricCollector_Save(t *testing.T) {
 	type fields struct {
-		metrics map[string]*storage.Entity
+		metrics map[string]storage.Entity
 	}
 	type args struct {
 		m []struct {
@@ -22,12 +22,12 @@ func TestMetricCollector_Save(t *testing.T) {
 		name   string
 		fields fields
 		args   args
-		want   []*storage.Entity
+		want   []storage.Entity
 	}{
 		{
 			name: "Positive_test",
 			fields: fields{
-				metrics: map[string]*storage.Entity{
+				metrics: map[string]storage.Entity{
 					"counter:PollCount": {
 						Key:   "counter:PollCount",
 						Type:  metric.TypeCounter,
@@ -65,7 +65,7 @@ func TestMetricCollector_Save(t *testing.T) {
 					},
 				},
 			},
-			want: []*storage.Entity{
+			want: []storage.Entity{
 				{
 					Key:   "counter:PollCount",
 					Type:  metric.TypeCounter,

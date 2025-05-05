@@ -14,7 +14,7 @@ import (
 // CollectorInterface - Интерфейс сборщика статистики.
 type CollectorInterface interface {
 	Save(t metric.Type, n string, v any) error
-	GetAll() []*storage.Entity
+	GetAll() []storage.Entity
 	FindByKey(key string) (*storage.Entity, error)
 	RemoveByKey(key string) error
 }
