@@ -41,6 +41,7 @@ func FileWrite[T any](path string, e *T) error {
 	return nil
 }
 
+// FileWriteAll запись структур в виде json-строк в файл.
 func FileWriteAll[T any](path string, e []*T) error {
 	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
@@ -59,6 +60,7 @@ func FileWriteAll[T any](path string, e []*T) error {
 	return nil
 }
 
+// FileReadAll чтение json-строк в структуры из файла.
 func FileReadAll[T any](path string) ([]T, error) {
 	file, err := os.OpenFile(path, os.O_RDONLY|os.O_CREATE, 0644)
 	if err != nil {
