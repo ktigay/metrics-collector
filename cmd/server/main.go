@@ -104,8 +104,7 @@ func initCollector(config *Config) (*collector.MetricCollector, error) {
 
 func saveStatisticsSnapshot(stop <-chan bool, config *Config, c *collector.MetricCollector) error {
 	save := func() error {
-		e := c.GetAll()
-		return snapshot.FileWriteAll[storage.Entity](config.FileStoragePath, e)
+		return snapshot.FileWriteAll(config.FileStoragePath, c.GetAll())
 	}
 
 	for {
