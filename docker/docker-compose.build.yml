@@ -1,0 +1,10 @@
+services:
+  app:
+    image: ${PROJECT_NAME}-app
+    user: ${CURRENT_UID}:${CURRENT_GID}
+    build:
+      dockerfile: ./docker/Dockerfile
+      context: ../
+    working_dir: /app
+    volumes:
+      - ../:/app

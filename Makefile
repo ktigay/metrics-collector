@@ -1,24 +1,60 @@
-SERVER_PORT=12345
+PROJECT_NAME=metrics-collector
+
 AGENT_PATH=./cmd/agent/agent
 SERVER_PATH=./cmd/server/server
 TEMP_FILE=/tmp/metric_storage.txt
+TEST_SERVER_PORT=\$$(random unused-port)
 
-build:
+SHELL := /bin/bash
+CURRENT_UID := $(shell id -u)
+CURRENT_GID := $(shell id -g)
+
+# локальный, внешний порт.
+LOCAL_PORT=4001
+# внутренний порт сервера.
+SRV_PORT=8080
+# адрес, который слушает сервер.
+SRV_LISTEN=:$(SRV_PORT)
+# адрес, по которому стучится агент.
+SRV_ADDR=server:$(SRV_PORT)
+
+COMPOSE := export PROJECT_NAME=$(PROJECT_NAME) CURRENT_UID=$(CURRENT_UID) \
+ 		   CURRENT_GID=$(CURRENT_GID) SRV_LISTEN=$(SRV_LISTEN) SRV_PORT=$(SRV_PORT) \
+ 		   LOCAL_PORT=$(LOCAL_PORT) SRV_ADDR=$(SRV_ADDR) && cd docker &&
+
+DOCKER_RUN := cd docker && docker run --rm -v ${PWD}:/app -it $(PROJECT_NAME)-app
+
+build-local:
 	go build -o $(SERVER_PATH) ./cmd/server/*.go
 	go build -o $(AGENT_PATH) ./cmd/agent/*.go
 
+build:
+	$(COMPOSE) docker compose -f docker-compose.build.yml build app
+
+go-build-server:
+	cd docker && docker run --rm -v ${PWD}:/app -it $(PROJECT_NAME)-app \
+	go build -gcflags "all=-N -l" -o /app/cmd/server/server -tags dynamic /app/cmd/server/
+
+go-build-agent:
+	cd docker && docker run --rm -v ${PWD}:/app -it $(PROJECT_NAME)-app \
+	go build -gcflags "all=-N -l" -o /app/cmd/agent/agent -tags dynamic /app/cmd/agent/
+
 run-test: \
-	build \
+	go-build-server \
+	go-build-agent \
 	run-test-a \
 	run-test-u \
 	run-test-s \
 	run-lint \
 
 run-test-u:
-	go test ./...
+	$(DOCKER_RUN) sh -c "go test ./..."
 
 run-test-s:
-	go vet -vettool=$$(which statictest) ./...
+	$(DOCKER_RUN) sh -c "go vet -vettool=\$$(which statictest) ./..."
+
+run-lint:
+	$(DOCKER_RUN) golangci-lint run
 
 run-test-a: \
 	run-test-a1 \
@@ -31,27 +67,39 @@ run-test-a: \
 	run-test-a8 \
 
 run-test-a1:
-	metricstest -test.v -test.run=^TestIteration1$$ -binary-path=$(SERVER_PATH)
+	$(DOCKER_RUN) sh -c "metricstest -test.v -test.run=^TestIteration1$$ -binary-path=$(SERVER_PATH)"
 run-test-a2:
-	metricstest -test.v -test.run=^TestIteration2[AB]*$$ -source-path=. -agent-binary-path=$(AGENT_PATH)
+	$(DOCKER_RUN) sh -c "metricstest -test.v -test.run=^TestIteration2[AB]*$$ -source-path=. -agent-binary-path=$(AGENT_PATH)"
 run-test-a3:
-	metricstest -test.v -test.run=^TestIteration3[AB]*$$ -source-path=. -agent-binary-path=$(AGENT_PATH) -binary-path=$(SERVER_PATH)
+	$(DOCKER_RUN)  sh -c "metricstest -test.v -test.run=^TestIteration3[AB]*$$ -source-path=. -agent-binary-path=$(AGENT_PATH) -binary-path=$(SERVER_PATH)"
 run-test-a4:
-	metricstest -test.v -test.run=^TestIteration4$$ -agent-binary-path=$(AGENT_PATH) -binary-path=$(SERVER_PATH) -server-port=$(SERVER_PORT) -source-path=.
+	$(DOCKER_RUN)  sh -c "metricstest -test.v -test.run=^TestIteration4$$ -agent-binary-path=$(AGENT_PATH) -binary-path=$(SERVER_PATH) -server-port=$(TEST_SERVER_PORT) -source-path=."
 run-test-a5:
-	metricstest -test.v -test.run=^TestIteration5$$ -agent-binary-path=$(AGENT_PATH) -binary-path=$(SERVER_PATH) -server-port=$(SERVER_PORT) -source-path=.
+	$(DOCKER_RUN)  sh -c "metricstest -test.v -test.run=^TestIteration5$$ -agent-binary-path=$(AGENT_PATH) -binary-path=$(SERVER_PATH) -server-port=$(TEST_SERVER_PORT) -source-path=."
 run-test-a6:
-	metricstest -test.v -test.run=^TestIteration6$$ -agent-binary-path=$(AGENT_PATH) -binary-path=$(SERVER_PATH) -server-port=$(SERVER_PORT) -source-path=.
+	$(DOCKER_RUN)  sh -c "metricstest -test.v -test.run=^TestIteration6$$ -agent-binary-path=$(AGENT_PATH) -binary-path=$(SERVER_PATH) -server-port=$(TEST_SERVER_PORT) -source-path=."
 run-test-a7:
-	metricstest -test.v -test.run=^TestIteration7$$ -agent-binary-path=$(AGENT_PATH) -binary-path=$(SERVER_PATH) -server-port=$(SERVER_PORT) -source-path=.
+	$(DOCKER_RUN)  sh -c "metricstest -test.v -test.run=^TestIteration7$$ -agent-binary-path=$(AGENT_PATH) -binary-path=$(SERVER_PATH) -server-port=$(TEST_SERVER_PORT) -source-path=."
 run-test-a8:
-	export LOG_LEVEL="error" && metricstest -test.v -test.run=^TestIteration8$$ -agent-binary-path=$(AGENT_PATH) -binary-path=$(SERVER_PATH) -server-port=$(SERVER_PORT) -source-path=.
+	$(DOCKER_RUN)  sh -c "metricstest -test.v -test.run=^TestIteration8$$ -agent-binary-path=$(AGENT_PATH) -binary-path=$(SERVER_PATH) -server-port=$(TEST_SERVER_PORT) -source-path=."
 run-test-a9:
-	metricstest -test.v -test.run=^TestIteration9$$ -agent-binary-path=$(AGENT_PATH) -binary-path=$(SERVER_PATH) -file-storage-path=$(TEMP_FILE) -server-port=$(SERVER_PORT) -source-path=.
+	$(DOCKER_RUN)  sh -c "metricstest -test.v -test.run=^TestIteration9$$ -agent-binary-path=$(AGENT_PATH) -binary-path=$(SERVER_PATH) -server-port=$(TEST_SERVER_PORT) -source-path=. -file-storage-path=$(TEMP_FILE)"
+
+up: \
+	up-server \
+	up-agent \
+
+up-server: \
+	go-build-server
+	$(COMPOSE) docker compose up -d server
+
+up-agent: \
+	go-build-agent
+	$(COMPOSE) docker compose up -d agent
+
+down:
+	$(COMPOSE) docker compose down server agent
 
 update-tpl:
 	# git remote add -m main template https://github.com/Yandex-Practicum/go-musthave-metrics-tpl.git
 	git fetch template && git checkout template/main .github
-
-run-lint:
-	golangci-lint run
