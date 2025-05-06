@@ -1,0 +1,34 @@
+services:
+  server:
+    image: ${PROJECT_NAME}-app
+    container_name: ${PROJECT_NAME}-server
+    user: ${CURRENT_UID}:${CURRENT_GID}
+    working_dir: /app
+    volumes:
+      - ../:/app
+    environment:
+      - ADDRESS=${SRV_LISTEN}
+    ports:
+      - "${LOCAL_PORT}:${SRV_PORT}"
+    command: /app/cmd/server/server
+    networks:
+      - metrics-collector
+  agent:
+    image: ${PROJECT_NAME}-app
+    container_name: ${PROJECT_NAME}-agent
+    user: ${CURRENT_UID}:${CURRENT_GID}
+    working_dir: /app
+    volumes:
+      - ../:/app
+    environment:
+      - ADDRESS=${SRV_ADDR}
+    command: /app/cmd/agent/agent
+    networks:
+      - metrics-collector
+networks:
+  metrics-collector:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 173.22.0.0/16
