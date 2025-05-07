@@ -1,27 +1,28 @@
-package collector
+package storage
 
 import (
 	"errors"
-	"github.com/ktigay/metrics-collector/internal/metric"
-	"github.com/ktigay/metrics-collector/internal/server/storage"
 	"strconv"
+
+	"github.com/ktigay/metrics-collector/internal/metric"
 )
 
-// StorageInterface - интерфейс хранилища.
-type StorageInterface interface {
-	Save(m storage.Entity) error
-	GetAll() []storage.Entity
-	FindByKey(key string) (*storage.Entity, error)
+// MetricStorage - интерфейс хранилища.
+type MetricStorage interface {
+	Save(m Entity) error
+	GetAll() []Entity
+	FindByKey(key string) (*Entity, error)
 	RemoveByKey(key string) error
+	Backup() error
 }
 
 // MetricCollector - сборщик статистики.
 type MetricCollector struct {
-	storage StorageInterface
+	storage MetricStorage
 }
 
 // NewMetricCollector - конструктор.
-func NewMetricCollector(storage StorageInterface) *MetricCollector {
+func NewMetricCollector(storage MetricStorage) *MetricCollector {
 	return &MetricCollector{storage}
 }
 
@@ -34,7 +35,7 @@ func (c *MetricCollector) Save(t metric.Type, n string, v any) error {
 	}
 
 	if memItem == nil {
-		memItem = &storage.Entity{
+		memItem = &Entity{
 			Key:  k,
 			Name: n,
 			Type: t,
@@ -75,12 +76,12 @@ func (c *MetricCollector) Save(t metric.Type, n string, v any) error {
 }
 
 // GetAll - возвращает все записи в виде DTO.
-func (c *MetricCollector) GetAll() []storage.Entity {
+func (c *MetricCollector) GetAll() []Entity {
 	return c.storage.GetAll()
 }
 
 // FindByKey - находит запись по ключу.
-func (c *MetricCollector) FindByKey(key string) (*storage.Entity, error) {
+func (c *MetricCollector) FindByKey(key string) (*Entity, error) {
 	entity, err := c.storage.FindByKey(key)
 	if err != nil {
 		return nil, err
@@ -95,4 +96,8 @@ func (c *MetricCollector) FindByKey(key string) (*storage.Entity, error) {
 // RemoveByKey удаление записи по ключу.
 func (c *MetricCollector) RemoveByKey(key string) error {
 	return c.storage.RemoveByKey(key)
+}
+
+func (c *MetricCollector) Backup() error {
+	return c.storage.Backup()
 }

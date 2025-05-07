@@ -1,10 +1,13 @@
 package main
 
 import (
-	"github.com/ktigay/metrics-collector/internal/client"
-	"github.com/ktigay/metrics-collector/internal/client/collector"
+	"log"
 	"os"
 	"time"
+
+	"github.com/ktigay/metrics-collector/internal/client"
+	"github.com/ktigay/metrics-collector/internal/client/collector"
+	ilog "github.com/ktigay/metrics-collector/internal/log"
 )
 
 func main() {
@@ -12,6 +15,15 @@ func main() {
 	if err != nil {
 		os.Exit(1)
 	}
+
+	if _, err = ilog.Initialize(config.LogLevel); err != nil {
+		log.Fatalf("can't initialize zap logger: %v", err)
+	}
+	defer func() {
+		if err := ilog.AppLogger.Sync(); err != nil {
+			log.Printf("can't sync logger: %v", err)
+		}
+	}()
 
 	cl := collector.NewRuntimeMetricCollector()
 	h := client.NewMetricHandler(config.ServerProtocol + "://" + config.ServerHost)

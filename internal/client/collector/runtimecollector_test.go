@@ -1,9 +1,10 @@
 package collector
 
 import (
+	"testing"
+
 	"github.com/ktigay/metrics-collector/internal/metric"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestRuntimeMetricCollector_PollStat(t *testing.T) {

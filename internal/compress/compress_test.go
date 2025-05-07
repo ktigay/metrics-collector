@@ -12,21 +12,21 @@ func TestTypeFromString(t *testing.T) {
 		want Type
 	}{
 		{
-			name: "Positive_test_#1",
+			name: "Positive_test_gzip",
 			args: args{
 				str: "gzip",
 			},
 			want: Gzip,
 		},
 		{
-			name: "Positive_test_#2",
+			name: "Positive_test_deflate",
 			args: args{
 				str: "deflate,  br",
 			},
 			want: Deflate,
 		},
 		{
-			name: "Positive_test_#3",
+			name: "Positive_test_br",
 			args: args{
 				str: "br,deflate",
 			},

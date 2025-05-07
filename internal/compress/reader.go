@@ -1,4 +1,4 @@
-package io
+package compress
 
 import (
 	"compress/gzip"
@@ -6,36 +6,35 @@ import (
 	"io"
 
 	"github.com/andybalholm/brotli"
-	"github.com/ktigay/metrics-collector/internal/compress"
 )
 
-// CompressReader структура для чтения сжатых данных.
-type CompressReader struct {
+// Reader структура для чтения сжатых данных.
+type Reader struct {
 	reader io.ReadCloser
 	cmp    io.ReadCloser
 }
 
 // Read распаковка сжатых данных.
-func (c *CompressReader) Read(p []byte) (n int, err error) {
+func (c *Reader) Read(p []byte) (n int, err error) {
 	return c.cmp.Read(p)
 }
 
 // Close закрытие ридера.
-func (c *CompressReader) Close() error {
+func (c *Reader) Close() error {
 	if err := c.reader.Close(); err != nil {
 		return err
 	}
 	return c.cmp.Close()
 }
 
-// CompressReaderFactory фабрика для создания ридера сжатых данных.
-func CompressReaderFactory(t compress.Type, r io.ReadCloser) (io.ReadCloser, error) {
+// ReaderFactory фабрика для создания ридера сжатых данных.
+func ReaderFactory(t Type, r io.ReadCloser) (io.ReadCloser, error) {
 	switch t {
-	case compress.Gzip:
+	case Gzip:
 		return newGZipCompressReader(r)
-	case compress.Deflate:
+	case Deflate:
 		return newDeflateCompressReader(r)
-	case compress.Br:
+	case Br:
 		return newBrotliCompressReader(r)
 	default:
 		return r, nil
@@ -48,7 +47,7 @@ func newGZipCompressReader(r io.ReadCloser) (io.ReadCloser, error) {
 		return nil, err
 	}
 
-	return &CompressReader{
+	return &Reader{
 		reader: r,
 		cmp:    cmp,
 	}, nil
@@ -60,7 +59,7 @@ func newDeflateCompressReader(r io.ReadCloser) (io.ReadCloser, error) {
 		return nil, err
 	}
 
-	return &CompressReader{
+	return &Reader{
 		reader: r,
 		cmp:    cmp,
 	}, nil
@@ -69,7 +68,7 @@ func newDeflateCompressReader(r io.ReadCloser) (io.ReadCloser, error) {
 func newBrotliCompressReader(r io.ReadCloser) (io.ReadCloser, error) {
 	cmp := brotli.NewReader(r)
 
-	return &CompressReader{
+	return &Reader{
 		reader: r,
 		cmp: brotliDecorator{
 			cmp,

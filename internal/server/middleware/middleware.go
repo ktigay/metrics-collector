@@ -5,12 +5,10 @@ import (
 	"strings"
 	"time"
 
-	"go.uber.org/zap"
-
 	"github.com/ktigay/metrics-collector/internal"
 	"github.com/ktigay/metrics-collector/internal/compress"
-	serverhttp "github.com/ktigay/metrics-collector/internal/server/http"
-	serverio "github.com/ktigay/metrics-collector/internal/server/io"
+	serverhttp "github.com/ktigay/metrics-collector/internal/http"
+	"github.com/ktigay/metrics-collector/internal/log"
 )
 
 var acceptTypes = []string{"text/html", "application/json", "*/*"}
@@ -24,32 +22,30 @@ func WithContentType(next http.Handler) http.Handler {
 }
 
 // WithLogging логирует запрос.
-func WithLogging(l *zap.Logger, next http.Handler) http.Handler {
+func WithLogging(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
-
-		sugar := l.Sugar()
 
 		rd := &serverhttp.ResponseData{
 			Status: 0,
 			Size:   0,
 		}
 		lw := serverhttp.NewWriter(w, rd)
-		next.ServeHTTP(lw, r)
 
-		duration := time.Since(start)
-
-		sugar.Infow(
+		log.SugaredLogger.Infow(
 			"request",
 			"requestURI", r.RequestURI,
 			"method", r.Method,
-			"duration", duration,
 		)
 
-		sugar.Infow(
+		next.ServeHTTP(lw, r)
+
+		duration := time.Since(start)
+		log.SugaredLogger.Infow(
 			"response",
 			"status", rd.Status,
 			"size", rd.Size,
+			"duration", duration,
 		)
 	})
 }
@@ -60,7 +56,7 @@ func CompressHandler(next http.Handler) http.Handler {
 
 		contentEncoding := r.Header.Get("Content-Encoding")
 		if ceAlg := compress.TypeFromString(contentEncoding); ceAlg != "" {
-			cr, err := serverio.CompressReaderFactory(ceAlg, r.Body)
+			cr, err := compress.ReaderFactory(ceAlg, r.Body)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				return
@@ -81,7 +77,11 @@ func CompressHandler(next http.Handler) http.Handler {
 
 		if isAccepted {
 			if aeAlg := compress.TypeFromString(acceptEncoding); string(aeAlg) != "" {
-				cw := serverhttp.CompressWriterFactory(aeAlg, w)
+				cw, err := compress.NewHTTPWriter(aeAlg, w)
+				if err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
 				w = cw
 				defer internal.Quite(cw.Close)
 			}

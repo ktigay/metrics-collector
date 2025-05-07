@@ -13,23 +13,8 @@ type Entity struct {
 	Value float64     `json:"value"`
 }
 
-// GetKey - возвращает уникальный ключ метрики.
-func (e *Entity) GetKey() string {
-	return metric.Key(string(e.Type), e.Name)
-}
-
-// GetValue - возвращает значение для типа gauge.
-func (e *Entity) GetValue() any {
-	return e.Value
-}
-
-// GetDelta возвращает значение для типа counter.
-func (e *Entity) GetDelta() int64 {
-	return e.Delta
-}
-
-// GetValueByType возвращает значение в зависимости от типа.
-func (e *Entity) GetValueByType() any {
+// ValueByType возвращает значение в зависимости от типа.
+func (e *Entity) ValueByType() any {
 	switch e.Type {
 	case metric.TypeCounter:
 		return e.Delta
@@ -37,4 +22,21 @@ func (e *Entity) GetValueByType() any {
 		return e.Value
 	}
 	return nil
+}
+
+// MapEntityToMetrics мап сущности в дто.
+func MapEntityToMetrics(entity Entity) metric.Metrics {
+	m := metric.Metrics{
+		ID:    entity.Name,
+		MType: string(entity.Type),
+	}
+
+	switch entity.Type {
+	case metric.TypeCounter:
+		m.Delta = &entity.Delta
+	case metric.TypeGauge:
+		m.Value = &entity.Value
+	}
+
+	return m
 }

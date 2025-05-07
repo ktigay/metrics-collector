@@ -1,12 +1,14 @@
-package logger
+package log
 
 import (
+	"time"
+
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"time"
 )
 
-var ZapLogger = zap.NewNop()
+var AppLogger = zap.NewNop()
+var SugaredLogger = *AppLogger.Sugar()
 
 func Initialize(level string) (*zap.Logger, error) {
 	lvl, err := zap.ParseAtomicLevel(level)
@@ -22,7 +24,8 @@ func Initialize(level string) (*zap.Logger, error) {
 	cfg.EncoderConfig = encoderConfig
 	cfg.Level = lvl
 
-	ZapLogger, err = cfg.Build()
+	AppLogger, err = cfg.Build()
+	SugaredLogger = *AppLogger.Sugar()
 
-	return ZapLogger, err
+	return AppLogger, err
 }

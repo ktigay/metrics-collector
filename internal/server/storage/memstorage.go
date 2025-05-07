@@ -1,17 +1,32 @@
 package storage
 
+import (
+	"maps"
+	"slices"
+)
+
+type Snapshot interface {
+	Read() ([]Entity, error)
+	Write([]Entity) error
+}
+
 // MemStorage - in-memory хранилище.
 type MemStorage struct {
-	Metrics map[string]Entity
+	Metrics  map[string]Entity
+	snapshot Snapshot
 }
 
 // NewMemStorage - конструктор.
-func NewMemStorage(ms []Entity) *MemStorage {
-	var mm = make(map[string]Entity)
-	for _, m := range ms {
-		mm[m.Key] = m
+func NewMemStorage(snapshot Snapshot) (*MemStorage, error) {
+	storage := MemStorage{
+		snapshot: snapshot,
+		Metrics:  make(map[string]Entity),
 	}
-	return &MemStorage{mm}
+	if err := storage.restore(); err != nil {
+		return nil, err
+	}
+
+	return &storage, nil
 }
 
 // Save - сохраняет метрику.
@@ -39,7 +54,34 @@ func (s *MemStorage) GetAll() []Entity {
 	return all
 }
 
+// RemoveByKey удаляет по ключу.
 func (s *MemStorage) RemoveByKey(key string) error {
 	delete(s.Metrics, key)
+	return nil
+}
+
+func (s *MemStorage) Backup() error {
+	if s.snapshot == nil {
+		return nil
+	}
+
+	return s.snapshot.Write(
+		slices.Collect(maps.Values(s.Metrics)),
+	)
+}
+
+func (s *MemStorage) restore() error {
+	if s.snapshot == nil {
+		return nil
+	}
+
+	data, err := s.snapshot.Read()
+	if err != nil {
+		return err
+	}
+	for _, m := range data {
+		s.Metrics[m.Key] = m
+	}
+
 	return nil
 }

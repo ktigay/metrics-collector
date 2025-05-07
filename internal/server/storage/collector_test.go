@@ -1,15 +1,15 @@
-package collector
+package storage
 
 import (
-	"github.com/ktigay/metrics-collector/internal/metric"
-	"github.com/ktigay/metrics-collector/internal/server/storage"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/ktigay/metrics-collector/internal/metric"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestMetricCollector_Save(t *testing.T) {
 	type fields struct {
-		metrics map[string]storage.Entity
+		metrics map[string]Entity
 	}
 	type args struct {
 		m []struct {
@@ -22,12 +22,12 @@ func TestMetricCollector_Save(t *testing.T) {
 		name   string
 		fields fields
 		args   args
-		want   []storage.Entity
+		want   []Entity
 	}{
 		{
 			name: "Positive_test",
 			fields: fields{
-				metrics: map[string]storage.Entity{
+				metrics: map[string]Entity{
 					"counter:PollCount": {
 						Key:   "counter:PollCount",
 						Type:  metric.TypeCounter,
@@ -65,7 +65,7 @@ func TestMetricCollector_Save(t *testing.T) {
 					},
 				},
 			},
-			want: []storage.Entity{
+			want: []Entity{
 				{
 					Key:   "counter:PollCount",
 					Type:  metric.TypeCounter,
@@ -89,7 +89,7 @@ func TestMetricCollector_Save(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := NewMetricCollector(&storage.MemStorage{
+			c := NewMetricCollector(&MemStorage{
 				Metrics: tt.fields.metrics,
 			})
 

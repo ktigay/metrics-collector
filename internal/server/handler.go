@@ -3,12 +3,14 @@ package server
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/gorilla/mux"
-	"github.com/ktigay/metrics-collector/internal/metric"
-	"github.com/ktigay/metrics-collector/internal/server/storage"
 	"go.uber.org/zap"
 	"net/http"
 	"strconv"
+
+	"github.com/gorilla/mux"
+	"github.com/ktigay/metrics-collector/internal/log"
+	"github.com/ktigay/metrics-collector/internal/metric"
+	"github.com/ktigay/metrics-collector/internal/server/storage"
 )
 
 // CollectorInterface - Интерфейс сборщика статистики.
@@ -22,12 +24,11 @@ type CollectorInterface interface {
 // Server - структура с обработчиками запросов.
 type Server struct {
 	collector CollectorInterface
-	logger    *zap.Logger
 }
 
 // NewServer - конструктор.
-func NewServer(collector CollectorInterface, logger *zap.Logger) *Server {
-	return &Server{collector, logger}
+func NewServer(collector CollectorInterface) *Server {
+	return &Server{collector}
 }
 
 // CollectHandler - обработчик для сборка метрик.
@@ -72,8 +73,8 @@ func (c *Server) GetValueHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	if _, err := fmt.Fprintf(w, "%v", entity.GetValueByType()); err != nil {
-		c.logger.Sugar().Errorln("Failed to write response", zap.Error(err))
+	if _, err := fmt.Fprintf(w, "%v", entity.ValueByType()); err != nil {
+		log.SugaredLogger.Errorln("Failed to write response", zap.Error(err))
 	}
 }
 
@@ -89,7 +90,7 @@ func (c *Server) GetAllHandler(w http.ResponseWriter, _ *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(names); err != nil {
-		c.logger.Sugar().Errorln("Failed to write response", zap.Error(err))
+		log.SugaredLogger.Errorln("Failed to write response", zap.Error(err))
 	}
 }
 
@@ -102,11 +103,10 @@ func (c *Server) UpdateJSONHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("content-type", "application/json")
 
-	sugar := c.logger.Sugar()
 	var m metric.Metrics
 
 	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
-		sugar.Errorln("Failed to write response", zap.Error(err))
+		log.SugaredLogger.Errorln("Failed to write response", zap.Error(err))
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -114,7 +114,7 @@ func (c *Server) UpdateJSONHandler(w http.ResponseWriter, r *http.Request) {
 	t, err := metric.ResolveType(m.MType)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		sugar.Errorln("resolve type error", zap.Error(err))
+		log.SugaredLogger.Errorln("resolve type error", zap.Error(err))
 		return
 	}
 
@@ -135,9 +135,9 @@ func (c *Server) UpdateJSONHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 
-	um := mapEntityToMetrics(*entity)
+	um := storage.MapEntityToMetrics(*entity)
 	if err := json.NewEncoder(w).Encode(um); err != nil {
-		sugar.Errorln("Failed to write response", zap.Error(err))
+		log.SugaredLogger.Errorln("Failed to write response", zap.Error(err))
 	}
 }
 
@@ -149,7 +149,6 @@ func (c *Server) GetJSONValueHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("content-type", "application/json")
-	sugar := c.logger.Sugar()
 
 	var m metric.Metrics
 	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
@@ -159,7 +158,7 @@ func (c *Server) GetJSONValueHandler(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := metric.ResolveType(m.MType); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		sugar.Errorln("resolve type error", zap.Error(err))
+		log.SugaredLogger.Errorln("resolve type error", zap.Error(err))
 		return
 	}
 
@@ -175,8 +174,8 @@ func (c *Server) GetJSONValueHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 
-	um := mapEntityToMetrics(*entity)
+	um := storage.MapEntityToMetrics(*entity)
 	if err := json.NewEncoder(w).Encode(um); err != nil {
-		sugar.Errorln("Failed to write response", zap.Error(err))
+		log.SugaredLogger.Errorln("Failed to write response", zap.Error(err))
 	}
 }

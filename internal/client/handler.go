@@ -4,14 +4,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"go.uber.org/zap"
 	"io"
-	"log"
 	"net/http"
 
 	"github.com/ktigay/metrics-collector/internal"
 	"github.com/ktigay/metrics-collector/internal/client/collector"
-	cio "github.com/ktigay/metrics-collector/internal/client/io"
 	"github.com/ktigay/metrics-collector/internal/compress"
+	"github.com/ktigay/metrics-collector/internal/log"
 	"github.com/ktigay/metrics-collector/internal/metric"
 )
 
@@ -34,16 +34,37 @@ func NewMetricHandler(url string) *Sender {
 
 // SendMetrics - отправляет метрики на сервер.
 func (mh *Sender) SendMetrics(c collector.MetricCollectDTO) {
-	if err := mh.sendGaugeMetrics(c); err != nil {
-		log.Println(err)
-		return
-	}
-	if err := mh.sendRand(c); err != nil {
-		log.Println(err)
-		return
-	}
-	if err := mh.sendCounter(c); err != nil {
-		log.Println(err)
+	errChan := make(chan error, 3)
+
+	go func() {
+		if err := mh.sendGaugeMetrics(c); err != nil {
+			errChan <- err
+			return
+		}
+		errChan <- nil
+	}()
+
+	go func() {
+		if err := mh.sendRand(c); err != nil {
+			errChan <- err
+			return
+		}
+		errChan <- nil
+	}()
+
+	go func() {
+		if err := mh.sendCounter(c); err != nil {
+			errChan <- err
+			return
+		}
+		errChan <- nil
+	}()
+
+	// Wait for all operations to complete
+	for i := 0; i < 3; i++ {
+		if err := <-errChan; err != nil {
+			log.AppLogger.Info("client.SendMetrics error", zap.Error(err))
+		}
 	}
 }
 
@@ -77,7 +98,7 @@ func (mh *Sender) post(url string, t metric.Type, id string, v any) ([]byte, err
 	}
 
 	var bb bytes.Buffer
-	cw, err := cio.NewCompressWriter(compressType, &bb)
+	cw, err := compress.NewWriter(compressType, &bb)
 	if err != nil {
 		return nil, err
 	}

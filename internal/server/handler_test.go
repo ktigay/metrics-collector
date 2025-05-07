@@ -2,16 +2,15 @@ package server
 
 import (
 	"bytes"
-	"github.com/gorilla/mux"
-	"github.com/ktigay/metrics-collector/internal/server/collector"
-	"github.com/ktigay/metrics-collector/internal/server/storage"
-	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/gorilla/mux"
+	"github.com/ktigay/metrics-collector/internal/server/storage"
+	"github.com/stretchr/testify/require"
 )
 
 func TestServer_CollectHandler(t *testing.T) {
@@ -53,7 +52,7 @@ func TestServer_CollectHandler(t *testing.T) {
 			wantContentType: "text/plain; charset=utf-8",
 		},
 		{
-			name: "Not_found_test_#2",
+			name: "Not_found_test_with_value",
 			args: args{
 				requests: []string{
 					"/update/gauge/222.33",
@@ -64,7 +63,7 @@ func TestServer_CollectHandler(t *testing.T) {
 			wantContentType: "text/plain; charset=utf-8",
 		},
 		{
-			name: "Not_found_test_#3",
+			name: "Not_found_test_with_wrong_url",
 			args: args{
 				requests: []string{
 					"/update/gauge/Alloc/222.33/111",
@@ -78,11 +77,9 @@ func TestServer_CollectHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			st, _ := storage.NewMemStorage(nil)
 			h := NewServer(
-				collector.NewMetricCollector(
-					storage.NewMemStorage(nil),
-				),
-				zap.NewNop(),
+				storage.NewMetricCollector(st),
 			)
 
 			router := mux.NewRouter()
@@ -109,9 +106,13 @@ func TestServer_CollectHandler(t *testing.T) {
 }
 
 func TestServer_UpdateJSONHandler(t *testing.T) {
+	newCollector := func() *storage.MetricCollector {
+		st, _ := storage.NewMemStorage(nil)
+		return storage.NewMetricCollector(st)
+	}
+
 	type fields struct {
 		collector CollectorInterface
-		logger    *zap.Logger
 	}
 	type args struct {
 		request     []byte
@@ -130,12 +131,9 @@ func TestServer_UpdateJSONHandler(t *testing.T) {
 		want   want
 	}{
 		{
-			name: "Positive_test",
+			name: "Positive_test_gauge",
 			fields: fields{
-				collector: collector.NewMetricCollector(
-					storage.NewMemStorage(nil),
-				),
-				logger: zap.NewNop(),
+				collector: newCollector(),
 			},
 			args: args{
 				request:     []byte(`{"id":"TestSet90","type":"gauge","delta":0,"value":10}`),
@@ -149,9 +147,9 @@ func TestServer_UpdateJSONHandler(t *testing.T) {
 			},
 		},
 		{
-			name: "Positive_test_#2",
+			name: "Positive_test_counter",
 			fields: fields{
-				collector: collector.NewMetricCollector(
+				collector: storage.NewMetricCollector(
 					&storage.MemStorage{
 						Metrics: map[string]storage.Entity{
 							"counter:TestSet91": {
@@ -163,7 +161,6 @@ func TestServer_UpdateJSONHandler(t *testing.T) {
 						},
 					},
 				),
-				logger: zap.NewNop(),
 			},
 			args: args{
 				request:     []byte(`{"id":"TestSet91","type":"counter","delta":15,"value":0}`),
@@ -179,10 +176,7 @@ func TestServer_UpdateJSONHandler(t *testing.T) {
 		{
 			name: "Bad_Request_Wrong_ContentType",
 			fields: fields{
-				collector: collector.NewMetricCollector(
-					storage.NewMemStorage(nil),
-				),
-				logger: zap.NewNop(),
+				collector: newCollector(),
 			},
 			args: args{
 				request:     []byte(`{"id":"TestSet92","type":"gauge","delta":0,"value":10}`),
@@ -198,10 +192,7 @@ func TestServer_UpdateJSONHandler(t *testing.T) {
 		{
 			name: "Bad_Request_Broken_Body",
 			fields: fields{
-				collector: collector.NewMetricCollector(
-					storage.NewMemStorage(nil),
-				),
-				logger: zap.NewNop(),
+				collector: newCollector(),
 			},
 			args: args{
 				request:     []byte(`{"id":"TestSet93","type":"gauge","delta":0,"value":10`),
@@ -217,10 +208,7 @@ func TestServer_UpdateJSONHandler(t *testing.T) {
 		{
 			name: "Bad_Request_Wrong_Type",
 			fields: fields{
-				collector: collector.NewMetricCollector(
-					storage.NewMemStorage(nil),
-				),
-				logger: zap.NewNop(),
+				collector: newCollector(),
 			},
 			args: args{
 				request:     []byte(`{"id":"TestSet94","type":"wrongType","delta":0,"value":10}`),
@@ -238,7 +226,6 @@ func TestServer_UpdateJSONHandler(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			h := NewServer(
 				tt.fields.collector,
-				tt.fields.logger,
 			)
 
 			router := mux.NewRouter()
@@ -268,9 +255,13 @@ func TestServer_UpdateJSONHandler(t *testing.T) {
 }
 
 func TestServer_GetJSONValueHandler(t *testing.T) {
+	newCollector := func() *storage.MetricCollector {
+		st, _ := storage.NewMemStorage(nil)
+		return storage.NewMetricCollector(st)
+	}
+
 	type fields struct {
 		collector CollectorInterface
-		logger    *zap.Logger
 	}
 	type args struct {
 		request     []byte
@@ -289,9 +280,9 @@ func TestServer_GetJSONValueHandler(t *testing.T) {
 		want   want
 	}{
 		{
-			name: "Positive_test",
+			name: "Positive_test_gauge",
 			fields: fields{
-				collector: collector.NewMetricCollector(
+				collector: storage.NewMetricCollector(
 					&storage.MemStorage{
 						Metrics: map[string]storage.Entity{
 							"gauge:TestSet90": {
@@ -303,7 +294,6 @@ func TestServer_GetJSONValueHandler(t *testing.T) {
 						},
 					},
 				),
-				logger: zap.NewNop(),
 			},
 			args: args{
 				request:     []byte(`{"id":"TestSet90","type":"gauge","delta":0,"value":10}`),
@@ -317,9 +307,9 @@ func TestServer_GetJSONValueHandler(t *testing.T) {
 			},
 		},
 		{
-			name: "Positive_test_#2",
+			name: "Positive_test_counter",
 			fields: fields{
-				collector: collector.NewMetricCollector(
+				collector: storage.NewMetricCollector(
 					&storage.MemStorage{
 						Metrics: map[string]storage.Entity{
 							"counter:TestSet91": {
@@ -331,7 +321,6 @@ func TestServer_GetJSONValueHandler(t *testing.T) {
 						},
 					},
 				),
-				logger: zap.NewNop(),
 			},
 			args: args{
 				request:     []byte(`{"id":"TestSet91","type":"counter"}`),
@@ -347,10 +336,7 @@ func TestServer_GetJSONValueHandler(t *testing.T) {
 		{
 			name: "Bad_Request_Not_Found",
 			fields: fields{
-				collector: collector.NewMetricCollector(
-					storage.NewMemStorage(nil),
-				),
-				logger: zap.NewNop(),
+				collector: newCollector(),
 			},
 			args: args{
 				request:     []byte(`{"id":"TestSet92","type":"gauge"}`),
@@ -366,10 +352,7 @@ func TestServer_GetJSONValueHandler(t *testing.T) {
 		{
 			name: "Bad_Request_Broken_Body",
 			fields: fields{
-				collector: collector.NewMetricCollector(
-					storage.NewMemStorage(nil),
-				),
-				logger: zap.NewNop(),
+				collector: newCollector(),
 			},
 			args: args{
 				request:     []byte(`{"id":"TestSet93","type":"gauge"`),
@@ -385,10 +368,7 @@ func TestServer_GetJSONValueHandler(t *testing.T) {
 		{
 			name: "Bad_Request_Wrong_Type",
 			fields: fields{
-				collector: collector.NewMetricCollector(
-					storage.NewMemStorage(nil),
-				),
-				logger: zap.NewNop(),
+				collector: newCollector(),
 			},
 			args: args{
 				request:     []byte(`{"id":"TestSet94","type":"wrongType"}`),
@@ -404,10 +384,7 @@ func TestServer_GetJSONValueHandler(t *testing.T) {
 		{
 			name: "Bad_Request_Wrong_ContentType",
 			fields: fields{
-				collector: collector.NewMetricCollector(
-					storage.NewMemStorage(nil),
-				),
-				logger: zap.NewNop(),
+				collector: newCollector(),
 			},
 			args: args{
 				request:     []byte(`{"id":"TestSet95","type":"gauge"}`),
@@ -425,7 +402,6 @@ func TestServer_GetJSONValueHandler(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			h := NewServer(
 				tt.fields.collector,
-				tt.fields.logger,
 			)
 
 			router := mux.NewRouter()

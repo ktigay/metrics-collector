@@ -24,6 +24,7 @@ func Test_parseFlags(t *testing.T) {
 				ServerHost:     defaultServerHost,
 				ReportInterval: defaultReportInterval,
 				PollInterval:   defaultPollInterval,
+				LogLevel:       defaultLogLevel,
 			},
 			wantErr: false,
 		},
@@ -41,6 +42,7 @@ func Test_parseFlags(t *testing.T) {
 				ServerHost:     "localhost:8090",
 				ReportInterval: 100,
 				PollInterval:   8,
+				LogLevel:       defaultLogLevel,
 			},
 			wantErr: false,
 		},
@@ -59,6 +61,7 @@ func Test_parseFlags(t *testing.T) {
 				ServerHost:     "localhost:80100",
 				ReportInterval: 120,
 				PollInterval:   15,
+				LogLevel:       defaultLogLevel,
 			},
 			wantErr: false,
 		},
@@ -77,6 +80,7 @@ func Test_parseFlags(t *testing.T) {
 				ServerHost:     "localhost:8099",
 				ReportInterval: 111,
 				PollInterval:   7,
+				LogLevel:       defaultLogLevel,
 			},
 			wantErr: false,
 		},
@@ -94,7 +98,7 @@ func Test_parseFlags(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "Negative_test_Address_Invalid_#2",
+			name: "Negative_test_Address_Invalid_white_space",
 			args: args{
 				envs: map[string]string{
 					"ADDRESS":         " ",
@@ -106,7 +110,7 @@ func Test_parseFlags(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "Negative_test_Report_Interval_Invalid",
+			name: "Negative_test_Report_Interval_Invalid_empty",
 			args: args{
 				envs: map[string]string{
 					"ADDRESS":         "",
@@ -119,7 +123,7 @@ func Test_parseFlags(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "Negative_test_Report_Interval_Invalid_#2",
+			name: "Negative_test_Report_Interval_Invalid_zero_value",
 			args: args{
 				envs: map[string]string{
 					"ADDRESS":         "",
@@ -131,7 +135,7 @@ func Test_parseFlags(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "Negative_test_Poll_Interval_Invalid",
+			name: "Negative_test_Poll_Interval_Invalid_empty",
 			args: args{
 				envs: map[string]string{
 					"ADDRESS":         "",
@@ -144,7 +148,7 @@ func Test_parseFlags(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "Negative_test_Poll_Interval_Invalid_#2",
+			name: "Negative_test_Poll_Interval_Invalid_zero_value",
 			args: args{
 				envs: map[string]string{
 					"ADDRESS":         "",

@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+
 	"github.com/caarlos0/env/v6"
 )
 
@@ -10,7 +11,7 @@ const (
 	defaultServerHost      = ":8080"
 	defaultLogLevel        = "info"
 	defaultStoreInterval   = 300
-	defaultFileStoragePath = "./cache/storage.txt"
+	defaultFileStoragePath = "/tmp/metrics-db.json"
 	defaultRestoreFlag     = true
 )
 

@@ -1,84 +1,60 @@
 package snapshot
 
 import (
-	"bufio"
 	"encoding/json"
-	"fmt"
-	"github.com/ktigay/metrics-collector/internal"
 	"io"
 	"os"
 	"path/filepath"
+
+	"github.com/ktigay/metrics-collector/internal"
+	"github.com/ktigay/metrics-collector/internal/server/storage"
 )
 
-// FileRead чтение из файла json-строки и распаковка в объект.
-func FileRead[T any](path string) (*T, error) {
-	file, err := os.OpenFile(path, os.O_RDONLY|os.O_CREATE, 0644)
-	if err != nil {
-		return nil, err
-	}
-	defer internal.Quite(file.Close)
-
-	var e T
-	if err := json.NewDecoder(file).Decode(&e); err != nil {
-		if err != io.EOF {
-			return nil, err
-		}
-		return nil, nil
-	}
-	return &e, nil
+type FileSnapshot struct {
+	filePath string
 }
 
-// FileWrite запись объекта в файл в виде json-строки.
-func FileWrite[T any](path string, e *T) error {
-	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
-	if err != nil {
-		return err
-	}
-	defer internal.Quite(file.Close)
+func NewFileSnapshot(filePath string) *FileSnapshot {
+	return &FileSnapshot{filePath: filePath}
+}
 
-	if err := json.NewEncoder(file).Encode(e); err != nil {
-		return fmt.Errorf("failed write event: %v", err)
-	}
-	return nil
+func (f *FileSnapshot) Read() ([]storage.Entity, error) {
+	return FileReadAll[storage.Entity](f.filePath)
+}
+
+func (f *FileSnapshot) Write(entities []storage.Entity) error {
+	return FileWriteAll[storage.Entity](f.filePath, entities)
 }
 
 // FileWriteAll запись структур в виде json-строк в файл.
 func FileWriteAll[T any](path string, e []T) error {
-	// атомарная запись, во избежание повреждения данных
-	tmp, err := os.CreateTemp(tempDir(path), "atomic-*")
+	if err := ensureDir(filepath.Dir(path)); err != nil {
+		return err
+	}
+
+	writer, err := NewAtomicFileWriter(path)
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if err != nil {
-			internal.Quite(tmp.Close)
-			_ = os.Remove(tmp.Name())
-		}
-	}()
 
-	b := bufio.NewWriter(tmp)
-	for _, et := range e {
-		if err := json.NewEncoder(b).Encode(et); err != nil {
+	for _, el := range e {
+		if err = writer.Write(el); err != nil {
 			return err
 		}
 	}
-	internal.Quite(b.Flush)
 
-	if err := tmp.Chmod(0644); err != nil {
+	if err = writer.Flush(); err != nil {
 		return err
 	}
-
-	_ = tmp.Sync()
-
-	if err := tmp.Close(); err != nil {
-		return err
-	}
-
-	return os.Rename(tmp.Name(), path)
+	return writer.Close()
 }
 
 // FileReadAll чтение json-строк в структуры из файла.
 func FileReadAll[T any](path string) ([]T, error) {
+	if err := ensureDir(filepath.Dir(path)); err != nil {
+		return nil, err
+	}
+
 	file, err := os.OpenFile(path, os.O_RDONLY|os.O_CREATE, 0644)
 	if err != nil {
 		return nil, err
@@ -108,4 +84,15 @@ func tempDir(dest string) string {
 		tmp = filepath.Dir(dest)
 	}
 	return tmp
+}
+
+func ensureDir(dirName string) error {
+	_, err := os.Stat(dirName)
+	if err == nil {
+		return nil
+	}
+	if !os.IsNotExist(err) {
+		return err
+	}
+	return os.MkdirAll(dirName, os.ModeDir)
 }

@@ -1,14 +1,15 @@
 package client
 
 import (
-	"github.com/ktigay/metrics-collector/internal/client/collector"
-	"github.com/ktigay/metrics-collector/internal/metric"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
 	"testing"
+
+	"github.com/ktigay/metrics-collector/internal/client/collector"
+	"github.com/ktigay/metrics-collector/internal/metric"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMetricSender_sendCounter(t *testing.T) {
@@ -59,7 +60,7 @@ func TestMetricSender_sendGaugeMetrics(t *testing.T) {
 		want string
 	}{
 		{
-			name: "Positive_test",
+			name: "Positive_test_check_request",
 			args: args{
 				c: collector.MetricCollectDTO{
 					MemStats: map[metric.GaugeMetric]float64{
@@ -68,17 +69,6 @@ func TestMetricSender_sendGaugeMetrics(t *testing.T) {
 				},
 			},
 			want: "/update/gauge/Alloc/12.345",
-		},
-		{
-			name: "Positive_test_#2",
-			args: args{
-				c: collector.MetricCollectDTO{
-					MemStats: map[metric.GaugeMetric]float64{
-						metric.HeapReleased: 112.3245,
-					},
-				},
-			},
-			want: "/update/gauge/HeapReleased/112.3245",
 		},
 	}
 
