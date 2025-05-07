@@ -3,6 +3,7 @@ package storage
 import (
 	"maps"
 	"slices"
+	"sync"
 )
 
 type Snapshot interface {
@@ -12,6 +13,7 @@ type Snapshot interface {
 
 // MemStorage - in-memory хранилище.
 type MemStorage struct {
+	sync.RWMutex
 	Metrics  map[string]Entity
 	snapshot Snapshot
 }
@@ -31,12 +33,18 @@ func NewMemStorage(snapshot Snapshot) (*MemStorage, error) {
 
 // Save - сохраняет метрику.
 func (s *MemStorage) Save(m Entity) error {
+	s.Lock()
+	defer s.Unlock()
+
 	s.Metrics[m.Key] = m
 	return nil
 }
 
 // FindByKey - поиск по ключу
 func (s *MemStorage) FindByKey(key string) (*Entity, error) {
+	s.RLock()
+	defer s.RUnlock()
+
 	entity, ok := s.Metrics[key]
 	if !ok {
 		return nil, nil
@@ -47,6 +55,9 @@ func (s *MemStorage) FindByKey(key string) (*Entity, error) {
 
 // GetAll - вернуть все метрики
 func (s *MemStorage) GetAll() []Entity {
+	s.RLock()
+	defer s.RUnlock()
+
 	var all = make([]Entity, 0)
 	for _, v := range s.Metrics {
 		all = append(all, v)
@@ -56,6 +67,9 @@ func (s *MemStorage) GetAll() []Entity {
 
 // RemoveByKey удаляет по ключу.
 func (s *MemStorage) RemoveByKey(key string) error {
+	s.Lock()
+	defer s.Unlock()
+
 	delete(s.Metrics, key)
 	return nil
 }
@@ -64,6 +78,9 @@ func (s *MemStorage) Backup() error {
 	if s.snapshot == nil {
 		return nil
 	}
+
+	s.RLock()
+	defer s.RUnlock()
 
 	return s.snapshot.Write(
 		slices.Collect(maps.Values(s.Metrics)),
