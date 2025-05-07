@@ -11,6 +11,7 @@ const (
 	defaultLogLevel        = "info"
 	defaultStoreInterval   = 300
 	defaultFileStoragePath = "./cache/storage.txt"
+	defaultRestoreFlag     = true
 )
 
 // Config - конфигурация сервера.
@@ -30,7 +31,7 @@ func parseFlags(args []string) (*Config, error) {
 	flags.StringVar(&config.LogLevel, "l", defaultLogLevel, "log level")
 	flags.IntVar(&config.StoreInterval, "i", defaultStoreInterval, "storage interval in seconds")
 	flags.StringVar(&config.FileStoragePath, "f", defaultFileStoragePath, "file storage path")
-	flags.BoolVar(&config.Restore, "r", true, "restore data from storage")
+	flags.BoolVar(&config.Restore, "r", defaultRestoreFlag, "restore data from storage")
 
 	if err := flags.Parse(args); err != nil {
 		return nil, err
