@@ -7,6 +7,7 @@ import (
 	"github.com/ktigay/metrics-collector/internal"
 	"io"
 	"os"
+	"path/filepath"
 )
 
 // FileRead чтение из файла json-строки и распаковка в объект.
@@ -43,13 +44,19 @@ func FileWrite[T any](path string, e *T) error {
 
 // FileWriteAll запись структур в виде json-строк в файл.
 func FileWriteAll[T any](path string, e []T) error {
-	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0644)
+	// атомарная запись, во избежание повреждения данных
+	tmp, err := os.CreateTemp(tempDir(path), "atomic-*")
 	if err != nil {
 		return err
 	}
-	defer internal.Quite(file.Close)
+	defer func() {
+		if err != nil {
+			internal.Quite(tmp.Close)
+			_ = os.Remove(tmp.Name())
+		}
+	}()
 
-	b := bufio.NewWriter(file)
+	b := bufio.NewWriter(tmp)
 	for _, et := range e {
 		if err := json.NewEncoder(b).Encode(et); err != nil {
 			return err
@@ -57,7 +64,17 @@ func FileWriteAll[T any](path string, e []T) error {
 	}
 	internal.Quite(b.Flush)
 
-	return nil
+	if err := tmp.Chmod(0644); err != nil {
+		return err
+	}
+
+	_ = tmp.Sync()
+
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+
+	return os.Rename(tmp.Name(), path)
 }
 
 // FileReadAll чтение json-строк в структуры из файла.
@@ -83,4 +100,12 @@ func FileReadAll[T any](path string) ([]T, error) {
 	}
 
 	return all, nil
+}
+
+func tempDir(dest string) string {
+	tmp := os.Getenv("TMPDIR")
+	if tmp == "" {
+		tmp = filepath.Dir(dest)
+	}
+	return tmp
 }
