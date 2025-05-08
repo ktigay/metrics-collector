@@ -58,7 +58,7 @@ func (s *MemStorage) GetAll() []Entity {
 	s.sm.RLock()
 	defer s.sm.RUnlock()
 
-	var all = make([]Entity, 0)
+	var all = make([]Entity, 0, len(s.Metrics))
 	for _, v := range s.Metrics {
 		all = append(all, v)
 	}
