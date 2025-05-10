@@ -10,62 +10,33 @@ import (
 	"github.com/ktigay/metrics-collector/internal/server/storage"
 )
 
+// FileSnapshot структура для сохранения снапшота в файле.
 type FileSnapshot struct {
 	filePath string
 }
 
+// NewFileSnapshot конструктор.
 func NewFileSnapshot(filePath string) *FileSnapshot {
 	return &FileSnapshot{filePath: filePath}
 }
 
+// Read чтение снапшота из файла.
 func (f *FileSnapshot) Read() ([]storage.Entity, error) {
-	return FileReadAll[storage.Entity](f.filePath)
-}
-
-func (f *FileSnapshot) Write(entities []storage.Entity) error {
-	return FileWriteAll[storage.Entity](f.filePath, entities)
-}
-
-// FileWriteAll запись структур в виде json-строк в файл.
-func FileWriteAll[T any](path string, e []T) error {
-	if err := ensureDir(filepath.Dir(path)); err != nil {
-		return err
-	}
-
-	writer, err := NewAtomicFileWriter(path)
-	if err != nil {
-		return err
-	}
-
-	for _, el := range e {
-		if err = writer.Write(el); err != nil {
-			return err
-		}
-	}
-
-	if err = writer.Flush(); err != nil {
-		return err
-	}
-	return writer.Close()
-}
-
-// FileReadAll чтение json-строк в структуры из файла.
-func FileReadAll[T any](path string) ([]T, error) {
-	if err := ensureDir(filepath.Dir(path)); err != nil {
+        if err := ensureDir(filepath.Dir(f.filePath)); err != nil {
 		return nil, err
 	}
 
-	file, err := os.OpenFile(path, os.O_RDONLY|os.O_CREATE, 0644)
+	file, err := os.OpenFile(f.filePath, os.O_RDONLY|os.O_CREATE, 0644)
 	if err != nil {
 		return nil, err
 	}
 	defer internal.Quite(file.Close)
-	var all = make([]T, 0)
+	var all = make([]storage.Entity, 0)
 
 	dec := json.NewDecoder(file)
 
 	for {
-		var e T
+		var e storage.Entity
 		if err = dec.Decode(&e); err != nil {
 			if err == io.EOF {
 				break
@@ -76,6 +47,30 @@ func FileReadAll[T any](path string) ([]T, error) {
 	}
 
 	return all, nil
+}
+
+// Write запись данных в файл.
+func (f *FileSnapshot) Write(entities []storage.Entity) error {
+	if err := ensureDir(filepath.Dir(f.filePath)); err != nil {
+		return err
+	}
+
+	writer, err := NewAtomicFileWriter(f.filePath)
+	if err != nil {
+		return err
+	}
+
+	for _, el := range entities {
+		if err = writer.Write(el); err != nil {
+			return err
+		}
+	}
+
+	if err = writer.Flush(); err != nil {
+		return err
+	}
+	// перезапись происходит только при успешном закрытии writer.
+	return writer.Close()
 }
 
 func tempDir(dest string) string {
