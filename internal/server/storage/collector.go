@@ -1,39 +1,41 @@
-package collector
+package storage
 
 import (
 	"errors"
-	"github.com/ktigay/metrics-collector/internal/metric"
-	"github.com/ktigay/metrics-collector/internal/server/storage"
 	"strconv"
+
+	"github.com/ktigay/metrics-collector/internal/metric"
 )
 
-// StorageInterface - интерфейс хранилища.
-type StorageInterface interface {
-	Save(m *storage.Entity) error
-	GetAll() map[string]*storage.Entity
-	FindByKey(key string) (*storage.Entity, error)
+// MetricStorage - интерфейс хранилища.
+type MetricStorage interface {
+	Save(m Entity) error
+	GetAll() []Entity
+	FindByKey(key string) (*Entity, error)
+	RemoveByKey(key string) error
+	Backup() error
 }
 
 // MetricCollector - сборщик статистики.
 type MetricCollector struct {
-	storage StorageInterface
+	storage MetricStorage
 }
 
 // NewMetricCollector - конструктор.
-func NewMetricCollector(storage StorageInterface) *MetricCollector {
+func NewMetricCollector(storage MetricStorage) *MetricCollector {
 	return &MetricCollector{storage}
 }
 
 // Save - собирает статистику.
 func (c *MetricCollector) Save(t metric.Type, n string, v any) error {
-	k := metric.GetKey(string(t), n)
+	k := metric.Key(string(t), n)
 	memItem, err := c.storage.FindByKey(k)
 	if err != nil {
 		return err
 	}
 
 	if memItem == nil {
-		memItem = &storage.Entity{
+		memItem = &Entity{
 			Key:  k,
 			Name: n,
 			Type: t,
@@ -55,11 +57,7 @@ func (c *MetricCollector) Save(t metric.Type, n string, v any) error {
 			return errors.New("invalid type")
 		}
 
-		if memItem.Value == nil {
-			memItem.Value = val
-		} else {
-			memItem.Value = memItem.Value.(int64) + val
-		}
+		memItem.Delta = memItem.Delta + val
 	case metric.TypeGauge:
 		switch t := v.(type) {
 		case string:
@@ -74,16 +72,16 @@ func (c *MetricCollector) Save(t metric.Type, n string, v any) error {
 		}
 	}
 
-	return c.storage.Save(memItem)
+	return c.storage.Save(*memItem)
 }
 
 // GetAll - возвращает все записи в виде DTO.
-func (c *MetricCollector) GetAll() map[string]*storage.Entity {
+func (c *MetricCollector) GetAll() []Entity {
 	return c.storage.GetAll()
 }
 
 // FindByKey - находит запись по ключу.
-func (c *MetricCollector) FindByKey(key string) (*storage.Entity, error) {
+func (c *MetricCollector) FindByKey(key string) (*Entity, error) {
 	entity, err := c.storage.FindByKey(key)
 	if err != nil {
 		return nil, err
@@ -93,4 +91,13 @@ func (c *MetricCollector) FindByKey(key string) (*storage.Entity, error) {
 	}
 
 	return entity, nil
+}
+
+// RemoveByKey удаление записи по ключу.
+func (c *MetricCollector) RemoveByKey(key string) error {
+	return c.storage.RemoveByKey(key)
+}
+
+func (c *MetricCollector) Backup() error {
+	return c.storage.Backup()
 }

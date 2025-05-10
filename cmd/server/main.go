@@ -1,40 +1,105 @@
 package main
 
 import (
-	"github.com/gorilla/mux"
 	"log"
-	"os"
-
-	"github.com/ktigay/metrics-collector/internal/server"
-	"github.com/ktigay/metrics-collector/internal/server/collector"
-	"github.com/ktigay/metrics-collector/internal/server/storage"
-
 	"net/http"
+	"os"
+	"time"
+
+	"github.com/gorilla/mux"
+	ilog "github.com/ktigay/metrics-collector/internal/log"
+	"github.com/ktigay/metrics-collector/internal/server"
+	"github.com/ktigay/metrics-collector/internal/server/middleware"
+	"github.com/ktigay/metrics-collector/internal/server/snapshot"
+	"github.com/ktigay/metrics-collector/internal/server/storage"
 )
 
 func main() {
 	config, err := parseFlags(os.Args[1:])
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("can't parse flags: %v", err)
 	}
 
-	c := collector.NewMetricCollector(storage.NewMemStorage())
+	if _, err = ilog.Initialize(config.LogLevel); err != nil {
+		log.Fatalf("can't initialize zap logger: %v", err)
+	}
+	defer func() {
+		if err := ilog.AppLogger.Sync(); err != nil {
+			log.Printf("can't sync logger: %v", err)
+		}
+	}()
+
+	c, err := initCollector(config.Restore, config.FileStoragePath)
+	if err != nil {
+		log.Fatalf("can't initialize collector: %v", err)
+	}
 	s := server.NewServer(c)
 
 	router := mux.NewRouter()
 
-	router.Use(func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("content-type", "text/plain; charset=utf-8")
-			next.ServeHTTP(w, r)
-		})
-	})
+	registerMiddleware(router)
+	registerRoutes(router, s)
 
+	stop := make(chan bool)
+	defer func() {
+		stop <- true
+	}()
+	go func() {
+		if err = saveStatisticsSnapshot(stop, c, config.StoreInterval); err != nil {
+			ilog.SugaredLogger.Errorf("can't save statistics: %v", err)
+		}
+	}()
+
+	if err = http.ListenAndServe(config.ServerHost, router); err != nil {
+		ilog.SugaredLogger.Errorln("can't start http server:", err)
+	}
+}
+
+func registerMiddleware(router *mux.Router) {
+	router.Use(
+		middleware.WithContentType,
+		middleware.WithLogging,
+		middleware.CompressHandler,
+	)
+}
+
+func registerRoutes(router *mux.Router, s *server.Server) {
 	router.HandleFunc("/update/{type}/{name}/{value}", s.CollectHandler).Methods(http.MethodPost)
+	router.HandleFunc("/update/", s.UpdateJSONHandler).Methods(http.MethodPost)
 	router.HandleFunc("/value/{type}/{name}", s.GetValueHandler).Methods(http.MethodGet)
+	router.HandleFunc("/value/", s.GetJSONValueHandler).Methods(http.MethodPost)
 	router.HandleFunc("/", s.GetAllHandler).Methods(http.MethodGet)
+}
 
-	if err := http.ListenAndServe(config.ServerHost, router); err != nil {
-		log.Fatal(err)
+func initCollector(restore bool, restorePath string) (*storage.MetricCollector, error) {
+	var sn storage.Snapshot
+
+	if restore {
+		sn = snapshot.NewFileSnapshot(restorePath)
+	}
+
+	st, err := storage.NewMemStorage(sn)
+	if err != nil {
+		return nil, err
+	}
+
+	return storage.NewMetricCollector(st), nil
+}
+
+func saveStatisticsSnapshot(stop <-chan bool, c *storage.MetricCollector, storeInterval int) error {
+	ticker := time.NewTicker(time.Duration(storeInterval) * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			if err := c.Backup(); err != nil {
+				return err
+			}
+		case <-stop:
+			if err := c.Backup(); err != nil {
+				return err
+			}
+			return nil
+		}
 	}
 }

@@ -1,20 +1,21 @@
 package collector
 
 import (
+	"testing"
+
 	"github.com/ktigay/metrics-collector/internal/metric"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestRuntimeMetricCollector_PollStat(t *testing.T) {
 	type fields struct {
-		counter uint64
+		counter int64
 		stat    MetricCollectDTO
 	}
 	tests := []struct {
 		name   string
 		fields fields
-		want   uint64
+		want   int64
 	}{
 		{
 			name: "Positive_test",
