@@ -32,41 +32,49 @@ func main() {
 		log.Fatalf("can't initialize zap logger: %v", err)
 	}
 	defer func() {
-		if err := ilog.AppLogger.Sync(); err != nil {
-			log.Printf("can't sync logger: %v", err)
+		if err = ilog.AppLogger.Sync(); err != nil && !errors.Is(err, syscall.EINVAL) {
+			log.Printf("can't sync logger: %t", err)
 		}
 	}()
 
-	cl, err := initCollector(config.Restore, config.FileStoragePath)
+	var (
+		collector *storage.MetricCollector
+		router    *mux.Router
+		srv       *server.Server
+		wg        sync.WaitGroup
+	)
+
+	collector, err = initCollector(config.Restore, config.FileStoragePath)
 	if err != nil {
 		log.Fatalf("can't initialize collector: %v", err)
 	}
-	s := server.NewServer(cl)
 
-	router := mux.NewRouter()
+	srv = server.NewServer(collector)
+	router = mux.NewRouter()
 
 	registerMiddleware(router)
-	registerRoutes(router, s)
-
-	var wg sync.WaitGroup
+	registerRoutes(router, srv)
 
 	httpServer := &http.Server{
 		Addr:    config.ServerHost,
 		Handler: router,
 	}
-
 	wg.Add(1)
 	go func() {
 		ilog.AppLogger.Debug("http server started")
-		if err = httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			ilog.AppLogger.Errorf("can't start http server: %v", err)
+		if err = httpServer.ListenAndServe(); err != nil {
+			if errors.Is(err, http.ErrServerClosed) {
+				ilog.AppLogger.Debug("http server stopped")
+			} else {
+				ilog.AppLogger.Errorf("can't start http server: %v", err)
+			}
 		}
 		wg.Done()
 	}()
 
 	wg.Add(1)
 	go func() {
-		if err = saveSnapshot(ctx, cl, config.StoreInterval); err != nil {
+		if err = saveSnapshot(ctx, collector, config.StoreInterval); err != nil {
 			ilog.AppLogger.Errorf("can't save statistics snapshot: %v", err)
 		}
 		wg.Done()
@@ -75,11 +83,10 @@ func main() {
 	wg.Add(1)
 	go func() {
 		<-ctx.Done()
-		ilog.AppLogger.Debug("shutting down http server started")
+		ilog.AppLogger.Debug("http server shutting down")
 		if err = httpServer.Shutdown(context.Background()); err != nil {
 			ilog.AppLogger.Errorf("can't shutdown http server: %v", err)
 		}
-		ilog.AppLogger.Debug("shutting down http server finished")
 		wg.Done()
 	}()
 
