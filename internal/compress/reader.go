@@ -10,13 +10,13 @@ import (
 
 // Reader структура для чтения сжатых данных.
 type Reader struct {
-	reader io.ReadCloser
-	cmp    io.ReadCloser
+	reader     io.ReadCloser
+	compressor io.ReadCloser
 }
 
 // Read распаковка сжатых данных.
 func (c *Reader) Read(p []byte) (n int, err error) {
-	return c.cmp.Read(p)
+	return c.compressor.Read(p)
 }
 
 // Close закрытие ридера.
@@ -24,7 +24,7 @@ func (c *Reader) Close() error {
 	if err := c.reader.Close(); err != nil {
 		return err
 	}
-	return c.cmp.Close()
+	return c.compressor.Close()
 }
 
 // ReaderFactory фабрика для создания ридера сжатых данных.
@@ -48,8 +48,8 @@ func newGZipCompressReader(r io.ReadCloser) (io.ReadCloser, error) {
 	}
 
 	return &Reader{
-		reader: r,
-		cmp:    cmp,
+		reader:     r,
+		compressor: cmp,
 	}, nil
 }
 
@@ -60,8 +60,8 @@ func newDeflateCompressReader(r io.ReadCloser) (io.ReadCloser, error) {
 	}
 
 	return &Reader{
-		reader: r,
-		cmp:    cmp,
+		reader:     r,
+		compressor: cmp,
 	}, nil
 }
 
@@ -70,7 +70,7 @@ func newBrotliCompressReader(r io.ReadCloser) (io.ReadCloser, error) {
 
 	return &Reader{
 		reader: r,
-		cmp: brotliDecorator{
+		compressor: brotliDecorator{
 			cmp,
 		},
 	}, nil

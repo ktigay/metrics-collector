@@ -98,6 +98,7 @@ func (c *MetricCollector) RemoveByKey(key string) error {
 	return c.storage.RemoveByKey(key)
 }
 
+// Backup бэкап данных.
 func (c *MetricCollector) Backup() error {
 	return c.storage.Backup()
 }
