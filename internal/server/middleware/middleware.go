@@ -26,11 +26,11 @@ func WithLogging(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 
-		rd := &serverhttp.ResponseData{
+		rd := serverhttp.ResponseData{
 			Status: 0,
 			Size:   0,
 		}
-		lw := serverhttp.NewWriter(w, rd)
+		lw := serverhttp.NewWriter(w, &rd)
 
 		log.AppLogger.Infow(
 			"request",

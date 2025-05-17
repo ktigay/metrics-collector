@@ -35,18 +35,23 @@ func NewServer(collector CollectorInterface) *Server {
 func (c *Server) CollectHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
-	t, err := metric.ResolveType(vars["type"])
+	var (
+		t   metric.Type
+		err error
+	)
+
+	t, err = metric.ResolveType(vars["type"])
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	if _, err := strconv.ParseFloat(vars["value"], 64); err != nil {
+	if _, err = strconv.ParseFloat(vars["value"], 64); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	if err := c.collector.Save(t, vars["name"], vars["value"]); err != nil {
+	if err = c.collector.Save(t, vars["name"], vars["value"]); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -58,12 +63,17 @@ func (c *Server) CollectHandler(w http.ResponseWriter, r *http.Request) {
 func (c *Server) GetValueHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
-	if _, err := metric.ResolveType(vars["type"]); err != nil {
+	var (
+		err    error
+		entity *storage.Entity
+	)
+
+	if _, err = metric.ResolveType(vars["type"]); err != nil {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
-	entity, err := c.collector.FindByKey(metric.Key(vars["type"], vars["name"]))
+	entity, err = c.collector.FindByKey(metric.Key(vars["type"], vars["name"]))
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 	}
@@ -73,7 +83,7 @@ func (c *Server) GetValueHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	if _, err := fmt.Fprintf(w, "%v", entity.ValueByType()); err != nil {
+	if _, err = fmt.Fprintf(w, "%v", entity.ValueByType()); err != nil {
 		log.AppLogger.Errorln("Failed to write response", zap.Error(err))
 	}
 }
@@ -103,27 +113,32 @@ func (c *Server) UpdateJSONHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("content-type", "application/json")
 
-	var m metric.Metrics
+	var (
+		m      metric.Metrics
+		err    error
+		t      metric.Type
+		entity *storage.Entity
+	)
 
-	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
+	if err = json.NewDecoder(r.Body).Decode(&m); err != nil {
 		log.AppLogger.Errorln("Failed to write response", zap.Error(err))
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	t, err := metric.ResolveType(m.MType)
+	t, err = metric.ResolveType(m.MType)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		log.AppLogger.Errorln("resolve type error", zap.Error(err))
 		return
 	}
 
-	if err := c.collector.Save(t, m.ID, m.ValueByType()); err != nil {
+	if err = c.collector.Save(t, m.ID, m.ValueByType()); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	entity, err := c.collector.FindByKey(m.Key())
+	entity, err = c.collector.FindByKey(m.Key())
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -136,7 +151,7 @@ func (c *Server) UpdateJSONHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	um := entity.ToMetrics()
-	if err := json.NewEncoder(w).Encode(um); err != nil {
+	if err = json.NewEncoder(w).Encode(um); err != nil {
 		log.AppLogger.Errorln("Failed to write response", zap.Error(err))
 	}
 }
@@ -150,19 +165,24 @@ func (c *Server) GetJSONValueHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("content-type", "application/json")
 
-	var m metric.Metrics
-	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
+	var (
+		m      metric.Metrics
+		err    error
+		entity *storage.Entity
+	)
+
+	if err = json.NewDecoder(r.Body).Decode(&m); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	if _, err := metric.ResolveType(m.MType); err != nil {
+	if _, err = metric.ResolveType(m.MType); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		log.AppLogger.Errorln("resolve type error", zap.Error(err))
 		return
 	}
 
-	entity, err := c.collector.FindByKey(m.Key())
+	entity, err = c.collector.FindByKey(m.Key())
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -175,7 +195,7 @@ func (c *Server) GetJSONValueHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	um := entity.ToMetrics()
-	if err := json.NewEncoder(w).Encode(um); err != nil {
+	if err = json.NewEncoder(w).Encode(um); err != nil {
 		log.AppLogger.Errorln("Failed to write response", zap.Error(err))
 	}
 }

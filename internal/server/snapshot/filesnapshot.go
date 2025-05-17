@@ -2,13 +2,13 @@ package snapshot
 
 import (
 	"encoding/json"
-	"github.com/ktigay/metrics-collector/internal/log"
-	"go.uber.org/zap"
 	"io"
 	"os"
 	"path/filepath"
 
+	"github.com/ktigay/metrics-collector/internal/log"
 	"github.com/ktigay/metrics-collector/internal/server/storage"
+	"go.uber.org/zap"
 )
 
 // FileSnapshot структура для сохранения снапшота в файле.
@@ -76,14 +76,6 @@ func (f *FileSnapshot) Write(entities []storage.Entity) error {
 	}
 	// перезапись происходит только при успешном закрытии writer.
 	return writer.Close()
-}
-
-func tempDir(dest string) string {
-	tmp := os.Getenv("TMPDIR")
-	if tmp == "" {
-		tmp = filepath.Dir(dest)
-	}
-	return tmp
 }
 
 func ensureDir(dirName string) error {
