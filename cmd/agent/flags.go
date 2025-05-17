@@ -37,8 +37,7 @@ func parseFlags(args []string) (*Config, error) {
 	flags.IntVar(&config.ReportInterval, "r", defaultReportInterval, "interval between reports")
 	flags.IntVar(&config.PollInterval, "p", defaultPollInterval, "interval between polls")
 
-	err := flags.Parse(args)
-	if err != nil {
+	if err := flags.Parse(args); err != nil {
 		return nil, err
 	}
 

@@ -24,8 +24,8 @@ type Sender struct {
 	url string
 }
 
-// NewMetricHandler - конструктор.
-func NewMetricHandler(url string) *Sender {
+// NewSender - конструктор.
+func NewSender(url string) *Sender {
 	return &Sender{
 		url: url,
 	}
@@ -88,17 +88,22 @@ func (mh *Sender) sendCounter(c collector.MetricCollectDTO) error {
 }
 
 func (mh *Sender) post(url string, t metric.Type, id string, v any) ([]byte, error) {
+	var (
+		m    metric.Metrics
+		b    []byte
+		err  error
+		buff bytes.Buffer
+		cw   *compress.Writer
+		req  *http.Request
+		resp *http.Response
+	)
 
-	m := makeMetrics(t, id, v)
-	b, err := json.Marshal(m)
+	m = makeMetrics(t, id, v)
 
-	if err != nil {
+	if b, err = json.Marshal(m); err != nil {
 		return nil, err
 	}
-
-	var bb bytes.Buffer
-	cw, err := compress.NewWriter(compressType, &bb)
-	if err != nil {
+	if cw, err = compress.NewWriter(compressType, &buff); err != nil {
 		return nil, err
 	}
 	if _, err = cw.Write(b); err != nil {
@@ -108,8 +113,7 @@ func (mh *Sender) post(url string, t metric.Type, id string, v any) ([]byte, err
 		return nil, err
 	}
 
-	req, err := http.NewRequest(http.MethodPost, url, &bb)
-	if err != nil {
+	if req, err = http.NewRequest(http.MethodPost, url, &buff); err != nil {
 		return nil, err
 	}
 
@@ -117,11 +121,9 @@ func (mh *Sender) post(url string, t metric.Type, id string, v any) ([]byte, err
 	req.Header.Set("Content-Encoding", string(compressType))
 
 	client := http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
+	if resp, err = client.Do(req); err != nil {
 		return nil, err
 	}
-
 	defer func() {
 		if resp == nil {
 			return
@@ -139,14 +141,16 @@ func (mh *Sender) post(url string, t metric.Type, id string, v any) ([]byte, err
 }
 
 func makeMetrics(t metric.Type, id string, v any) metric.Metrics {
-	var delta int64
-	var val float64
+	var (
+		delta int64
+		val   float64
+	)
 
-	switch t := v.(type) {
+	switch mt := v.(type) {
 	case int64:
-		delta = t
+		delta = mt
 	case float64:
-		val = t
+		val = mt
 	}
 
 	return metric.Metrics{
