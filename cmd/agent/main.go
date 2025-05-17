@@ -1,44 +1,91 @@
 package main
 
 import (
+	"context"
+	"errors"
+	"log"
+	"os"
+	"os/signal"
+	"sync"
+	"syscall"
+	"time"
+
 	"github.com/ktigay/metrics-collector/internal/client"
 	"github.com/ktigay/metrics-collector/internal/client/collector"
-	"os"
-	"time"
+	ilog "github.com/ktigay/metrics-collector/internal/log"
 )
 
 func main() {
-	config, err := parseFlags(os.Args[1:])
-	if err != nil {
+	var (
+		config *Config
+		err    error
+	)
+
+	if config, err = parseFlags(os.Args[1:]); err != nil {
 		os.Exit(1)
 	}
 
-	cl := collector.NewRuntimeMetricCollector()
-	h := client.NewMetricHandler(config.ServerProtocol + "://" + config.ServerHost)
-	stop := make(chan bool)
+	if err = ilog.Initialize(config.LogLevel); err != nil {
+		log.Fatalf("can't initialize zap logger: %v", err)
+	}
 	defer func() {
-		stop <- true
+		if err = ilog.AppLogger.Sync(); err != nil && !errors.Is(err, syscall.EINVAL) {
+			log.Printf("can't sync logger: %v", err)
+		}
 	}()
-	go pollStat(stop, config, cl)
 
-	sendStat(config, cl, h)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	cl := collector.NewRuntimeMetricCollector()
+	s := client.NewSender(config.ServerProtocol + "://" + config.ServerHost)
+
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go func() {
+		pollStat(ctx, config, cl)
+		wg.Done()
+	}()
+
+	wg.Add(1)
+	go func() {
+		sendStat(ctx, config, cl, s)
+		wg.Done()
+	}()
+
+	wg.Wait()
+
+	ilog.AppLogger.Debug("program exited")
 }
 
-func pollStat(stop <-chan bool, config *Config, cl *collector.RuntimeMetricCollector) {
+func pollStat(ctx context.Context, config *Config, cl *collector.RuntimeMetricCollector) {
+	ticker := time.NewTicker(time.Duration(config.PollInterval) * time.Second)
+	defer ticker.Stop()
+	cl.PollStat()
 	for {
 		select {
-		default:
+		case <-ticker.C:
 			cl.PollStat()
-			time.Sleep(time.Duration(config.PollInterval) * time.Second)
-		case <-stop:
+		case <-ctx.Done():
+			ilog.AppLogger.Debug("pollStat stopped")
 			return
 		}
 	}
 }
 
-func sendStat(config *Config, cl *collector.RuntimeMetricCollector, h *client.Sender) {
+func sendStat(ctx context.Context, config *Config, cl *collector.RuntimeMetricCollector, s *client.Sender) {
+	ticker := time.NewTicker(time.Duration(config.ReportInterval) * time.Second)
+	defer ticker.Stop()
 	for {
-		time.Sleep(time.Duration(config.ReportInterval) * time.Second)
-		h.SendMetrics(cl.GetStat())
+		select {
+		case <-ctx.Done():
+			ilog.AppLogger.Debug("sendStat stopped")
+			return
+		case <-ticker.C:
+			ilog.AppLogger.Debug("sendStat started")
+			s.SendMetrics(cl.GetStat())
+			ilog.AppLogger.Debug("sendStat finished")
+		}
 	}
 }

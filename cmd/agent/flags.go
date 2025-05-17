@@ -3,12 +3,14 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/caarlos0/env/v6"
 	"strings"
+
+	"github.com/caarlos0/env/v6"
 )
 
 const (
 	defaultServerHost     = "localhost:8080"
+	defaultLogLevel       = "info"
 	defaultReportInterval = 10
 	defaultPollInterval   = 2
 	defaultServerProtocol = "http"
@@ -20,6 +22,7 @@ type Config struct {
 	ServerHost     string `env:"ADDRESS"`
 	ReportInterval int    `env:"REPORT_INTERVAL"`
 	PollInterval   int    `env:"POLL_INTERVAL"`
+	LogLevel       string `env:"LOG_LEVEL"`
 }
 
 func parseFlags(args []string) (*Config, error) {
@@ -30,11 +33,11 @@ func parseFlags(args []string) (*Config, error) {
 	flags := flag.NewFlagSet("agent flags", flag.ContinueOnError)
 
 	flags.StringVar(&config.ServerHost, "a", defaultServerHost, "address and port to run server")
+	flags.StringVar(&config.LogLevel, "l", defaultLogLevel, "log level")
 	flags.IntVar(&config.ReportInterval, "r", defaultReportInterval, "interval between reports")
 	flags.IntVar(&config.PollInterval, "p", defaultPollInterval, "interval between polls")
 
-	err := flags.Parse(args)
-	if err != nil {
+	if err := flags.Parse(args); err != nil {
 		return nil, err
 	}
 
