@@ -11,12 +11,6 @@ import (
 	"github.com/andybalholm/brotli"
 )
 
-var encodings = map[Type]string{
-	Gzip:    "gzip",
-	Deflate: "deflate",
-	Br:      "br",
-}
-
 // Writer структура для записи сжатых данных.
 type Writer struct {
 	cmp io.WriteCloser
@@ -54,7 +48,7 @@ type HTTPWriter struct {
 func NewHTTPWriter(t Type, w http.ResponseWriter) (*HTTPWriter, error) {
 	cmp, _ := compressor(t, w)
 	if cmp != nil {
-		w.Header().Set("Content-Encoding", encodings[t])
+		w.Header().Set("Content-Encoding", fmt.Sprint(t))
 	}
 
 	httpWr := HTTPWriter{
