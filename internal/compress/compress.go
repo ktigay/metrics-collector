@@ -11,6 +11,11 @@ const (
 	Br      Type = "br"
 )
 
+// String тип в виде строки.
+func (t Type) String() string {
+	return string(t)
+}
+
 // TypeFromString поиск типа сжатия из строки.
 func TypeFromString(str string) Type {
 	if str == "" {
