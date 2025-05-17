@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"github.com/ktigay/metrics-collector/internal/log"
 	"maps"
 	"slices"
 	"sync"
@@ -13,7 +14,7 @@ type Snapshot interface {
 
 // MemStorage - in-memory хранилище.
 type MemStorage struct {
-	sm sync.RWMutex
+	sm       sync.RWMutex
 	Metrics  map[string]Entity
 	snapshot Snapshot
 }
@@ -74,6 +75,7 @@ func (s *MemStorage) RemoveByKey(key string) error {
 	return nil
 }
 
+// Backup бэкап данных.
 func (s *MemStorage) Backup() error {
 	if s.snapshot == nil {
 		return nil
@@ -99,6 +101,8 @@ func (s *MemStorage) restore() error {
 	for _, m := range data {
 		s.Metrics[m.Key] = m
 	}
+
+	log.AppLogger.Debugf("storage.restore restored len=%d", len(data))
 
 	return nil
 }

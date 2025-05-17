@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"go.uber.org/zap"
 	"io"
 	"net/http"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/ktigay/metrics-collector/internal/compress"
 	"github.com/ktigay/metrics-collector/internal/log"
 	"github.com/ktigay/metrics-collector/internal/metric"
+	"go.uber.org/zap"
 )
 
 const (
