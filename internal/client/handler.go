@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/ktigay/metrics-collector/internal"
 	"github.com/ktigay/metrics-collector/internal/client/collector"
 	"github.com/ktigay/metrics-collector/internal/compress"
 	"github.com/ktigay/metrics-collector/internal/log"
@@ -124,8 +123,11 @@ func (mh *Sender) post(url string, t metric.Type, id string, v any) ([]byte, err
 	}
 
 	defer func() {
-		if resp != nil {
-			internal.Quite(resp.Body.Close)
+		if resp == nil {
+			return
+		}
+		if err = resp.Body.Close(); err != nil {
+			log.AppLogger.Error("client.post error", zap.Error(err))
 		}
 	}()
 

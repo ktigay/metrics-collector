@@ -74,7 +74,7 @@ func (c *Server) GetValueHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	if _, err := fmt.Fprintf(w, "%v", entity.ValueByType()); err != nil {
-		log.SugaredLogger.Errorln("Failed to write response", zap.Error(err))
+		log.AppLogger.Errorln("Failed to write response", zap.Error(err))
 	}
 }
 
@@ -90,7 +90,7 @@ func (c *Server) GetAllHandler(w http.ResponseWriter, _ *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(names); err != nil {
-		log.SugaredLogger.Errorln("Failed to write response", zap.Error(err))
+		log.AppLogger.Errorln("Failed to write response", zap.Error(err))
 	}
 }
 
@@ -106,7 +106,7 @@ func (c *Server) UpdateJSONHandler(w http.ResponseWriter, r *http.Request) {
 	var m metric.Metrics
 
 	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
-		log.SugaredLogger.Errorln("Failed to write response", zap.Error(err))
+		log.AppLogger.Errorln("Failed to write response", zap.Error(err))
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -114,7 +114,7 @@ func (c *Server) UpdateJSONHandler(w http.ResponseWriter, r *http.Request) {
 	t, err := metric.ResolveType(m.MType)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		log.SugaredLogger.Errorln("resolve type error", zap.Error(err))
+		log.AppLogger.Errorln("resolve type error", zap.Error(err))
 		return
 	}
 
@@ -135,9 +135,9 @@ func (c *Server) UpdateJSONHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 
-	um := storage.MapEntityToMetrics(*entity)
+	um := entity.ToMetrics()
 	if err := json.NewEncoder(w).Encode(um); err != nil {
-		log.SugaredLogger.Errorln("Failed to write response", zap.Error(err))
+		log.AppLogger.Errorln("Failed to write response", zap.Error(err))
 	}
 }
 
@@ -158,7 +158,7 @@ func (c *Server) GetJSONValueHandler(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := metric.ResolveType(m.MType); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		log.SugaredLogger.Errorln("resolve type error", zap.Error(err))
+		log.AppLogger.Errorln("resolve type error", zap.Error(err))
 		return
 	}
 
@@ -174,8 +174,8 @@ func (c *Server) GetJSONValueHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 
-	um := storage.MapEntityToMetrics(*entity)
+	um := entity.ToMetrics()
 	if err := json.NewEncoder(w).Encode(um); err != nil {
-		log.SugaredLogger.Errorln("Failed to write response", zap.Error(err))
+		log.AppLogger.Errorln("Failed to write response", zap.Error(err))
 	}
 }

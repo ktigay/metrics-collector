@@ -16,7 +16,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if _, err = ilog.Initialize(config.LogLevel); err != nil {
+	if err = ilog.Initialize(config.LogLevel); err != nil {
 		log.Fatalf("can't initialize zap logger: %v", err)
 	}
 	defer func() {

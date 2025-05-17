@@ -3,6 +3,7 @@ package snapshot
 import (
 	"bufio"
 	"encoding/json"
+	"github.com/ktigay/metrics-collector/internal/log"
 	"io"
 	"os"
 )
@@ -84,8 +85,12 @@ func (a *AtomicFileWriter) Close() error {
 
 func (a *AtomicFileWriter) onError() {
 	if a.tmpFile != nil {
-		_ = a.tmpFile.Close()
-		_ = os.Remove(a.tmpFile.Name())
+		if err := a.tmpFile.Close(); err != nil {
+			log.AppLogger.Errorf("failed to close tmp file: %v", err)
+		}
+		if err := os.Remove(a.tmpFile.Name()); err != nil {
+			log.AppLogger.Errorf("failed to remove tmp file: %v", err)
+		}
 	}
 }
 

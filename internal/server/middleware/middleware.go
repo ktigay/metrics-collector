@@ -1,11 +1,11 @@
 package middleware
 
 import (
+	"go.uber.org/zap"
 	"net/http"
 	"strings"
 	"time"
 
-	"github.com/ktigay/metrics-collector/internal"
 	"github.com/ktigay/metrics-collector/internal/compress"
 	serverhttp "github.com/ktigay/metrics-collector/internal/http"
 	"github.com/ktigay/metrics-collector/internal/log"
@@ -32,7 +32,7 @@ func WithLogging(next http.Handler) http.Handler {
 		}
 		lw := serverhttp.NewWriter(w, rd)
 
-		log.SugaredLogger.Infow(
+		log.AppLogger.Infow(
 			"request",
 			"requestURI", r.RequestURI,
 			"method", r.Method,
@@ -41,7 +41,7 @@ func WithLogging(next http.Handler) http.Handler {
 		next.ServeHTTP(lw, r)
 
 		duration := time.Since(start)
-		log.SugaredLogger.Infow(
+		log.AppLogger.Infow(
 			"response",
 			"status", rd.Status,
 			"size", rd.Size,
@@ -83,7 +83,11 @@ func CompressHandler(next http.Handler) http.Handler {
 					return
 				}
 				w = cw
-				defer internal.Quite(cw.Close)
+				defer func() {
+					if err = cw.Close(); err != nil {
+						log.AppLogger.Error("middleware.CompressHandler error", zap.Error(err))
+					}
+				}()
 			}
 		}
 

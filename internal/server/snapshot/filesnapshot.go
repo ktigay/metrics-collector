@@ -2,11 +2,12 @@ package snapshot
 
 import (
 	"encoding/json"
+	"github.com/ktigay/metrics-collector/internal/log"
+	"go.uber.org/zap"
 	"io"
 	"os"
 	"path/filepath"
 
-	"github.com/ktigay/metrics-collector/internal"
 	"github.com/ktigay/metrics-collector/internal/server/storage"
 )
 
@@ -22,7 +23,7 @@ func NewFileSnapshot(filePath string) *FileSnapshot {
 
 // Read чтение снапшота из файла.
 func (f *FileSnapshot) Read() ([]storage.Entity, error) {
-        if err := ensureDir(filepath.Dir(f.filePath)); err != nil {
+	if err := ensureDir(filepath.Dir(f.filePath)); err != nil {
 		return nil, err
 	}
 
@@ -30,7 +31,11 @@ func (f *FileSnapshot) Read() ([]storage.Entity, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer internal.Quite(file.Close)
+	defer func() {
+		if err = file.Close(); err != nil {
+			log.AppLogger.Error("snapshot.Read error", zap.Error(err))
+		}
+	}()
 	var all = make([]storage.Entity, 0)
 
 	dec := json.NewDecoder(file)

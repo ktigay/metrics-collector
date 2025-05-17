@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -20,7 +21,7 @@ func main() {
 		log.Fatalf("can't parse flags: %v", err)
 	}
 
-	if _, err = ilog.Initialize(config.LogLevel); err != nil {
+	if err = ilog.Initialize(config.LogLevel); err != nil {
 		log.Fatalf("can't initialize zap logger: %v", err)
 	}
 	defer func() {
@@ -40,19 +41,24 @@ func main() {
 	registerMiddleware(router)
 	registerRoutes(router, s)
 
+	var wg sync.WaitGroup
 	stop := make(chan bool)
-	defer func() {
-		stop <- true
-	}()
+	wg.Add(1)
 	go func() {
 		if err = saveStatisticsSnapshot(stop, c, config.StoreInterval); err != nil {
-			ilog.SugaredLogger.Errorf("can't save statistics: %v", err)
+			ilog.AppLogger.Errorf("can't save statistics: %v", err)
 		}
+		wg.Done()
 	}()
 
 	if err = http.ListenAndServe(config.ServerHost, router); err != nil {
-		ilog.SugaredLogger.Errorln("can't start http server:", err)
+		ilog.AppLogger.Errorln("can't start http server:", err)
 	}
+
+	// сигнал к остановке горутины
+	stop <- true
+	// ждем остановки
+	wg.Wait()
 }
 
 func registerMiddleware(router *mux.Router) {

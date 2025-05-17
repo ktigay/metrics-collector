@@ -17,9 +17,10 @@ func TestMetricSender_sendCounter(t *testing.T) {
 		c collector.MetricCollectDTO
 	}
 	tests := []struct {
-		name string
-		args args
-		want string
+		name    string
+		args    args
+		want    string
+		wantErr bool
 	}{
 		{
 			name: "Positive_test",
@@ -28,24 +29,27 @@ func TestMetricSender_sendCounter(t *testing.T) {
 					Counter: 15,
 				},
 			},
-			want: "/update/counter/PollCount/15",
+			want:    "/update/",
+			wantErr: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
-			router := http.NewServeMux()
-			router.HandleFunc("/update/{type}/{name}/{value}", func(writer http.ResponseWriter, request *http.Request) {
+			svr := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 				require.Equal(t, http.MethodPost, request.Method)
 				assert.Equal(t, tt.want, request.RequestURI)
-			})
 
-			svr := httptest.NewServer(router)
+				writer.WriteHeader(http.StatusCreated)
+			}))
 			defer svr.Close()
 
 			c := NewMetricHandler(svr.URL)
-			_ = c.sendCounter(tt.args.c)
+			err := c.sendCounter(tt.args.c)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("sendCounter() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
 		})
 	}
 }
@@ -55,9 +59,10 @@ func TestMetricSender_sendGaugeMetrics(t *testing.T) {
 		c collector.MetricCollectDTO
 	}
 	tests := []struct {
-		name string
-		args args
-		want string
+		name    string
+		args    args
+		want    string
+		wantErr bool
 	}{
 		{
 			name: "Positive_test_check_request",
@@ -68,24 +73,26 @@ func TestMetricSender_sendGaugeMetrics(t *testing.T) {
 					},
 				},
 			},
-			want: "/update/gauge/Alloc/12.345",
+			want:    "/update/",
+			wantErr: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
-			router := http.NewServeMux()
-			router.HandleFunc("/update/{type}/{name}/{value}", func(writer http.ResponseWriter, request *http.Request) {
+			svr := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 				require.Equal(t, http.MethodPost, request.Method)
 				assert.Equal(t, tt.want, request.RequestURI)
-			})
 
-			svr := httptest.NewServer(router)
+				writer.WriteHeader(http.StatusCreated)
+			}))
 			defer svr.Close()
 
 			c := NewMetricHandler(svr.URL)
-			_ = c.sendGaugeMetrics(tt.args.c)
+			err := c.sendGaugeMetrics(tt.args.c)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("sendGaugeMetrics() error = %v, wantErr %v", err, tt.wantErr)
+			}
 		})
 	}
 }
@@ -95,9 +102,10 @@ func TestMetricSender_sendRand(t *testing.T) {
 		c collector.MetricCollectDTO
 	}
 	tests := []struct {
-		name string
-		args args
-		want string
+		name    string
+		args    args
+		want    string
+		wantErr bool
 	}{
 		{
 			name: "Positive_test",
@@ -106,24 +114,26 @@ func TestMetricSender_sendRand(t *testing.T) {
 					Rand: 1222.222,
 				},
 			},
-			want: "/update/gauge/RandomValue/1222.222",
+			want:    "/update/",
+			wantErr: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
-			router := http.NewServeMux()
-			router.HandleFunc("/update/{type}/{name}/{value}", func(writer http.ResponseWriter, request *http.Request) {
+			svr := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 				require.Equal(t, http.MethodPost, request.Method)
 				assert.Equal(t, tt.want, request.RequestURI)
-			})
 
-			svr := httptest.NewServer(router)
+				writer.WriteHeader(http.StatusCreated)
+			}))
 			defer svr.Close()
 
 			c := NewMetricHandler(svr.URL)
-			_ = c.sendRand(tt.args.c)
+			err := c.sendRand(tt.args.c)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("sendRand() error = %v, wantErr %v", err, tt.wantErr)
+			}
 		})
 	}
 }

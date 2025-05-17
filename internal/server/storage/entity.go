@@ -24,18 +24,18 @@ func (e *Entity) ValueByType() any {
 	return nil
 }
 
-// MapEntityToMetrics мап сущности в дто.
-func MapEntityToMetrics(entity Entity) metric.Metrics {
-	m := metric.Metrics{
-		ID:    entity.Name,
-		MType: string(entity.Type),
+// ToMetrics мап сущности в дто.
+func (e *Entity) ToMetrics() *metric.Metrics {
+	m := &metric.Metrics{
+		ID:    e.Name,
+		MType: string(e.Type),
 	}
 
-	switch entity.Type {
+	switch e.Type {
 	case metric.TypeCounter:
-		m.Delta = &entity.Delta
+		m.Delta = &e.Delta
 	case metric.TypeGauge:
-		m.Value = &entity.Value
+		m.Value = &e.Value
 	}
 
 	return m

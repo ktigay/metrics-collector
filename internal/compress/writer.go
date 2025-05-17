@@ -46,20 +46,20 @@ func (w *Writer) Close() error {
 
 // HTTPWriter структура для обработки сжатия ответа.
 type HTTPWriter struct {
-	Writer
-	writer          http.ResponseWriter
-	cmp             io.WriteCloser
-	contentEncoding string
+	writer     http.ResponseWriter
+	compressor io.WriteCloser
 }
 
 // NewHTTPWriter конструктор.
 func NewHTTPWriter(t Type, w http.ResponseWriter) (*HTTPWriter, error) {
 	cmp, _ := compressor(t, w)
+	if cmp != nil {
+		w.Header().Set("Content-Encoding", encodings[t])
+	}
 
 	httpWr := HTTPWriter{
-		writer:          w,
-		cmp:             cmp,
-		contentEncoding: encodings[t],
+		writer:     w,
+		compressor: cmp,
 	}
 
 	return &httpWr, nil
@@ -72,26 +72,23 @@ func (c *HTTPWriter) Header() http.Header {
 
 // Write записывает данные.
 func (c *HTTPWriter) Write(p []byte) (int, error) {
-	if c.cmp == nil {
+	if c.compressor == nil {
 		return c.writer.Write(p)
 	}
-	return c.cmp.Write(p)
+	return c.compressor.Write(p)
 }
 
 // WriteHeader устанавливает заголовок ответа.
 func (c *HTTPWriter) WriteHeader(statusCode int) {
-	if statusCode < 300 {
-		c.writer.Header().Set("Content-Encoding", c.contentEncoding)
-	}
 	c.writer.WriteHeader(statusCode)
 }
 
 // Close закрывает HTTPWriter и досылает все данные из буфера.
 func (c *HTTPWriter) Close() error {
-	if c.cmp == nil {
+	if c.compressor == nil {
 		return nil
 	}
-	return c.cmp.Close()
+	return c.compressor.Close()
 }
 
 func compressor(t Type, w io.Writer) (io.WriteCloser, error) {
