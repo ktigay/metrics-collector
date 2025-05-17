@@ -1,10 +1,14 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -16,6 +20,9 @@ import (
 )
 
 func main() {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
 	config, err := parseFlags(os.Args[1:])
 	if err != nil {
 		log.Fatalf("can't parse flags: %v", err)
@@ -30,11 +37,11 @@ func main() {
 		}
 	}()
 
-	c, err := initCollector(config.Restore, config.FileStoragePath)
+	cl, err := initCollector(config.Restore, config.FileStoragePath)
 	if err != nil {
 		log.Fatalf("can't initialize collector: %v", err)
 	}
-	s := server.NewServer(c)
+	s := server.NewServer(cl)
 
 	router := mux.NewRouter()
 
@@ -42,23 +49,43 @@ func main() {
 	registerRoutes(router, s)
 
 	var wg sync.WaitGroup
-	stop := make(chan bool)
+
+	httpServer := &http.Server{
+		Addr:    config.ServerHost,
+		Handler: router,
+	}
+
 	wg.Add(1)
 	go func() {
-		if err = saveStatisticsSnapshot(stop, c, config.StoreInterval); err != nil {
-			ilog.AppLogger.Errorf("can't save statistics: %v", err)
+		ilog.AppLogger.Debug("http server started")
+		if err = httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			ilog.AppLogger.Errorf("can't start http server: %v", err)
 		}
 		wg.Done()
 	}()
 
-	if err = http.ListenAndServe(config.ServerHost, router); err != nil {
-		ilog.AppLogger.Errorln("can't start http server:", err)
-	}
+	wg.Add(1)
+	go func() {
+		if err = saveSnapshot(ctx, cl, config.StoreInterval); err != nil {
+			ilog.AppLogger.Errorf("can't save statistics snapshot: %v", err)
+		}
+		wg.Done()
+	}()
 
-	// сигнал к остановке горутины
-	stop <- true
-	// ждем остановки
+	wg.Add(1)
+	go func() {
+		<-ctx.Done()
+		ilog.AppLogger.Debug("shutting down http server started")
+		if err = httpServer.Shutdown(context.Background()); err != nil {
+			ilog.AppLogger.Errorf("can't shutdown http server: %v", err)
+		}
+		ilog.AppLogger.Debug("shutting down http server finished")
+		wg.Done()
+	}()
+
 	wg.Wait()
+
+	ilog.AppLogger.Debug("program exited")
 }
 
 func registerMiddleware(router *mux.Router) {
@@ -92,19 +119,23 @@ func initCollector(restore bool, restorePath string) (*storage.MetricCollector, 
 	return storage.NewMetricCollector(st), nil
 }
 
-func saveStatisticsSnapshot(stop <-chan bool, c *storage.MetricCollector, storeInterval int) error {
+func saveSnapshot(ctx context.Context, c *storage.MetricCollector, storeInterval int) error {
 	ticker := time.NewTicker(time.Duration(storeInterval) * time.Second)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
+			ilog.AppLogger.Debug("saveSnapshot saving metrics started")
 			if err := c.Backup(); err != nil {
 				return err
 			}
-		case <-stop:
+			ilog.AppLogger.Debug("saveSnapshot saving metrics finished")
+		case <-ctx.Done():
+			ticker.Stop()
 			if err := c.Backup(); err != nil {
 				return err
 			}
+			ilog.AppLogger.Debug("saveSnapshot shutting down")
 			return nil
 		}
 	}
