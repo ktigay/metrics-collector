@@ -15,6 +15,7 @@ import (
 	ilog "github.com/ktigay/metrics-collector/internal/log"
 	"github.com/ktigay/metrics-collector/internal/server"
 	"github.com/ktigay/metrics-collector/internal/server/middleware"
+	"github.com/ktigay/metrics-collector/internal/server/service"
 	"github.com/ktigay/metrics-collector/internal/server/snapshot"
 	"github.com/ktigay/metrics-collector/internal/server/storage"
 )
@@ -38,7 +39,7 @@ func main() {
 	}()
 
 	var (
-		collector *storage.MetricCollector
+		collector *service.MetricCollector
 		router    *mux.Router
 		srv       *server.Server
 		wg        sync.WaitGroup
@@ -111,7 +112,7 @@ func registerRoutes(router *mux.Router, s *server.Server) {
 	router.HandleFunc("/", s.GetAllHandler).Methods(http.MethodGet)
 }
 
-func initCollector(restore bool, restorePath string) (*storage.MetricCollector, error) {
+func initCollector(restore bool, restorePath string) (*service.MetricCollector, error) {
 	var sn storage.Snapshot
 
 	if restore {
@@ -123,10 +124,10 @@ func initCollector(restore bool, restorePath string) (*storage.MetricCollector, 
 		return nil, err
 	}
 
-	return storage.NewMetricCollector(st), nil
+	return service.NewMetricCollector(st), nil
 }
 
-func saveSnapshot(ctx context.Context, c *storage.MetricCollector, storeInterval int) error {
+func saveSnapshot(ctx context.Context, c *service.MetricCollector, storeInterval int) error {
 	ticker := time.NewTicker(time.Duration(storeInterval) * time.Second)
 	defer ticker.Stop()
 	for {

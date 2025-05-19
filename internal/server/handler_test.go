@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
+	"github.com/ktigay/metrics-collector/internal/server/service"
 	"github.com/ktigay/metrics-collector/internal/server/storage"
 	"github.com/stretchr/testify/require"
 )
@@ -79,7 +80,7 @@ func TestServer_CollectHandler(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			st, _ := storage.NewMemStorage(nil)
 			h := NewServer(
-				storage.NewMetricCollector(st),
+				service.NewMetricCollector(st),
 			)
 
 			router := mux.NewRouter()
@@ -106,9 +107,9 @@ func TestServer_CollectHandler(t *testing.T) {
 }
 
 func TestServer_UpdateJSONHandler(t *testing.T) {
-	newCollector := func() *storage.MetricCollector {
+	newCollector := func() *service.MetricCollector {
 		st, _ := storage.NewMemStorage(nil)
-		return storage.NewMetricCollector(st)
+		return service.NewMetricCollector(st)
 	}
 
 	type fields struct {
@@ -149,7 +150,7 @@ func TestServer_UpdateJSONHandler(t *testing.T) {
 		{
 			name: "Positive_test_counter",
 			fields: fields{
-				collector: storage.NewMetricCollector(
+				collector: service.NewMetricCollector(
 					&storage.MemStorage{
 						Metrics: map[string]storage.Entity{
 							"counter:TestSet91": {
@@ -255,9 +256,9 @@ func TestServer_UpdateJSONHandler(t *testing.T) {
 }
 
 func TestServer_GetJSONValueHandler(t *testing.T) {
-	newCollector := func() *storage.MetricCollector {
+	newCollector := func() *service.MetricCollector {
 		st, _ := storage.NewMemStorage(nil)
-		return storage.NewMetricCollector(st)
+		return service.NewMetricCollector(st)
 	}
 
 	type fields struct {
@@ -282,7 +283,7 @@ func TestServer_GetJSONValueHandler(t *testing.T) {
 		{
 			name: "Positive_test_gauge",
 			fields: fields{
-				collector: storage.NewMetricCollector(
+				collector: service.NewMetricCollector(
 					&storage.MemStorage{
 						Metrics: map[string]storage.Entity{
 							"gauge:TestSet90": {
@@ -309,7 +310,7 @@ func TestServer_GetJSONValueHandler(t *testing.T) {
 		{
 			name: "Positive_test_counter",
 			fields: fields{
-				collector: storage.NewMetricCollector(
+				collector: service.NewMetricCollector(
 					&storage.MemStorage{
 						Metrics: map[string]storage.Entity{
 							"counter:TestSet91": {

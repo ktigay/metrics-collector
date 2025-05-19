@@ -8,6 +8,10 @@ import (
 // Type - тип метрики.
 type Type string
 
+func (t Type) String() string {
+	return string(t)
+}
+
 // GaugeMetric - тип собираемых метрик.
 type GaugeMetric string
 

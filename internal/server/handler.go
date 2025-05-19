@@ -4,21 +4,35 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
 
 	"github.com/gorilla/mux"
 	"github.com/ktigay/metrics-collector/internal/log"
 	"github.com/ktigay/metrics-collector/internal/metric"
+	"github.com/ktigay/metrics-collector/internal/server/errors"
 	"github.com/ktigay/metrics-collector/internal/server/storage"
 	"go.uber.org/zap"
 )
 
+var errStatusMap = map[error]int{
+	errors.ErrWrongType:     http.StatusBadRequest,
+	errors.ErrTypeNotFound:  http.StatusBadRequest,
+	errors.ErrWrongValue:    http.StatusBadRequest,
+	errors.ErrValueNotFound: http.StatusNotFound,
+}
+
+func statusFromError(err error) int {
+	if st, ok := errStatusMap[err]; ok {
+		return st
+	}
+	return http.StatusInternalServerError
+}
+
 // CollectorInterface - Интерфейс сборщика статистики.
 type CollectorInterface interface {
-	Save(t metric.Type, n string, v any) error
-	GetAll() []storage.Entity
-	FindByKey(key string) (*storage.Entity, error)
-	RemoveByKey(key string) error
+	Save(t, n string, v any) error
+	All() []storage.Entity
+	Find(t, n string) (*storage.Entity, error)
+	Remove(t, n string) error
 }
 
 // Server - структура с обработчиками запросов.
@@ -35,24 +49,8 @@ func NewServer(collector CollectorInterface) *Server {
 func (c *Server) CollectHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
-	var (
-		t   metric.Type
-		err error
-	)
-
-	t, err = metric.ResolveType(vars["type"])
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	if _, err = strconv.ParseFloat(vars["value"], 64); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	if err = c.collector.Save(t, vars["name"], vars["value"]); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+	if err := c.collector.Save(vars["type"], vars["name"], vars["value"]); err != nil {
+		w.WriteHeader(statusFromError(err))
 		return
 	}
 
@@ -68,21 +66,13 @@ func (c *Server) GetValueHandler(w http.ResponseWriter, r *http.Request) {
 		entity *storage.Entity
 	)
 
-	if _, err = metric.ResolveType(vars["type"]); err != nil {
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-
-	entity, err = c.collector.FindByKey(metric.Key(vars["type"], vars["name"]))
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-	}
-	if entity == nil {
-		w.WriteHeader(http.StatusNotFound)
+	if entity, err = c.collector.Find(vars["type"], vars["name"]); err != nil {
+		w.WriteHeader(statusFromError(err))
 		return
 	}
 
 	w.WriteHeader(http.StatusOK)
+
 	if _, err = fmt.Fprintf(w, "%v", entity.ValueByType()); err != nil {
 		log.AppLogger.Errorln("Failed to write response", zap.Error(err))
 	}
@@ -91,7 +81,7 @@ func (c *Server) GetValueHandler(w http.ResponseWriter, r *http.Request) {
 // GetAllHandler - обработчик для получения списка метрик.
 func (c *Server) GetAllHandler(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("content-type", "text/html; charset=utf-8")
-	metrics := c.collector.GetAll()
+	metrics := c.collector.All()
 
 	names := make([]string, 0, len(metrics))
 	for _, m := range metrics {
@@ -99,6 +89,7 @@ func (c *Server) GetAllHandler(w http.ResponseWriter, _ *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
+
 	if err := json.NewEncoder(w).Encode(names); err != nil {
 		log.AppLogger.Errorln("Failed to write response", zap.Error(err))
 	}
@@ -116,7 +107,6 @@ func (c *Server) UpdateJSONHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		m      metric.Metrics
 		err    error
-		t      metric.Type
 		entity *storage.Entity
 	)
 
@@ -126,25 +116,13 @@ func (c *Server) UpdateJSONHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	t, err = metric.ResolveType(m.MType)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		log.AppLogger.Errorln("resolve type error", zap.Error(err))
+	if err = c.collector.Save(m.MType, m.ID, m.ValueByType()); err != nil {
+		w.WriteHeader(statusFromError(err))
 		return
 	}
 
-	if err = c.collector.Save(t, m.ID, m.ValueByType()); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	entity, err = c.collector.FindByKey(m.Key())
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	if entity == nil {
-		w.WriteHeader(http.StatusNotFound)
+	if entity, err = c.collector.Find(m.MType, m.ID); err != nil {
+		w.WriteHeader(statusFromError(err))
 		return
 	}
 
@@ -176,19 +154,9 @@ func (c *Server) GetJSONValueHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err = metric.ResolveType(m.MType); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		log.AppLogger.Errorln("resolve type error", zap.Error(err))
-		return
-	}
-
-	entity, err = c.collector.FindByKey(m.Key())
+	entity, err = c.collector.Find(m.MType, m.ID)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	if entity == nil {
-		w.WriteHeader(http.StatusNotFound)
+		w.WriteHeader(statusFromError(err))
 		return
 	}
 

@@ -1,10 +1,12 @@
 package storage
 
 import (
-	"github.com/ktigay/metrics-collector/internal/log"
+	"github.com/ktigay/metrics-collector/internal/metric"
 	"maps"
 	"slices"
 	"sync"
+
+	"github.com/ktigay/metrics-collector/internal/log"
 )
 
 type Snapshot interface {
@@ -41,11 +43,12 @@ func (s *MemStorage) Save(m Entity) error {
 	return nil
 }
 
-// FindByKey - поиск по ключу
-func (s *MemStorage) FindByKey(key string) (*Entity, error) {
+// Find - поиск по ключу
+func (s *MemStorage) Find(t, n string) (*Entity, error) {
 	s.sm.RLock()
 	defer s.sm.RUnlock()
 
+	key := metric.Key(t, n)
 	entity, ok := s.Metrics[key]
 	if !ok {
 		return nil, nil
@@ -54,8 +57,8 @@ func (s *MemStorage) FindByKey(key string) (*Entity, error) {
 	return &entity, nil
 }
 
-// GetAll - вернуть все метрики
-func (s *MemStorage) GetAll() []Entity {
+// All - вернуть все метрики
+func (s *MemStorage) All() []Entity {
 	s.sm.RLock()
 	defer s.sm.RUnlock()
 
@@ -66,11 +69,12 @@ func (s *MemStorage) GetAll() []Entity {
 	return all
 }
 
-// RemoveByKey удаляет по ключу.
-func (s *MemStorage) RemoveByKey(key string) error {
+// Remove удаляет по ключу.
+func (s *MemStorage) Remove(t, n string) error {
 	s.sm.Lock()
 	defer s.sm.Unlock()
 
+	key := metric.Key(t, n)
 	delete(s.Metrics, key)
 	return nil
 }

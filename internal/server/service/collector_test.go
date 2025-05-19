@@ -1,15 +1,16 @@
-package storage
+package service
 
 import (
 	"testing"
 
 	"github.com/ktigay/metrics-collector/internal/metric"
+	"github.com/ktigay/metrics-collector/internal/server/storage"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestMetricCollector_Save(t *testing.T) {
 	type fields struct {
-		metrics map[string]Entity
+		metrics map[string]storage.Entity
 	}
 	type args struct {
 		m []struct {
@@ -22,12 +23,12 @@ func TestMetricCollector_Save(t *testing.T) {
 		name   string
 		fields fields
 		args   args
-		want   []Entity
+		want   []storage.Entity
 	}{
 		{
 			name: "Positive_test",
 			fields: fields{
-				metrics: map[string]Entity{
+				metrics: map[string]storage.Entity{
 					"counter:PollCount": {
 						Key:   "counter:PollCount",
 						Type:  metric.TypeCounter,
@@ -65,7 +66,7 @@ func TestMetricCollector_Save(t *testing.T) {
 					},
 				},
 			},
-			want: []Entity{
+			want: []storage.Entity{
 				{
 					Key:   "counter:PollCount",
 					Type:  metric.TypeCounter,
@@ -89,15 +90,15 @@ func TestMetricCollector_Save(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := NewMetricCollector(&MemStorage{
+			c := NewMetricCollector(&storage.MemStorage{
 				Metrics: tt.fields.metrics,
 			})
 
 			for _, m := range tt.args.m {
-				_ = c.Save(m.Type, m.Name, m.Value)
+				_ = c.Save(string(m.Type), m.Name, m.Value)
 			}
 
-			a := c.GetAll()
+			a := c.All()
 			for _, m := range tt.want {
 				assert.Contains(t, a, m)
 			}
