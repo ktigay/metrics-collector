@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"go.uber.org/zap"
 	"net/http"
 	"strings"
 	"time"
@@ -9,6 +8,7 @@ import (
 	"github.com/ktigay/metrics-collector/internal/compress"
 	serverhttp "github.com/ktigay/metrics-collector/internal/http"
 	"github.com/ktigay/metrics-collector/internal/log"
+	"go.uber.org/zap"
 )
 
 var acceptTypes = []string{"text/html", "application/json", "*/*"}
@@ -53,7 +53,6 @@ func WithLogging(next http.Handler) http.Handler {
 // CompressHandler обработчик сжатия данных.
 func CompressHandler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
 		contentEncoding := r.Header.Get("Content-Encoding")
 		if ceAlg := compress.TypeFromString(contentEncoding); ceAlg != "" {
 			cr, err := compress.ReaderFactory(ceAlg, r.Body)

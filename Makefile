@@ -56,6 +56,9 @@ run-test-s:
 run-lint:
 	$(DOCKER_RUN) golangci-lint run
 
+cs-fix:
+	$(DOCKER_RUN) gofumpt -w -extra internal/ cmd/
+
 run-test-a: \
 	run-test-a1 \
 	run-test-a2 \

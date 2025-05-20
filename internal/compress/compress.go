@@ -6,9 +6,12 @@ import "strings"
 type Type string
 
 const (
-	Gzip    Type = "gzip"
+	// Gzip gzip.
+	Gzip Type = "gzip"
+	// Deflate deflate.
 	Deflate Type = "deflate"
-	Br      Type = "br"
+	// Br brotli.
+	Br Type = "br"
 )
 
 // String тип в виде строки.

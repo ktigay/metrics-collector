@@ -1,14 +1,15 @@
 package storage
 
 import (
-	"github.com/ktigay/metrics-collector/internal/metric"
 	"maps"
 	"slices"
 	"sync"
 
 	"github.com/ktigay/metrics-collector/internal/log"
+	"github.com/ktigay/metrics-collector/internal/metric"
 )
 
+// Snapshot интерфейс для чтения/сохранения снимка данных.
 type Snapshot interface {
 	Read() ([]Entity, error)
 	Write([]Entity) error
@@ -62,7 +63,7 @@ func (s *MemStorage) All() []Entity {
 	s.sm.RLock()
 	defer s.sm.RUnlock()
 
-	var all = make([]Entity, 0, len(s.Metrics))
+	all := make([]Entity, 0, len(s.Metrics))
 	for _, v := range s.Metrics {
 		all = append(all, v)
 	}

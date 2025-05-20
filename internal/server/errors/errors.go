@@ -3,9 +3,12 @@ package errors
 import "errors"
 
 var (
-	ErrWrongType     = errors.New("wrong type")
-	ErrWrongValue    = errors.New("wrong value")
-	ErrInvalidType   = errors.New("invalid type")
-	ErrTypeNotFound  = errors.New("type not found")
+	// ErrWrongType направильный тип метрики.
+	ErrWrongType = errors.New("wrong type")
+	// ErrWrongValue неправильное значение метрики.
+	ErrWrongValue = errors.New("wrong value")
+	// ErrInvalidValueType неправильный тип значения.
+	ErrInvalidValueType = errors.New("invalid value type")
+	// ErrValueNotFound значение не найдено.
 	ErrValueNotFound = errors.New("value not found")
 )

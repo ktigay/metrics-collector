@@ -15,7 +15,6 @@ import (
 
 var errStatusMap = map[error]int{
 	errors.ErrWrongType:     http.StatusBadRequest,
-	errors.ErrTypeNotFound:  http.StatusBadRequest,
 	errors.ErrWrongValue:    http.StatusBadRequest,
 	errors.ErrValueNotFound: http.StatusNotFound,
 }

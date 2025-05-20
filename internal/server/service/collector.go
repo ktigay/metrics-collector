@@ -63,7 +63,7 @@ func (c *MetricCollector) Save(t, n string, v any) error {
 		case int64:
 			val = vt
 		default:
-			return e.ErrInvalidType
+			return e.ErrInvalidValueType
 		}
 		memItem.Delta = memItem.Delta + val
 	case metric.TypeGauge:
@@ -75,7 +75,7 @@ func (c *MetricCollector) Save(t, n string, v any) error {
 		case float64:
 			memItem.Value = vt
 		default:
-			return e.ErrInvalidType
+			return e.ErrInvalidValueType
 		}
 	}
 
@@ -94,7 +94,7 @@ func (c *MetricCollector) Find(t, n string) (*storage.Entity, error) {
 		err    error
 	)
 	if _, err = metric.ResolveType(t); err != nil {
-		return nil, e.ErrTypeNotFound
+		return nil, e.ErrWrongType
 	}
 
 	if entity, err = c.storage.Find(t, n); err != nil {
@@ -110,7 +110,7 @@ func (c *MetricCollector) Find(t, n string) (*storage.Entity, error) {
 // Remove удаление записи по ключу.
 func (c *MetricCollector) Remove(t, n string) error {
 	if _, err := metric.ResolveType(t); err != nil {
-		return e.ErrTypeNotFound
+		return e.ErrWrongType
 	}
 	return c.storage.Remove(t, n)
 }

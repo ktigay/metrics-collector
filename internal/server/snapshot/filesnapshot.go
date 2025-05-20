@@ -27,7 +27,7 @@ func (f *FileSnapshot) Read() ([]storage.Entity, error) {
 		return nil, err
 	}
 
-	file, err := os.OpenFile(f.filePath, os.O_RDONLY|os.O_CREATE, 0644)
+	file, err := os.OpenFile(f.filePath, os.O_RDONLY|os.O_CREATE, 0o644)
 	if err != nil {
 		return nil, err
 	}
@@ -36,7 +36,7 @@ func (f *FileSnapshot) Read() ([]storage.Entity, error) {
 			log.AppLogger.Error("snapshot.Read error", zap.Error(err))
 		}
 	}()
-	var all = make([]storage.Entity, 0)
+	all := make([]storage.Entity, 0)
 
 	dec := json.NewDecoder(file)
 

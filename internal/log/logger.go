@@ -7,8 +7,10 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+// AppLogger глобальный логгер.
 var AppLogger = *zap.NewNop().Sugar()
 
+// Initialize инициализация глобального логгера.
 func Initialize(level string) error {
 	lvl, err := zap.ParseAtomicLevel(level)
 	if err != nil {

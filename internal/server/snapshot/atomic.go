@@ -66,7 +66,7 @@ func (a *AtomicFileWriter) Close() (err error) {
 		}
 	}()
 
-	if err = a.tmpFile.Chmod(0644); err != nil {
+	if err = a.tmpFile.Chmod(0o644); err != nil {
 		return err
 	}
 

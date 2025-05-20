@@ -15,6 +15,8 @@ RUN chmod +x ${GOPATH}/bin/random
 
 RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b ${GOPATH}/bin v2.1.6
 
+RUN go install mvdan.cc/gofumpt@latest
+
 WORKDIR /app
 
 COPY . .

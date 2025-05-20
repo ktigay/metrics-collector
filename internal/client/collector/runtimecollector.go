@@ -1,7 +1,7 @@
 package collector
 
 import (
-	"math/rand"
+	"math/rand/v2"
 	"runtime"
 
 	"github.com/ktigay/metrics-collector/internal/metric"
@@ -30,7 +30,7 @@ func (c *RuntimeMetricCollector) PollStat() {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 
-	c.counter += 1
+	c.counter++
 
 	c.stat = MetricCollectDTO{
 		MemStats: metric.MapGaugeFromMemStats(m),
