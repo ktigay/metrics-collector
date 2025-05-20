@@ -1,15 +1,23 @@
 package collector
 
 import (
-	"github.com/ktigay/metrics-collector/internal/client/metric/mapper"
-	"math/rand"
+	"math/rand/v2"
 	"runtime"
+
+	"github.com/ktigay/metrics-collector/internal/metric"
 )
 
 // RuntimeMetricCollector - сборщик метрик.
 type RuntimeMetricCollector struct {
-	counter uint64
+	counter int64
 	stat    MetricCollectDTO
+}
+
+// MetricCollectDTO - DTO.
+type MetricCollectDTO struct {
+	MemStats map[metric.GaugeMetric]float64
+	Counter  int64
+	Rand     float64
 }
 
 // NewRuntimeMetricCollector - конструктор.
@@ -22,10 +30,10 @@ func (c *RuntimeMetricCollector) PollStat() {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 
-	c.counter += 1
+	c.counter++
 
 	c.stat = MetricCollectDTO{
-		MemStats: mapper.MapGaugeFromMemStats(m),
+		MemStats: metric.MapGaugeFromMemStats(m),
 		Counter:  c.counter,
 		Rand:     rand.Float64(),
 	}

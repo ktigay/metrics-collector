@@ -1,38 +1,42 @@
 package storage
 
 import (
-	"fmt"
 	"github.com/ktigay/metrics-collector/internal/metric"
 )
 
 // Entity - сущность для сохранения в storage.
 type Entity struct {
-	Key   string `json:",omitempty"`
-	Type  metric.Type
-	Name  string
-	Value any
+	Key   string      `json:"key"`
+	Type  metric.Type `json:"type"`
+	Name  string      `json:"name"`
+	Delta int64       `json:"delta"`
+	Value float64     `json:"value"`
 }
 
-// GetKey - возвращает уникальный ключ метрики.
-func (e *Entity) GetKey() string {
-	return metric.GetKey(string(e.Type), e.Name)
-}
-
-// GetValue - возвращает значение.
-func (e *Entity) GetValue() any {
-	return e.Value
-}
-
-// ValueAsString - возвращает значение как строку.
-func (e *Entity) ValueAsString() string {
-	if e == nil {
-		return ""
+// ValueByType возвращает значение в зависимости от типа.
+func (e *Entity) ValueByType() any {
+	switch e.Type {
+	case metric.TypeCounter:
+		return e.Delta
+	case metric.TypeGauge:
+		return e.Value
 	}
-	switch e.Value.(type) {
-	case int64:
-		return fmt.Sprintf("%d", e.Value)
-	case float64:
-		return fmt.Sprintf("%g", e.Value)
+	return nil
+}
+
+// ToMetrics мап сущности в дто.
+func (e *Entity) ToMetrics() metric.Metrics {
+	m := metric.Metrics{
+		ID:    e.Name,
+		MType: string(e.Type),
 	}
-	return ""
+
+	switch e.Type {
+	case metric.TypeCounter:
+		m.Delta = &e.Delta
+	case metric.TypeGauge:
+		m.Value = &e.Value
+	}
+
+	return m
 }
