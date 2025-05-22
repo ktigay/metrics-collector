@@ -17,11 +17,11 @@ import (
 
 func main() {
 	var (
-		config *Config
+		config *client.Config
 		err    error
 	)
 
-	if config, err = parseFlags(os.Args[1:]); err != nil {
+	if config, err = client.InitializeConfig(os.Args[1:]); err != nil {
 		os.Exit(1)
 	}
 
@@ -59,7 +59,7 @@ func main() {
 	ilog.AppLogger.Debug("program exited")
 }
 
-func pollStat(ctx context.Context, config *Config, cl *collector.RuntimeMetricCollector) {
+func pollStat(ctx context.Context, config *client.Config, cl *collector.RuntimeMetricCollector) {
 	ticker := time.NewTicker(time.Duration(config.PollInterval) * time.Second)
 	defer ticker.Stop()
 	cl.PollStat()
@@ -74,7 +74,7 @@ func pollStat(ctx context.Context, config *Config, cl *collector.RuntimeMetricCo
 	}
 }
 
-func sendStat(ctx context.Context, config *Config, cl *collector.RuntimeMetricCollector, s *client.Sender) {
+func sendStat(ctx context.Context, config *client.Config, cl *collector.RuntimeMetricCollector, s *client.Sender) {
 	ticker := time.NewTicker(time.Duration(config.ReportInterval) * time.Second)
 	defer ticker.Stop()
 	for {

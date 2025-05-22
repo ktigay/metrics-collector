@@ -4,6 +4,7 @@ AGENT_PATH=./cmd/agent/agent
 SERVER_PATH=./cmd/server/server
 TEMP_FILE=/tmp/metric_storage.txt
 TEST_SERVER_PORT=\$$(random unused-port)
+DATABASE_DSN=postgres://postgres:postgres@192.168.1.46:5430/praktikum?sslmode=disable
 
 SHELL := /bin/bash
 CURRENT_UID := $(shell id -u)
@@ -68,6 +69,7 @@ run-test-a: \
 	run-test-a6 \
 	run-test-a7 \
 	run-test-a8 \
+	run-test-a9 \
 
 run-test-a1:
 	$(DOCKER_RUN) sh -c "metricstest -test.v -test.run=^TestIteration1$$ -binary-path=$(SERVER_PATH)"
@@ -87,10 +89,13 @@ run-test-a8:
 	$(DOCKER_RUN)  sh -c "metricstest -test.v -test.run=^TestIteration8$$ -agent-binary-path=$(AGENT_PATH) -binary-path=$(SERVER_PATH) -server-port=$(TEST_SERVER_PORT) -source-path=."
 run-test-a9:
 	$(DOCKER_RUN)  sh -c "metricstest -test.v -test.run=^TestIteration9$$ -agent-binary-path=$(AGENT_PATH) -binary-path=$(SERVER_PATH) -server-port=$(TEST_SERVER_PORT) -source-path=. -file-storage-path=$(TEMP_FILE)"
+run-test-a10:
+	$(DOCKER_RUN)  sh -c "metricstest -test.v -test.run=^TestIteration10[AB]$$ -agent-binary-path=$(AGENT_PATH) -binary-path=$(SERVER_PATH) -database-dsn='$(DATABASE_DSN)' -server-port=$(TEST_SERVER_PORT) -source-path=."
 
 up: \
 	up-server \
 	up-agent \
+	up-db \
 
 up-server: \
 	go-build-server
@@ -100,8 +105,11 @@ up-agent: \
 	go-build-agent
 	$(COMPOSE) docker compose up -d agent
 
+up-db:
+	$(COMPOSE) docker compose up -d postgres
+
 down:
-	$(COMPOSE) docker compose down server agent
+	$(COMPOSE) docker compose down server agent postgres
 
 update-tpl:
 	# git remote add -m main template https://github.com/Yandex-Practicum/go-musthave-metrics-tpl.git

@@ -12,8 +12,10 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	ilog "github.com/ktigay/metrics-collector/internal/log"
 	"github.com/ktigay/metrics-collector/internal/server"
+	"github.com/ktigay/metrics-collector/internal/server/db"
 	"github.com/ktigay/metrics-collector/internal/server/middleware"
 	"github.com/ktigay/metrics-collector/internal/server/service"
 	"github.com/ktigay/metrics-collector/internal/server/snapshot"
@@ -24,7 +26,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	config, err := parseFlags(os.Args[1:])
+	config, err := server.InitializeConfig(os.Args[1:])
 	if err != nil {
 		log.Fatalf("can't parse flags: %v", err)
 	}
@@ -37,6 +39,10 @@ func main() {
 			log.Printf("can't sync logger: %t", err)
 		}
 	}()
+
+	if err = db.InitializeMasterDB("pgx", config.DatabaseDSN); err != nil {
+		log.Fatalf("can't initialize master db: %v", err)
+	}
 
 	var (
 		collector *service.MetricCollector
@@ -68,6 +74,7 @@ func main() {
 				ilog.AppLogger.Debug("http server stopped")
 			} else {
 				ilog.AppLogger.Errorf("can't start http server: %v", err)
+				stop()
 			}
 		}
 		wg.Done()
@@ -87,6 +94,9 @@ func main() {
 		ilog.AppLogger.Debug("http server shutting down")
 		if err = httpServer.Shutdown(context.Background()); err != nil {
 			ilog.AppLogger.Errorf("can't shutdown http server: %v", err)
+		}
+		if err = db.MasterDB.Close(); err != nil {
+			ilog.AppLogger.Errorf("can't close master db: %v", err)
 		}
 		wg.Done()
 	}()
@@ -109,6 +119,7 @@ func registerRoutes(router *mux.Router, s *server.Server) {
 	router.HandleFunc("/update/", s.UpdateJSONHandler).Methods(http.MethodPost)
 	router.HandleFunc("/value/{type}/{name}", s.GetValueHandler).Methods(http.MethodGet)
 	router.HandleFunc("/value/", s.GetJSONValueHandler).Methods(http.MethodPost)
+	router.HandleFunc("/ping", s.Ping).Methods(http.MethodGet)
 	router.HandleFunc("/", s.GetAllHandler).Methods(http.MethodGet)
 }
 

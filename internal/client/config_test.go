@@ -1,4 +1,4 @@
-package main
+package client
 
 import (
 	"os"
@@ -182,13 +182,13 @@ func Test_parseFlags(t *testing.T) {
 					}
 				}
 			}
-			got, err := parseFlags(tt.args.flags)
+			got, err := InitializeConfig(tt.args.flags)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("parseFlags() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("InitializeConfig() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("parseFlags() got = %v, want %v", got, tt.want)
+				t.Errorf("InitializeConfig() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
