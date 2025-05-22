@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"flag"
@@ -13,6 +13,7 @@ const (
 	defaultStoreInterval   = 300
 	defaultFileStoragePath = "/tmp/metrics-db.json"
 	defaultRestoreFlag     = true
+	defaultDatabaseDSN     = "postgres://postgres:postgres@localhost:5430/praktikum?sslmode=disable"
 )
 
 // Config - конфигурация сервера.
@@ -22,10 +23,15 @@ type Config struct {
 	StoreInterval   int    `env:"STORE_INTERVAL"`
 	FileStoragePath string `env:"FILE_STORAGE_PATH"`
 	Restore         bool   `env:"RESTORE"`
+	DatabaseDSN     string `env:"DATABASE_DSN"`
 }
 
-func parseFlags(args []string) (*Config, error) {
-	config := &Config{}
+// InitializeConfig инициализирует конфигурацию.
+func InitializeConfig(args []string) (*Config, error) {
+	var err error
+
+	config := Config{}
+
 	flags := flag.NewFlagSet("server flags", flag.ContinueOnError)
 
 	flags.StringVar(&config.ServerHost, "a", defaultServerHost, "address and port to run server")
@@ -33,18 +39,17 @@ func parseFlags(args []string) (*Config, error) {
 	flags.IntVar(&config.StoreInterval, "i", defaultStoreInterval, "storage interval in seconds")
 	flags.StringVar(&config.FileStoragePath, "f", defaultFileStoragePath, "file storage path")
 	flags.BoolVar(&config.Restore, "r", defaultRestoreFlag, "restore data from storage")
+	flags.StringVar(&config.DatabaseDSN, "d", defaultDatabaseDSN, "database DSN")
 
-	if err := flags.Parse(args); err != nil {
+	if err = flags.Parse(args); err != nil {
 		return nil, err
 	}
-
-	if err := env.Parse(config); err != nil {
+	if err = env.Parse(&config); err != nil {
 		return nil, err
 	}
-
 	if config.ServerHost == "" {
 		return nil, fmt.Errorf("host flag is required")
 	}
 
-	return config, nil
+	return &config, nil
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/ktigay/metrics-collector/internal/log"
 	"github.com/ktigay/metrics-collector/internal/metric"
+	"github.com/ktigay/metrics-collector/internal/server/db"
 	"github.com/ktigay/metrics-collector/internal/server/errors"
 	"github.com/ktigay/metrics-collector/internal/server/storage"
 	"go.uber.org/zap"
@@ -165,4 +166,19 @@ func (c *Server) GetJSONValueHandler(w http.ResponseWriter, r *http.Request) {
 	if err = json.NewEncoder(w).Encode(um); err != nil {
 		log.AppLogger.Errorln("Failed to write response", zap.Error(err))
 	}
+}
+
+func (c *Server) Ping(w http.ResponseWriter, _ *http.Request) {
+	if db.MasterDB == nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if err := db.MasterDB.Ping(); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.AppLogger.Error("Failed to connect to MasterDB")
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
