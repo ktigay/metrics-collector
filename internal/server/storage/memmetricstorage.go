@@ -32,12 +32,19 @@ func NewMemStorage(snapshot MetricSnapshot) (*MemMetricStorage, error) {
 	return &storage, nil
 }
 
-// Save - сохраняет метрику.
-func (s *MemMetricStorage) Save(m MetricEntity) error {
+// Upsert - сохраняет или обновляет существующую метрику.
+func (s *MemMetricStorage) Upsert(m MetricEntity) error {
 	s.sm.Lock()
 	defer s.sm.Unlock()
 
-	s.Metrics[m.Key] = m
+	old, exists := s.Metrics[m.Key]
+	if exists {
+		old.Value = m.Value
+		old.Delta += m.Delta
+		s.Metrics[m.Key] = old
+	} else {
+		s.Metrics[m.Key] = m
+	}
 	return nil
 }
 
@@ -77,7 +84,7 @@ func (s *MemMetricStorage) Remove(t, n string) error {
 	return nil
 }
 
-// Backup бэкап данных.
+// Backup бэкап данных в снапшот.
 func (s *MemMetricStorage) Backup() error {
 	if s.snapshot == nil {
 		return nil
@@ -91,7 +98,7 @@ func (s *MemMetricStorage) Backup() error {
 	)
 }
 
-// Restore восстановление данных.
+// Restore восстановление данных из снапшота.
 func (s *MemMetricStorage) Restore() error {
 	if s.snapshot == nil {
 		return nil

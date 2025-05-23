@@ -9,13 +9,13 @@ import (
 )
 
 var (
-	saveSQL = `
+	upsertSQL = `
 	insert into metrics (type, name, delta, value)
 	values ($1, $2, $3, $4)
-	ON CONFLICT (type, name) DO UPDATE
-		SET delta      = excluded.delta,
-			value      = excluded.value,
-			updated_at = excluded.updated_at
+	ON CONFLICT ON CONSTRAINT type_name_uidx DO UPDATE
+		SET delta      = metrics.delta + EXCLUDED.delta,
+			value      = EXCLUDED.value,
+			updated_at = now()
 	`
 	findSQL = `
 	SELECT 
@@ -24,7 +24,7 @@ var (
 		WHERE "type" = $1
 		AND "name" = $2
 	`
-	removeSQL    = `delete from metrics where type = $1 and name = $2 limit 1`
+	removeSQL    = `delete from metrics where type = $1 and name = $2`
 	selectAllSQL = `select type, name, delta, value from metrics`
 )
 
@@ -41,9 +41,9 @@ func NewDBMetricStorage(db *sql.DB, snapshot MetricSnapshot) (*DBMetricStorage, 
 	}, nil
 }
 
-// Save - сохраняет метрику.
-func (dbm *DBMetricStorage) Save(m MetricEntity) error {
-	_, err := dbm.db.Exec(saveSQL,
+// Upsert - сохраняет или обновляет существующую метрику.
+func (dbm *DBMetricStorage) Upsert(m MetricEntity) error {
+	_, err := dbm.db.Exec(upsertSQL,
 		m.Type, m.Name, m.Delta, m.Value)
 	return err
 }
@@ -98,7 +98,7 @@ func (dbm *DBMetricStorage) All() ([]MetricEntity, error) {
 	return entities, nil
 }
 
-// Backup бэкап данных.
+// Backup бэкап данных в снапшот.
 func (dbm *DBMetricStorage) Backup() error {
 	if dbm.snapshot == nil {
 		return nil
@@ -115,7 +115,7 @@ func (dbm *DBMetricStorage) Backup() error {
 	return dbm.snapshot.Write(entities)
 }
 
-// Restore восстановление данных.
+// Restore восстановление данных из снапшота.
 func (dbm *DBMetricStorage) Restore() error {
 	if dbm.snapshot == nil {
 		return nil
@@ -124,12 +124,22 @@ func (dbm *DBMetricStorage) Restore() error {
 	var (
 		data []MetricEntity
 		err  error
-		tx   *sql.Tx
 	)
 
 	if data, err = dbm.snapshot.Read(); err != nil {
 		return err
 	}
+
+	return dbm.UpsertAll(data)
+}
+
+// UpsertAll сохраняет батч.
+func (dbm *DBMetricStorage) UpsertAll(mt []MetricEntity) error {
+	var (
+		err  error
+		tx   *sql.Tx
+		stmt *sql.Stmt
+	)
 
 	tx, err = dbm.db.Begin()
 	if err != nil {
@@ -142,8 +152,11 @@ func (dbm *DBMetricStorage) Restore() error {
 		}
 	}()
 
-	for _, m := range data {
-		if _, err = tx.Exec(saveSQL, m.Type, m.Name, m.Delta, m.Value); err != nil {
+	if stmt, err = tx.Prepare(upsertSQL); err != nil {
+		return err
+	}
+	for _, m := range mt {
+		if _, err = stmt.Exec(m.Type, m.Name, m.Delta, m.Value); err != nil {
 			return err
 		}
 	}

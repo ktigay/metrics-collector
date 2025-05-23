@@ -123,6 +123,7 @@ func registerRoutes(router *mux.Router, s *server.Server) {
 	router.HandleFunc("/value/", s.GetJSONValueHandler).Methods(http.MethodPost)
 	router.HandleFunc("/ping", s.Ping).Methods(http.MethodGet)
 	router.HandleFunc("/", s.GetAllHandler).Methods(http.MethodGet)
+	router.HandleFunc("/updates/", s.UpdatesJSONHandler).Methods(http.MethodPost)
 }
 
 func initMetricCollector(config *server.Config) (*service.MetricCollector, error) {

@@ -2,25 +2,30 @@ package service
 
 import (
 	"fmt"
-	"github.com/ktigay/metrics-collector/internal/log"
-	"strconv"
 
+	"github.com/ktigay/metrics-collector/internal/log"
 	"github.com/ktigay/metrics-collector/internal/metric"
 	e "github.com/ktigay/metrics-collector/internal/server/errors"
 	"github.com/ktigay/metrics-collector/internal/server/storage"
 )
 
-// MetricStorage - интерфейс хранилища.
+// MetricStorage интерфейс хранилища.
 type MetricStorage interface {
-	Save(m storage.MetricEntity) error
+	Upsert(m storage.MetricEntity) error
 	Find(t, n string) (*storage.MetricEntity, error)
 	Remove(t, n string) error
 	All() ([]storage.MetricEntity, error)
 }
 
+// BackupStorage интерфейс для работы со снапшотами.
 type BackupStorage interface {
 	Backup() error
 	Restore() error
+}
+
+// BatchMetricStorage интерфейс для работы с батчами.
+type BatchMetricStorage interface {
+	UpsertAll(mt []storage.MetricEntity) error
 }
 
 // MetricCollector - сборщик статистики.
@@ -45,46 +50,16 @@ func (c *MetricCollector) Save(t, n string, v any) error {
 		return e.ErrWrongType
 	}
 
-	if memItem, err = c.storage.Find(fmt.Sprint(tp), n); err != nil {
+	memItem = &storage.MetricEntity{
+		Key:  metric.Key(fmt.Sprint(tp), n),
+		Name: n,
+		Type: tp,
+	}
+	if err = memItem.AppendValue(v); err != nil {
 		return err
 	}
 
-	if memItem == nil {
-		memItem = &storage.MetricEntity{
-			Key:  metric.Key(fmt.Sprint(tp), n),
-			Name: n,
-			Type: tp,
-		}
-	}
-
-	switch tp {
-	case metric.TypeCounter:
-		var val int64
-		switch vt := v.(type) {
-		case string:
-			if val, err = strconv.ParseInt(vt, 10, 64); err != nil {
-				return e.ErrWrongValue
-			}
-		case int64:
-			val = vt
-		default:
-			return e.ErrInvalidValueType
-		}
-		memItem.Delta = memItem.Delta + val
-	case metric.TypeGauge:
-		switch vt := v.(type) {
-		case string:
-			if memItem.Value, err = strconv.ParseFloat(vt, 64); err != nil {
-				return e.ErrWrongValue
-			}
-		case float64:
-			memItem.Value = vt
-		default:
-			return e.ErrInvalidValueType
-		}
-	}
-
-	return c.storage.Save(*memItem)
+	return c.storage.Upsert(*memItem)
 }
 
 // All - возвращает все записи.
@@ -140,4 +115,39 @@ func (c *MetricCollector) Restore() error {
 
 	log.AppLogger.Debug("storage not supported restores")
 	return nil
+}
+
+// SaveAll сохраняет батч.
+func (c *MetricCollector) SaveAll(mt []metric.Metrics) error {
+	var err error
+	entities := make([]storage.MetricEntity, 0, len(mt))
+
+	for _, m := range mt {
+		var t metric.Type
+		if t, err = metric.ResolveType(m.MType); err != nil {
+			return e.ErrWrongType
+		}
+
+		en := storage.MetricEntity{
+			Key:  metric.Key(m.MType, m.ID),
+			Name: m.ID,
+			Type: t,
+		}
+		if err = en.AppendValue(m.ValueByType()); err != nil {
+			return err
+		}
+		entities = append(entities, en)
+	}
+
+	switch t := c.storage.(type) {
+	case BatchMetricStorage:
+		return t.UpsertAll(entities)
+	default:
+		for _, en := range entities {
+			if err = c.storage.Upsert(en); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
 }

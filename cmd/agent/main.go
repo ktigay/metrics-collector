@@ -38,7 +38,7 @@ func main() {
 	defer stop()
 
 	cl := collector.NewRuntimeMetricCollector()
-	s := client.NewSender(config.ServerProtocol + "://" + config.ServerHost)
+	s := client.NewSender(config.ServerProtocol+"://"+config.ServerHost, config.BatchEnabled)
 
 	var wg sync.WaitGroup
 

@@ -72,6 +72,7 @@ run-test-a: \
 	run-test-a9 \
 	run-test-a10 \
 	run-test-a11 \
+	run-test-a12 \
 
 run-test-a1:
 	$(DOCKER_RUN) sh -c "metricstest -test.v -test.run=^TestIteration1$$ -binary-path=$(SERVER_PATH)"
@@ -95,6 +96,8 @@ run-test-a10:
 	$(DOCKER_RUN)  sh -c "metricstest -test.v -test.run=^TestIteration10[AB]$$ -agent-binary-path=$(AGENT_PATH) -binary-path=$(SERVER_PATH) -database-dsn='$(DATABASE_DSN)' -server-port=$(TEST_SERVER_PORT) -source-path=."
 run-test-a11:
 	$(DOCKER_RUN)  sh -c "metricstest -test.v -test.run=^TestIteration11$$ -agent-binary-path=$(AGENT_PATH) -binary-path=$(SERVER_PATH) -database-dsn='$(DATABASE_DSN)' -server-port=$(TEST_SERVER_PORT) -source-path=."
+run-test-a12:
+	$(DOCKER_RUN)  sh -c "metricstest -test.v -test.run=^TestIteration12$$ -agent-binary-path=$(AGENT_PATH) -binary-path=$(SERVER_PATH) -database-dsn='$(DATABASE_DSN)' -server-port=$(TEST_SERVER_PORT) -source-path=."
 
 up: \
 	up-server \

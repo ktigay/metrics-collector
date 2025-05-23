@@ -1,7 +1,10 @@
 package storage
 
 import (
+	"strconv"
+
 	"github.com/ktigay/metrics-collector/internal/metric"
+	"github.com/ktigay/metrics-collector/internal/server/errors"
 )
 
 // MetricEntity - сущность для сохранения в storage.
@@ -39,4 +42,37 @@ func (e *MetricEntity) ToMetrics() metric.Metrics {
 	}
 
 	return m
+}
+
+// AppendValue прибавляет/присваивает значение в зависимости от типа метрики.
+func (e *MetricEntity) AppendValue(v any) error {
+	var err error
+	switch e.Type {
+	case metric.TypeCounter:
+		var val int64
+		switch vt := v.(type) {
+		case string:
+			if val, err = strconv.ParseInt(vt, 10, 64); err != nil {
+				return errors.ErrWrongValue
+			}
+		case int64:
+			val = vt
+		default:
+			return errors.ErrInvalidValueType
+		}
+		e.Delta += val
+	case metric.TypeGauge:
+		switch vt := v.(type) {
+		case string:
+			if e.Value, err = strconv.ParseFloat(vt, 64); err != nil {
+				return errors.ErrWrongValue
+			}
+		case float64:
+			e.Value = vt
+		default:
+			return errors.ErrInvalidValueType
+		}
+	}
+
+	return nil
 }

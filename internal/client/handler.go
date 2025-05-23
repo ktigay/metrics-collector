@@ -21,18 +21,27 @@ const (
 
 // Sender - хендлер.
 type Sender struct {
-	url string
+	url          string
+	batchEnabled bool
 }
 
 // NewSender - конструктор.
-func NewSender(url string) *Sender {
+func NewSender(url string, batchEnabled bool) *Sender {
 	return &Sender{
-		url: url,
+		url:          url,
+		batchEnabled: batchEnabled,
 	}
 }
 
 // SendMetrics - отправляет метрики на сервер.
 func (mh *Sender) SendMetrics(c collector.MetricCollectDTO) {
+	if mh.batchEnabled {
+		if err := mh.sendBatch(c); err != nil {
+			log.AppLogger.Info("client.SendBatchMetrics error", zap.Error(err))
+		}
+		return
+	}
+
 	errChan := make(chan error, 3)
 
 	go func() {
@@ -67,29 +76,44 @@ func (mh *Sender) SendMetrics(c collector.MetricCollectDTO) {
 	}
 }
 
-func (mh *Sender) sendGaugeMetrics(c collector.MetricCollectDTO) error {
+func (mh *Sender) sendGaugeMetrics(c collector.MetricCollectDTO) (err error) {
 	for n, m := range c.MemStats {
-		_, err := mh.post(mh.url+"/update/", metric.TypeGauge, string(n), m)
-		if err != nil {
-			return err
+		mm := makeMetrics(metric.TypeGauge, string(n), m)
+		if _, err = mh.post(mh.url+"/update/", mm); err != nil {
+			break
 		}
 	}
-	return nil
+	return err
 }
 
 func (mh *Sender) sendRand(c collector.MetricCollectDTO) error {
-	_, err := mh.post(mh.url+"/update/", metric.TypeGauge, metric.RandomValue, c.Rand)
+	mm := makeMetrics(metric.TypeGauge, metric.RandomValue, c.Rand)
+	_, err := mh.post(mh.url+"/update/", mm)
 	return err
 }
 
 func (mh *Sender) sendCounter(c collector.MetricCollectDTO) error {
-	_, err := mh.post(mh.url+"/update/", metric.TypeCounter, metric.PollCount, c.Counter)
+	mm := makeMetrics(metric.TypeCounter, metric.PollCount, c.Counter)
+	_, err := mh.post(mh.url+"/update/", mm)
 	return err
 }
 
-func (mh *Sender) post(url string, t metric.Type, id string, v any) ([]byte, error) {
+func (mh *Sender) sendBatch(c collector.MetricCollectDTO) error {
+	metrics := make([]metric.Metrics, 0, len(c.MemStats)+2)
+	for n, m := range c.MemStats {
+		mm := makeMetrics(metric.TypeGauge, string(n), m)
+		metrics = append(metrics, mm)
+	}
+	metrics = append(metrics, makeMetrics(metric.TypeGauge, metric.RandomValue, c.Rand))
+	metrics = append(metrics, makeMetrics(metric.TypeCounter, metric.PollCount, c.Counter))
+
+	_, err := mh.post(mh.url+"/updates/", metrics)
+
+	return err
+}
+
+func (mh *Sender) post(url string, m any) ([]byte, error) {
 	var (
-		m    metric.Metrics
 		b    []byte
 		err  error
 		buff bytes.Buffer
@@ -97,8 +121,6 @@ func (mh *Sender) post(url string, t metric.Type, id string, v any) ([]byte, err
 		req  *http.Request
 		resp *http.Response
 	)
-
-	m = makeMetrics(t, id, v)
 
 	if b, err = json.Marshal(m); err != nil {
 		return nil, err

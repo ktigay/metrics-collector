@@ -14,6 +14,7 @@ const (
 	defaultReportInterval = 10
 	defaultPollInterval   = 2
 	defaultServerProtocol = "http"
+	defaultBatchEnabled   = false
 )
 
 // Config конфигурация клиента.
@@ -23,6 +24,7 @@ type Config struct {
 	ReportInterval int    `env:"REPORT_INTERVAL"`
 	PollInterval   int    `env:"POLL_INTERVAL"`
 	LogLevel       string `env:"LOG_LEVEL"`
+	BatchEnabled   bool   `env:"BATCH_ENABLED"`
 }
 
 // InitializeConfig инициализирует конфиг клиента.
@@ -37,6 +39,7 @@ func InitializeConfig(args []string) (*Config, error) {
 	flags.StringVar(&config.LogLevel, "l", defaultLogLevel, "log level")
 	flags.IntVar(&config.ReportInterval, "r", defaultReportInterval, "interval between reports")
 	flags.IntVar(&config.PollInterval, "p", defaultPollInterval, "interval between polls")
+	flags.BoolVar(&config.BatchEnabled, "b", defaultBatchEnabled, "enable batchEnabled request")
 
 	if err := flags.Parse(args); err != nil {
 		return nil, err

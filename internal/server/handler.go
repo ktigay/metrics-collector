@@ -33,6 +33,7 @@ type CollectorInterface interface {
 	All() ([]storage.MetricEntity, error)
 	Find(t, n string) (*storage.MetricEntity, error)
 	Remove(t, n string) error
+	SaveAll([]metric.Metrics) error
 }
 
 // Server - структура с обработчиками запросов.
@@ -132,6 +133,34 @@ func (c *Server) UpdateJSONHandler(w http.ResponseWriter, r *http.Request) {
 	if err = json.NewEncoder(w).Encode(um); err != nil {
 		log.AppLogger.Errorln("Failed to write response", zap.Error(err))
 	}
+}
+
+// UpdatesJSONHandler обработчик обновления метрик из json-строки.
+func (c *Server) UpdatesJSONHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Header.Get("content-type") != "application/json" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("content-type", "application/json")
+
+	var (
+		m   []metric.Metrics
+		err error
+	)
+
+	if err = json.NewDecoder(r.Body).Decode(&m); err != nil {
+		log.AppLogger.Errorln("Failed to write response", zap.Error(err))
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	if err = c.collector.SaveAll(m); err != nil {
+		w.WriteHeader(statusFromError(err))
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 // GetJSONValueHandler возвращает структуру в виде json-строки.
