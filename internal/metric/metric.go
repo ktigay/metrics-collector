@@ -35,7 +35,7 @@ const (
 	HeapAlloc GaugeMetric = "HeapAlloc"
 	// HeapIdle gauge.HeapIdle.
 	HeapIdle GaugeMetric = "HeapIdle"
-	// Alloc gauge.Alloc.
+	// HeapInuse gauge.HeapInuse.
 	HeapInuse GaugeMetric = "HeapInuse"
 	// HeapObjects gauge.HeapObjects.
 	HeapObjects GaugeMetric = "HeapObjects"

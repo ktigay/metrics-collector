@@ -12,19 +12,22 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	ilog "github.com/ktigay/metrics-collector/internal/log"
 	"github.com/ktigay/metrics-collector/internal/server"
+	"github.com/ktigay/metrics-collector/internal/server/db"
 	"github.com/ktigay/metrics-collector/internal/server/middleware"
 	"github.com/ktigay/metrics-collector/internal/server/service"
 	"github.com/ktigay/metrics-collector/internal/server/snapshot"
 	"github.com/ktigay/metrics-collector/internal/server/storage"
+	"go.uber.org/zap"
 )
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	config, err := parseFlags(os.Args[1:])
+	config, err := server.InitializeConfig(os.Args[1:])
 	if err != nil {
 		log.Fatalf("can't parse flags: %v", err)
 	}
@@ -38,6 +41,12 @@ func main() {
 		}
 	}()
 
+	useSQL := config.DatabaseDSN != ""
+
+	if useSQL {
+		initDB("pgx", config.DatabaseDSN)
+	}
+
 	var (
 		collector *service.MetricCollector
 		router    *mux.Router
@@ -45,8 +54,7 @@ func main() {
 		wg        sync.WaitGroup
 	)
 
-	collector, err = initCollector(config.Restore, config.FileStoragePath)
-	if err != nil {
+	if collector, err = initMetricCollector(config); err != nil {
 		log.Fatalf("can't initialize collector: %v", err)
 	}
 
@@ -68,6 +76,7 @@ func main() {
 				ilog.AppLogger.Debug("http server stopped")
 			} else {
 				ilog.AppLogger.Errorf("can't start http server: %v", err)
+				stop()
 			}
 		}
 		wg.Done()
@@ -87,6 +96,9 @@ func main() {
 		ilog.AppLogger.Debug("http server shutting down")
 		if err = httpServer.Shutdown(context.Background()); err != nil {
 			ilog.AppLogger.Errorf("can't shutdown http server: %v", err)
+		}
+		if err = db.MasterDB.Close(); err != nil {
+			ilog.AppLogger.Errorf("can't close master db: %v", err)
 		}
 		wg.Done()
 	}()
@@ -109,22 +121,44 @@ func registerRoutes(router *mux.Router, s *server.Server) {
 	router.HandleFunc("/update/", s.UpdateJSONHandler).Methods(http.MethodPost)
 	router.HandleFunc("/value/{type}/{name}", s.GetValueHandler).Methods(http.MethodGet)
 	router.HandleFunc("/value/", s.GetJSONValueHandler).Methods(http.MethodPost)
+	router.HandleFunc("/ping", s.Ping).Methods(http.MethodGet)
 	router.HandleFunc("/", s.GetAllHandler).Methods(http.MethodGet)
 }
 
-func initCollector(restore bool, restorePath string) (*service.MetricCollector, error) {
-	var sn storage.Snapshot
+func initMetricCollector(config *server.Config) (*service.MetricCollector, error) {
+	var (
+		err       error
+		ms        service.MetricStorage
+		sn        storage.MetricSnapshot
+		collector *service.MetricCollector
+	)
 
-	if restore {
-		sn = snapshot.NewFileSnapshot(restorePath)
+	if config.Restore {
+		sn = snapshot.NewFileMetricSnapshot(config.FileStoragePath)
 	}
 
-	st, err := storage.NewMemStorage(sn)
-	if err != nil {
+	if ms, err = initMetricStorage(sn, config.DatabaseDSN != ""); err != nil {
 		return nil, err
 	}
 
-	return service.NewMetricCollector(st), nil
+	collector = service.NewMetricCollector(ms)
+
+	if config.Restore {
+		if err = collector.Restore(); err != nil {
+			return nil, err
+		}
+		ilog.AppLogger.Debug("metric collector restored")
+	}
+
+	return collector, nil
+}
+
+func initMetricStorage(sn storage.MetricSnapshot, useSQL bool) (service.MetricStorage, error) {
+	if useSQL {
+		return storage.NewDBMetricStorage(db.MasterDB, sn)
+	}
+
+	return storage.NewMemStorage(sn)
 }
 
 func saveSnapshot(ctx context.Context, c *service.MetricCollector, storeInterval int) error {
@@ -147,4 +181,17 @@ func saveSnapshot(ctx context.Context, c *service.MetricCollector, storeInterval
 			return nil
 		}
 	}
+}
+
+func initDB(driver, dsn string) {
+	var err error
+	if err = db.InitializeMasterDB(driver, dsn); err != nil {
+		ilog.AppLogger.Fatalf("can't initialize master db: %v", zap.Error(err))
+	}
+
+	if err = db.CreateStructure(); err != nil {
+		ilog.AppLogger.Fatalf("can't create structure: %v", zap.Error(err))
+	}
+
+	ilog.AppLogger.Debug("initDB finished")
 }

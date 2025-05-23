@@ -8,6 +8,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/ktigay/metrics-collector/internal/log"
 	"github.com/ktigay/metrics-collector/internal/metric"
+	"github.com/ktigay/metrics-collector/internal/server/db"
 	"github.com/ktigay/metrics-collector/internal/server/errors"
 	"github.com/ktigay/metrics-collector/internal/server/storage"
 	"go.uber.org/zap"
@@ -29,8 +30,8 @@ func statusFromError(err error) int {
 // CollectorInterface - Интерфейс сборщика статистики.
 type CollectorInterface interface {
 	Save(t, n string, v any) error
-	All() []storage.Entity
-	Find(t, n string) (*storage.Entity, error)
+	All() ([]storage.MetricEntity, error)
+	Find(t, n string) (*storage.MetricEntity, error)
 	Remove(t, n string) error
 }
 
@@ -62,7 +63,7 @@ func (c *Server) GetValueHandler(w http.ResponseWriter, r *http.Request) {
 
 	var (
 		err    error
-		entity *storage.Entity
+		entity *storage.MetricEntity
 	)
 
 	if entity, err = c.collector.Find(vars["type"], vars["name"]); err != nil {
@@ -80,7 +81,7 @@ func (c *Server) GetValueHandler(w http.ResponseWriter, r *http.Request) {
 // GetAllHandler - обработчик для получения списка метрик.
 func (c *Server) GetAllHandler(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("content-type", "text/html; charset=utf-8")
-	metrics := c.collector.All()
+	metrics, _ := c.collector.All()
 
 	names := make([]string, 0, len(metrics))
 	for _, m := range metrics {
@@ -106,7 +107,7 @@ func (c *Server) UpdateJSONHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		m      metric.Metrics
 		err    error
-		entity *storage.Entity
+		entity *storage.MetricEntity
 	)
 
 	if err = json.NewDecoder(r.Body).Decode(&m); err != nil {
@@ -145,7 +146,7 @@ func (c *Server) GetJSONValueHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		m      metric.Metrics
 		err    error
-		entity *storage.Entity
+		entity *storage.MetricEntity
 	)
 
 	if err = json.NewDecoder(r.Body).Decode(&m); err != nil {
@@ -165,4 +166,19 @@ func (c *Server) GetJSONValueHandler(w http.ResponseWriter, r *http.Request) {
 	if err = json.NewEncoder(w).Encode(um); err != nil {
 		log.AppLogger.Errorln("Failed to write response", zap.Error(err))
 	}
+}
+
+func (c *Server) Ping(w http.ResponseWriter, _ *http.Request) {
+	if db.MasterDB == nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if err := db.MasterDB.Ping(); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.AppLogger.Error("Failed to connect to MasterDB")
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }

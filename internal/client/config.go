@@ -1,4 +1,4 @@
-package main
+package client
 
 import (
 	"flag"
@@ -16,7 +16,7 @@ const (
 	defaultServerProtocol = "http"
 )
 
-// Config - конфигурация клиента.
+// Config конфигурация клиента.
 type Config struct {
 	ServerProtocol string
 	ServerHost     string `env:"ADDRESS"`
@@ -25,8 +25,9 @@ type Config struct {
 	LogLevel       string `env:"LOG_LEVEL"`
 }
 
-func parseFlags(args []string) (*Config, error) {
-	config := &Config{
+// InitializeConfig инициализирует конфиг клиента.
+func InitializeConfig(args []string) (*Config, error) {
+	config := Config{
 		ServerProtocol: defaultServerProtocol,
 	}
 
@@ -41,7 +42,7 @@ func parseFlags(args []string) (*Config, error) {
 		return nil, err
 	}
 
-	if err := env.Parse(config); err != nil {
+	if err := env.Parse(&config); err != nil {
 		return nil, err
 	}
 
@@ -57,5 +58,5 @@ func parseFlags(args []string) (*Config, error) {
 		return nil, fmt.Errorf("poll interval flag is required")
 	}
 
-	return config, nil
+	return &config, nil
 }
