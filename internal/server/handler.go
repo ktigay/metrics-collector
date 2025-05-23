@@ -30,8 +30,8 @@ func statusFromError(err error) int {
 // CollectorInterface - Интерфейс сборщика статистики.
 type CollectorInterface interface {
 	Save(t, n string, v any) error
-	All() []storage.Entity
-	Find(t, n string) (*storage.Entity, error)
+	All() ([]storage.MetricEntity, error)
+	Find(t, n string) (*storage.MetricEntity, error)
 	Remove(t, n string) error
 }
 
@@ -63,7 +63,7 @@ func (c *Server) GetValueHandler(w http.ResponseWriter, r *http.Request) {
 
 	var (
 		err    error
-		entity *storage.Entity
+		entity *storage.MetricEntity
 	)
 
 	if entity, err = c.collector.Find(vars["type"], vars["name"]); err != nil {
@@ -81,7 +81,7 @@ func (c *Server) GetValueHandler(w http.ResponseWriter, r *http.Request) {
 // GetAllHandler - обработчик для получения списка метрик.
 func (c *Server) GetAllHandler(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("content-type", "text/html; charset=utf-8")
-	metrics := c.collector.All()
+	metrics, _ := c.collector.All()
 
 	names := make([]string, 0, len(metrics))
 	for _, m := range metrics {
@@ -107,7 +107,7 @@ func (c *Server) UpdateJSONHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		m      metric.Metrics
 		err    error
-		entity *storage.Entity
+		entity *storage.MetricEntity
 	)
 
 	if err = json.NewDecoder(r.Body).Decode(&m); err != nil {
@@ -146,7 +146,7 @@ func (c *Server) GetJSONValueHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		m      metric.Metrics
 		err    error
-		entity *storage.Entity
+		entity *storage.MetricEntity
 	)
 
 	if err = json.NewDecoder(r.Body).Decode(&m); err != nil {

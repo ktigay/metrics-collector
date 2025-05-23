@@ -9,34 +9,31 @@ import (
 	"github.com/ktigay/metrics-collector/internal/metric"
 )
 
-// Snapshot интерфейс для чтения/сохранения снимка данных.
-type Snapshot interface {
-	Read() ([]Entity, error)
-	Write([]Entity) error
+// MetricSnapshot интерфейс для чтения/сохранения снимка данных.
+type MetricSnapshot interface {
+	Read() ([]MetricEntity, error)
+	Write([]MetricEntity) error
 }
 
-// MemStorage - in-memory хранилище.
-type MemStorage struct {
+// MemMetricStorage - in-memory хранилище.
+type MemMetricStorage struct {
 	sm       sync.RWMutex
-	Metrics  map[string]Entity
-	snapshot Snapshot
+	Metrics  map[string]MetricEntity
+	snapshot MetricSnapshot
 }
 
 // NewMemStorage - конструктор.
-func NewMemStorage(snapshot Snapshot) (*MemStorage, error) {
-	storage := MemStorage{
+func NewMemStorage(snapshot MetricSnapshot) (*MemMetricStorage, error) {
+	storage := MemMetricStorage{
 		snapshot: snapshot,
-		Metrics:  make(map[string]Entity),
-	}
-	if err := storage.restore(); err != nil {
-		return nil, err
+		Metrics:  make(map[string]MetricEntity),
 	}
 
 	return &storage, nil
 }
 
 // Save - сохраняет метрику.
-func (s *MemStorage) Save(m Entity) error {
+func (s *MemMetricStorage) Save(m MetricEntity) error {
 	s.sm.Lock()
 	defer s.sm.Unlock()
 
@@ -44,8 +41,8 @@ func (s *MemStorage) Save(m Entity) error {
 	return nil
 }
 
-// Find - поиск по ключу
-func (s *MemStorage) Find(t, n string) (*Entity, error) {
+// Find - поиск по ключу.
+func (s *MemMetricStorage) Find(t, n string) (*MetricEntity, error) {
 	s.sm.RLock()
 	defer s.sm.RUnlock()
 
@@ -58,20 +55,20 @@ func (s *MemStorage) Find(t, n string) (*Entity, error) {
 	return &entity, nil
 }
 
-// All - вернуть все метрики
-func (s *MemStorage) All() []Entity {
+// All - вернуть все метрики.
+func (s *MemMetricStorage) All() ([]MetricEntity, error) {
 	s.sm.RLock()
 	defer s.sm.RUnlock()
 
-	all := make([]Entity, 0, len(s.Metrics))
+	all := make([]MetricEntity, 0, len(s.Metrics))
 	for _, v := range s.Metrics {
 		all = append(all, v)
 	}
-	return all
+	return all, nil
 }
 
-// Remove удаляет по ключу.
-func (s *MemStorage) Remove(t, n string) error {
+// Remove удаляет по типу и наименованию.
+func (s *MemMetricStorage) Remove(t, n string) error {
 	s.sm.Lock()
 	defer s.sm.Unlock()
 
@@ -81,7 +78,7 @@ func (s *MemStorage) Remove(t, n string) error {
 }
 
 // Backup бэкап данных.
-func (s *MemStorage) Backup() error {
+func (s *MemMetricStorage) Backup() error {
 	if s.snapshot == nil {
 		return nil
 	}
@@ -94,7 +91,8 @@ func (s *MemStorage) Backup() error {
 	)
 }
 
-func (s *MemStorage) restore() error {
+// Restore восстановление данных.
+func (s *MemMetricStorage) Restore() error {
 	if s.snapshot == nil {
 		return nil
 	}

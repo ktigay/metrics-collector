@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"github.com/ktigay/metrics-collector/internal/log"
 	"strconv"
 
 	"github.com/ktigay/metrics-collector/internal/metric"
@@ -11,11 +12,15 @@ import (
 
 // MetricStorage - интерфейс хранилища.
 type MetricStorage interface {
-	Save(m storage.Entity) error
-	Find(t, n string) (*storage.Entity, error)
+	Save(m storage.MetricEntity) error
+	Find(t, n string) (*storage.MetricEntity, error)
 	Remove(t, n string) error
-	All() []storage.Entity
+	All() ([]storage.MetricEntity, error)
+}
+
+type BackupStorage interface {
 	Backup() error
+	Restore() error
 }
 
 // MetricCollector - сборщик статистики.
@@ -32,7 +37,7 @@ func NewMetricCollector(storage MetricStorage) *MetricCollector {
 func (c *MetricCollector) Save(t, n string, v any) error {
 	var (
 		tp      metric.Type
-		memItem *storage.Entity
+		memItem *storage.MetricEntity
 		err     error
 	)
 
@@ -45,7 +50,7 @@ func (c *MetricCollector) Save(t, n string, v any) error {
 	}
 
 	if memItem == nil {
-		memItem = &storage.Entity{
+		memItem = &storage.MetricEntity{
 			Key:  metric.Key(fmt.Sprint(tp), n),
 			Name: n,
 			Type: tp,
@@ -83,14 +88,14 @@ func (c *MetricCollector) Save(t, n string, v any) error {
 }
 
 // All - возвращает все записи.
-func (c *MetricCollector) All() []storage.Entity {
+func (c *MetricCollector) All() ([]storage.MetricEntity, error) {
 	return c.storage.All()
 }
 
 // Find - находит запись по ключу.
-func (c *MetricCollector) Find(t, n string) (*storage.Entity, error) {
+func (c *MetricCollector) Find(t, n string) (*storage.MetricEntity, error) {
 	var (
-		entity *storage.Entity
+		entity *storage.MetricEntity
 		err    error
 	)
 	if _, err = metric.ResolveType(t); err != nil {
@@ -117,5 +122,22 @@ func (c *MetricCollector) Remove(t, n string) error {
 
 // Backup бэкап данных.
 func (c *MetricCollector) Backup() error {
-	return c.storage.Backup()
+	switch t := c.storage.(type) {
+	case BackupStorage:
+		return t.Backup()
+	}
+
+	log.AppLogger.Debug("storage not supported backups")
+	return nil
+}
+
+// Restore восстановление данных.
+func (c *MetricCollector) Restore() error {
+	switch t := c.storage.(type) {
+	case BackupStorage:
+		return t.Restore()
+	}
+
+	log.AppLogger.Debug("storage not supported restores")
+	return nil
 }

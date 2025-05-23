@@ -13,7 +13,7 @@ const (
 	defaultStoreInterval   = 300
 	defaultFileStoragePath = "/tmp/metrics-db.json"
 	defaultRestoreFlag     = true
-	defaultDatabaseDSN     = "postgres://postgres:postgres@localhost:5430/praktikum?sslmode=disable"
+	defaultDatabaseDSN     = ""
 )
 
 // Config - конфигурация сервера.

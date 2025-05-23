@@ -11,18 +11,18 @@ import (
 	"go.uber.org/zap"
 )
 
-// FileSnapshot структура для сохранения снапшота в файле.
-type FileSnapshot struct {
+// FileMetricSnapshot структура для сохранения снапшота в файле.
+type FileMetricSnapshot struct {
 	filePath string
 }
 
-// NewFileSnapshot конструктор.
-func NewFileSnapshot(filePath string) *FileSnapshot {
-	return &FileSnapshot{filePath: filePath}
+// NewFileMetricSnapshot конструктор.
+func NewFileMetricSnapshot(filePath string) *FileMetricSnapshot {
+	return &FileMetricSnapshot{filePath: filePath}
 }
 
 // Read чтение снапшота из файла.
-func (f *FileSnapshot) Read() ([]storage.Entity, error) {
+func (f *FileMetricSnapshot) Read() ([]storage.MetricEntity, error) {
 	if err := ensureDir(filepath.Dir(f.filePath)); err != nil {
 		return nil, err
 	}
@@ -36,12 +36,12 @@ func (f *FileSnapshot) Read() ([]storage.Entity, error) {
 			log.AppLogger.Error("snapshot.Read error", zap.Error(err))
 		}
 	}()
-	all := make([]storage.Entity, 0)
+	all := make([]storage.MetricEntity, 0)
 
 	dec := json.NewDecoder(file)
 
 	for {
-		var e storage.Entity
+		var e storage.MetricEntity
 		if err = dec.Decode(&e); err != nil {
 			if err == io.EOF {
 				break
@@ -55,7 +55,7 @@ func (f *FileSnapshot) Read() ([]storage.Entity, error) {
 }
 
 // Write запись данных в файл.
-func (f *FileSnapshot) Write(entities []storage.Entity) error {
+func (f *FileMetricSnapshot) Write(entities []storage.MetricEntity) error {
 	if err := ensureDir(filepath.Dir(f.filePath)); err != nil {
 		return err
 	}
