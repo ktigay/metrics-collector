@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -67,6 +68,9 @@ func main() {
 	httpServer := &http.Server{
 		Addr:    config.ServerHost,
 		Handler: router,
+		BaseContext: func(_ net.Listener) context.Context {
+			return ctx
+		},
 	}
 	wg.Add(1)
 	go func() {

@@ -4,7 +4,6 @@ AGENT_PATH=./cmd/agent/agent
 SERVER_PATH=./cmd/server/server
 TEMP_FILE=/tmp/metric_storage.txt
 TEST_SERVER_PORT=\$$(random unused-port)
-DATABASE_DSN=postgres://postgres:postgres@192.168.1.46:5430/praktikum?sslmode=disable
 
 SHELL := /bin/bash
 CURRENT_UID := $(shell id -u)
@@ -18,10 +17,12 @@ SRV_PORT=8080
 SRV_LISTEN=:$(SRV_PORT)
 # адрес, по которому стучится агент.
 SRV_ADDR=server:$(SRV_PORT)
+# dsn к postgres
+DATABASE_DSN=postgres://postgres:postgres@192.168.1.46:5430/praktikum?sslmode=disable
 
 COMPOSE := export PROJECT_NAME=$(PROJECT_NAME) CURRENT_UID=$(CURRENT_UID) \
  		   CURRENT_GID=$(CURRENT_GID) SRV_LISTEN=$(SRV_LISTEN) SRV_PORT=$(SRV_PORT) \
- 		   LOCAL_PORT=$(LOCAL_PORT) SRV_ADDR=$(SRV_ADDR) && cd docker &&
+ 		   LOCAL_PORT=$(LOCAL_PORT) SRV_ADDR=$(SRV_ADDR) DATABASE_DSN=$(DATABASE_DSN) && cd docker &&
 
 DOCKER_RUN := cd docker && docker run --rm -v ${PWD}:/app -it $(PROJECT_NAME)-app
 
@@ -104,9 +105,9 @@ run-test-a12:
 	$(call test_cmd,12, -server-port=$(TEST_SERVER_PORT) -file-storage-path=$(TEMP_FILE) -database-dsn='$(DATABASE_DSN)')
 
 up: \
+	up-db \
 	up-server \
 	up-agent \
-	up-db \
 
 up-server: \
 	go-build-server

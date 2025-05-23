@@ -8,6 +8,7 @@ services:
       - ../:/app
     environment:
       - ADDRESS=${SRV_LISTEN}
+      - DATABASE_DSN=${DATABASE_DSN}
     ports:
       - "${LOCAL_PORT}:${SRV_PORT}"
     command: /app/cmd/server/server
@@ -36,7 +37,7 @@ services:
     ports:
       - "5430:5432"
     volumes:
-      - ./pgdata:/var/lib/postgresql/data/pgdata
+      - ../pgdata:/var/lib/postgresql/data/pgdata
     deploy:
       resources:
         limits:
