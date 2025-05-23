@@ -1,9 +1,11 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/ktigay/metrics-collector/internal/log"
@@ -20,6 +22,10 @@ var errStatusMap = map[error]int{
 	errors.ErrValueNotFound: http.StatusNotFound,
 }
 
+const (
+	pingTimeout = 2 * time.Second
+)
+
 func statusFromError(err error) int {
 	if st, ok := errStatusMap[err]; ok {
 		return st
@@ -29,11 +35,11 @@ func statusFromError(err error) int {
 
 // CollectorInterface - Интерфейс сборщика статистики.
 type CollectorInterface interface {
-	Save(t, n string, v any) error
-	All() ([]storage.MetricEntity, error)
-	Find(t, n string) (*storage.MetricEntity, error)
-	Remove(t, n string) error
-	SaveAll([]metric.Metrics) error
+	Save(ctx context.Context, t, n string, v any) error
+	All(ctx context.Context) ([]storage.MetricEntity, error)
+	Find(ctx context.Context, t, n string) (*storage.MetricEntity, error)
+	Remove(ctx context.Context, t, n string) error
+	SaveAll(ctx context.Context, mt []metric.Metrics) error
 }
 
 // Server - структура с обработчиками запросов.
@@ -50,7 +56,7 @@ func NewServer(collector CollectorInterface) *Server {
 func (c *Server) CollectHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
-	if err := c.collector.Save(vars["type"], vars["name"], vars["value"]); err != nil {
+	if err := c.collector.Save(r.Context(), vars["type"], vars["name"], vars["value"]); err != nil {
 		w.WriteHeader(statusFromError(err))
 		return
 	}
@@ -67,7 +73,7 @@ func (c *Server) GetValueHandler(w http.ResponseWriter, r *http.Request) {
 		entity *storage.MetricEntity
 	)
 
-	if entity, err = c.collector.Find(vars["type"], vars["name"]); err != nil {
+	if entity, err = c.collector.Find(r.Context(), vars["type"], vars["name"]); err != nil {
 		w.WriteHeader(statusFromError(err))
 		return
 	}
@@ -80,9 +86,9 @@ func (c *Server) GetValueHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetAllHandler - обработчик для получения списка метрик.
-func (c *Server) GetAllHandler(w http.ResponseWriter, _ *http.Request) {
+func (c *Server) GetAllHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("content-type", "text/html; charset=utf-8")
-	metrics, _ := c.collector.All()
+	metrics, _ := c.collector.All(r.Context())
 
 	names := make([]string, 0, len(metrics))
 	for _, m := range metrics {
@@ -117,12 +123,14 @@ func (c *Server) UpdateJSONHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = c.collector.Save(m.MType, m.ID, m.ValueByType()); err != nil {
+	ctx := r.Context()
+
+	if err = c.collector.Save(ctx, m.MType, m.ID, m.ValueByType()); err != nil {
 		w.WriteHeader(statusFromError(err))
 		return
 	}
 
-	if entity, err = c.collector.Find(m.MType, m.ID); err != nil {
+	if entity, err = c.collector.Find(ctx, m.MType, m.ID); err != nil {
 		w.WriteHeader(statusFromError(err))
 		return
 	}
@@ -155,7 +163,7 @@ func (c *Server) UpdatesJSONHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = c.collector.SaveAll(m); err != nil {
+	if err = c.collector.SaveAll(r.Context(), m); err != nil {
 		w.WriteHeader(statusFromError(err))
 		return
 	}
@@ -183,7 +191,7 @@ func (c *Server) GetJSONValueHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	entity, err = c.collector.Find(m.MType, m.ID)
+	entity, err = c.collector.Find(r.Context(), m.MType, m.ID)
 	if err != nil {
 		w.WriteHeader(statusFromError(err))
 		return
@@ -197,15 +205,19 @@ func (c *Server) GetJSONValueHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (c *Server) Ping(w http.ResponseWriter, _ *http.Request) {
+func (c *Server) Ping(w http.ResponseWriter, r *http.Request) {
 	if db.MasterDB == nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	var err error
 
-	if err := db.MasterDB.Ping(); err != nil {
+	ctx, cancel := context.WithTimeout(r.Context(), pingTimeout)
+	defer cancel()
+
+	if err = db.MasterDB.PingContext(ctx); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		log.AppLogger.Error("Failed to connect to MasterDB")
+		log.AppLogger.Errorf("Failed to connect to MasterDB %v", err)
 		return
 	}
 

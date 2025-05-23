@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"testing"
 
 	"github.com/ktigay/metrics-collector/internal/metric"
@@ -95,14 +96,14 @@ func TestMetricCollector_Save(t *testing.T) {
 			})
 
 			for _, m := range tt.args.m {
-				_ = c.Save(string(m.Type), m.Name, m.Value)
+				_ = c.Save(context.Background(), string(m.Type), m.Name, m.Value)
 			}
 
 			var (
 				sm  []storage.MetricEntity
 				err error
 			)
-			if sm, err = c.All(); err != nil {
+			if sm, err = c.All(context.Background()); err != nil {
 				t.Error(err)
 			}
 			for _, m := range tt.want {

@@ -1,7 +1,9 @@
 package db
 
 import (
+	"context"
 	"database/sql"
+	"time"
 
 	"github.com/ktigay/metrics-collector/internal/log"
 )
@@ -39,15 +41,19 @@ func InitializeMasterDB(driver, dsn string) error {
 	if err != nil {
 		return err
 	}
+
 	MasterDB = db
 	return nil
 }
 
 // CreateStructure создает структуру БД.
-func CreateStructure() (err error) {
+func CreateStructure(ctx context.Context) (err error) {
+	c, cancel := context.WithTimeout(ctx, 1*time.Second)
+	defer cancel()
+
 	for _, s := range structure {
-		if _, err = MasterDB.Exec(s); err != nil {
-			return err
+		if _, err = MasterDB.ExecContext(c, s); err != nil {
+			return nil
 		}
 	}
 

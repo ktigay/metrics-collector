@@ -25,7 +25,8 @@ import (
 )
 
 func main() {
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	mainCtx := context.TODO()
+	ctx, stop := signal.NotifyContext(mainCtx, os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
 	config, err := server.InitializeConfig(os.Args[1:])
@@ -45,7 +46,14 @@ func main() {
 	useSQL := config.DatabaseDSN != ""
 
 	if useSQL {
-		initDB("pgx", config.DatabaseDSN)
+		initDB(mainCtx, "pgx", config.DatabaseDSN)
+		defer func() {
+			if err = db.CloseMasterDB(); err != nil {
+				ilog.AppLogger.Errorf("can't close master db: %v", err)
+				return
+			}
+			ilog.AppLogger.Debug("close master db successfully")
+		}()
 	}
 
 	var (
@@ -55,7 +63,7 @@ func main() {
 		wg        sync.WaitGroup
 	)
 
-	if collector, err = initMetricCollector(config); err != nil {
+	if collector, err = initMetricCollector(mainCtx, config); err != nil {
 		log.Fatalf("can't initialize collector: %v", err)
 	}
 
@@ -68,8 +76,8 @@ func main() {
 	httpServer := &http.Server{
 		Addr:    config.ServerHost,
 		Handler: router,
-		BaseContext: func(_ net.Listener) context.Context {
-			return ctx
+		BaseContext: func(net.Listener) context.Context {
+			return mainCtx
 		},
 	}
 	wg.Add(1)
@@ -88,24 +96,19 @@ func main() {
 
 	wg.Add(1)
 	go func() {
-		if err = saveSnapshot(ctx, collector, config.StoreInterval); err != nil {
+		if err = saveSnapshot(mainCtx, ctx, collector, config.StoreInterval); err != nil {
 			ilog.AppLogger.Errorf("can't save statistics snapshot: %v", err)
 		}
 		wg.Done()
 	}()
 
-	wg.Add(1)
 	go func() {
 		<-ctx.Done()
+
 		ilog.AppLogger.Debug("http server shutting down")
 		if err = httpServer.Shutdown(context.Background()); err != nil {
 			ilog.AppLogger.Errorf("can't shutdown http server: %v", err)
 		}
-
-		if err = db.CloseMasterDB(); err != nil {
-			ilog.AppLogger.Errorf("can't close master db: %v", err)
-		}
-		wg.Done()
 	}()
 
 	wg.Wait()
@@ -131,7 +134,7 @@ func registerRoutes(router *mux.Router, s *server.Server) {
 	router.HandleFunc("/updates/", s.UpdatesJSONHandler).Methods(http.MethodPost)
 }
 
-func initMetricCollector(config *server.Config) (*service.MetricCollector, error) {
+func initMetricCollector(ctx context.Context, config *server.Config) (*service.MetricCollector, error) {
 	var (
 		err       error
 		ms        service.MetricStorage
@@ -150,7 +153,7 @@ func initMetricCollector(config *server.Config) (*service.MetricCollector, error
 	collector = service.NewMetricCollector(ms)
 
 	if config.Restore {
-		if err = collector.Restore(); err != nil {
+		if err = collector.Restore(ctx); err != nil {
 			return nil, err
 		}
 		ilog.AppLogger.Debug("metric collector restored")
@@ -167,20 +170,20 @@ func initMetricStorage(sn storage.MetricSnapshot, useSQL bool) (service.MetricSt
 	return storage.NewMemStorage(sn)
 }
 
-func saveSnapshot(ctx context.Context, c *service.MetricCollector, storeInterval int) error {
+func saveSnapshot(mainCtx, ctx context.Context, c *service.MetricCollector, storeInterval int) error {
 	ticker := time.NewTicker(time.Duration(storeInterval) * time.Second)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
 			ilog.AppLogger.Debug("saveSnapshot saving metrics started")
-			if err := c.Backup(); err != nil {
+			if err := c.Backup(mainCtx); err != nil {
 				return err
 			}
 			ilog.AppLogger.Debug("saveSnapshot saving metrics finished")
 		case <-ctx.Done():
 			ticker.Stop()
-			if err := c.Backup(); err != nil {
+			if err := c.Backup(mainCtx); err != nil {
 				return err
 			}
 			ilog.AppLogger.Debug("saveSnapshot shutting down")
@@ -189,13 +192,13 @@ func saveSnapshot(ctx context.Context, c *service.MetricCollector, storeInterval
 	}
 }
 
-func initDB(driver, dsn string) {
+func initDB(ctx context.Context, driver, dsn string) {
 	var err error
 	if err = db.InitializeMasterDB(driver, dsn); err != nil {
 		ilog.AppLogger.Fatalf("can't initialize master db: %v", zap.Error(err))
 	}
 
-	if err = db.CreateStructure(); err != nil {
+	if err = db.CreateStructure(ctx); err != nil {
 		ilog.AppLogger.Fatalf("can't create structure: %v", zap.Error(err))
 	}
 

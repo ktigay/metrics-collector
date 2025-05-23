@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"maps"
 	"slices"
 	"sync"
@@ -33,7 +34,7 @@ func NewMemStorage(snapshot MetricSnapshot) (*MemMetricStorage, error) {
 }
 
 // Upsert - сохраняет или обновляет существующую метрику.
-func (s *MemMetricStorage) Upsert(m MetricEntity) error {
+func (s *MemMetricStorage) Upsert(_ context.Context, m MetricEntity) error {
 	s.sm.Lock()
 	defer s.sm.Unlock()
 
@@ -49,7 +50,7 @@ func (s *MemMetricStorage) Upsert(m MetricEntity) error {
 }
 
 // Find - поиск по ключу.
-func (s *MemMetricStorage) Find(t, n string) (*MetricEntity, error) {
+func (s *MemMetricStorage) Find(_ context.Context, t, n string) (*MetricEntity, error) {
 	s.sm.RLock()
 	defer s.sm.RUnlock()
 
@@ -63,7 +64,7 @@ func (s *MemMetricStorage) Find(t, n string) (*MetricEntity, error) {
 }
 
 // All - вернуть все метрики.
-func (s *MemMetricStorage) All() ([]MetricEntity, error) {
+func (s *MemMetricStorage) All(_ context.Context) ([]MetricEntity, error) {
 	s.sm.RLock()
 	defer s.sm.RUnlock()
 
@@ -75,7 +76,7 @@ func (s *MemMetricStorage) All() ([]MetricEntity, error) {
 }
 
 // Remove удаляет по типу и наименованию.
-func (s *MemMetricStorage) Remove(t, n string) error {
+func (s *MemMetricStorage) Remove(_ context.Context, t, n string) error {
 	s.sm.Lock()
 	defer s.sm.Unlock()
 
@@ -85,7 +86,7 @@ func (s *MemMetricStorage) Remove(t, n string) error {
 }
 
 // Backup бэкап данных в снапшот.
-func (s *MemMetricStorage) Backup() error {
+func (s *MemMetricStorage) Backup(_ context.Context) error {
 	if s.snapshot == nil {
 		return nil
 	}
@@ -99,7 +100,7 @@ func (s *MemMetricStorage) Backup() error {
 }
 
 // Restore восстановление данных из снапшота.
-func (s *MemMetricStorage) Restore() error {
+func (s *MemMetricStorage) Restore(_ context.Context) error {
 	if s.snapshot == nil {
 		return nil
 	}

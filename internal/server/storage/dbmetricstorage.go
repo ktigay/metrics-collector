@@ -1,9 +1,11 @@
 package storage
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/ktigay/metrics-collector/internal/metric"
 )
@@ -28,6 +30,10 @@ var (
 	selectAllQuery = `select type, name, delta, value from metrics`
 )
 
+const (
+	timeout = 1 * time.Second
+)
+
 // DBMetricStorage репозиторий БД.
 type DBMetricStorage struct {
 	db       *sql.DB
@@ -42,16 +48,22 @@ func NewDBMetricStorage(db *sql.DB, snapshot MetricSnapshot) (*DBMetricStorage, 
 }
 
 // Upsert - сохраняет или обновляет существующую метрику.
-func (dbm *DBMetricStorage) Upsert(m MetricEntity) error {
-	_, err := dbm.db.Exec(upsertQuery,
+func (dbm *DBMetricStorage) Upsert(ctx context.Context, m MetricEntity) error {
+	c, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	_, err := dbm.db.ExecContext(c, upsertQuery,
 		m.Type, m.Name, m.Delta, m.Value)
 	return err
 }
 
 // Find - поиск по ключу.
-func (dbm *DBMetricStorage) Find(t, n string) (*MetricEntity, error) {
+func (dbm *DBMetricStorage) Find(ctx context.Context, t, n string) (*MetricEntity, error) {
+	c, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
 	m := MetricEntity{}
-	r := dbm.db.QueryRow(findQuery, t, n)
+	r := dbm.db.QueryRowContext(c, findQuery, t, n)
 	if err := r.Scan(&m.Type, &m.Name, &m.Delta, &m.Value); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
@@ -64,16 +76,22 @@ func (dbm *DBMetricStorage) Find(t, n string) (*MetricEntity, error) {
 }
 
 // Remove удаляет по типу и наименованию.
-func (dbm *DBMetricStorage) Remove(t, n string) error {
-	if _, err := dbm.db.Exec(removeQuery, t, n); err != nil {
+func (dbm *DBMetricStorage) Remove(ctx context.Context, t, n string) error {
+	c, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	if _, err := dbm.db.ExecContext(c, removeQuery, t, n); err != nil {
 		return err
 	}
 	return nil
 }
 
 // All вернуть все метрики.
-func (dbm *DBMetricStorage) All() ([]MetricEntity, error) {
-	rows, err := dbm.db.Query(selectAllQuery)
+func (dbm *DBMetricStorage) All(ctx context.Context) ([]MetricEntity, error) {
+	c, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	rows, err := dbm.db.QueryContext(c, selectAllQuery)
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +117,7 @@ func (dbm *DBMetricStorage) All() ([]MetricEntity, error) {
 }
 
 // Backup бэкап данных в снапшот.
-func (dbm *DBMetricStorage) Backup() error {
+func (dbm *DBMetricStorage) Backup(ctx context.Context) error {
 	if dbm.snapshot == nil {
 		return nil
 	}
@@ -108,7 +126,7 @@ func (dbm *DBMetricStorage) Backup() error {
 		entities []MetricEntity
 		err      error
 	)
-	if entities, err = dbm.All(); err != nil {
+	if entities, err = dbm.All(ctx); err != nil {
 		return err
 	}
 
@@ -116,7 +134,7 @@ func (dbm *DBMetricStorage) Backup() error {
 }
 
 // Restore восстановление данных из снапшота.
-func (dbm *DBMetricStorage) Restore() error {
+func (dbm *DBMetricStorage) Restore(ctx context.Context) error {
 	if dbm.snapshot == nil {
 		return nil
 	}
@@ -130,18 +148,21 @@ func (dbm *DBMetricStorage) Restore() error {
 		return err
 	}
 
-	return dbm.UpsertAll(data)
+	return dbm.UpsertAll(ctx, data)
 }
 
 // UpsertAll сохраняет батч.
-func (dbm *DBMetricStorage) UpsertAll(mt []MetricEntity) error {
+func (dbm *DBMetricStorage) UpsertAll(ctx context.Context, mt []MetricEntity) error {
 	var (
 		err  error
 		tx   *sql.Tx
 		stmt *sql.Stmt
 	)
 
-	tx, err = dbm.db.Begin()
+	c, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	tx, err = dbm.db.BeginTx(c, nil)
 	if err != nil {
 		return err
 	}

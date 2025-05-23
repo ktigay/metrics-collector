@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/ktigay/metrics-collector/internal/log"
@@ -11,21 +12,21 @@ import (
 
 // MetricStorage интерфейс хранилища.
 type MetricStorage interface {
-	Upsert(m storage.MetricEntity) error
-	Find(t, n string) (*storage.MetricEntity, error)
-	Remove(t, n string) error
-	All() ([]storage.MetricEntity, error)
+	Upsert(ctx context.Context, m storage.MetricEntity) error
+	Find(ctx context.Context, t, n string) (*storage.MetricEntity, error)
+	Remove(ctx context.Context, t, n string) error
+	All(ctx context.Context) ([]storage.MetricEntity, error)
 }
 
 // BackupStorage интерфейс для работы со снапшотами.
 type BackupStorage interface {
-	Backup() error
-	Restore() error
+	Backup(ctx context.Context) error
+	Restore(ctx context.Context) error
 }
 
 // BatchMetricStorage интерфейс для работы с батчами.
 type BatchMetricStorage interface {
-	UpsertAll(mt []storage.MetricEntity) error
+	UpsertAll(ctx context.Context, mt []storage.MetricEntity) error
 }
 
 // MetricCollector - сборщик статистики.
@@ -39,7 +40,7 @@ func NewMetricCollector(storage MetricStorage) *MetricCollector {
 }
 
 // Save - собирает статистику.
-func (c *MetricCollector) Save(t, n string, v any) error {
+func (c *MetricCollector) Save(ctx context.Context, t, n string, v any) error {
 	var (
 		tp      metric.Type
 		memItem *storage.MetricEntity
@@ -59,16 +60,16 @@ func (c *MetricCollector) Save(t, n string, v any) error {
 		return err
 	}
 
-	return c.storage.Upsert(*memItem)
+	return c.storage.Upsert(ctx, *memItem)
 }
 
 // All - возвращает все записи.
-func (c *MetricCollector) All() ([]storage.MetricEntity, error) {
-	return c.storage.All()
+func (c *MetricCollector) All(ctx context.Context) ([]storage.MetricEntity, error) {
+	return c.storage.All(ctx)
 }
 
 // Find - находит запись по ключу.
-func (c *MetricCollector) Find(t, n string) (*storage.MetricEntity, error) {
+func (c *MetricCollector) Find(ctx context.Context, t, n string) (*storage.MetricEntity, error) {
 	var (
 		entity *storage.MetricEntity
 		err    error
@@ -77,7 +78,7 @@ func (c *MetricCollector) Find(t, n string) (*storage.MetricEntity, error) {
 		return nil, e.ErrWrongType
 	}
 
-	if entity, err = c.storage.Find(t, n); err != nil {
+	if entity, err = c.storage.Find(ctx, t, n); err != nil {
 		return nil, err
 	}
 	if entity == nil {
@@ -88,18 +89,18 @@ func (c *MetricCollector) Find(t, n string) (*storage.MetricEntity, error) {
 }
 
 // Remove удаление записи по ключу.
-func (c *MetricCollector) Remove(t, n string) error {
+func (c *MetricCollector) Remove(ctx context.Context, t, n string) error {
 	if _, err := metric.ResolveType(t); err != nil {
 		return e.ErrWrongType
 	}
-	return c.storage.Remove(t, n)
+	return c.storage.Remove(ctx, t, n)
 }
 
 // Backup бэкап данных.
-func (c *MetricCollector) Backup() error {
+func (c *MetricCollector) Backup(ctx context.Context) error {
 	switch t := c.storage.(type) {
 	case BackupStorage:
-		return t.Backup()
+		return t.Backup(ctx)
 	}
 
 	log.AppLogger.Debug("storage not supported backups")
@@ -107,10 +108,10 @@ func (c *MetricCollector) Backup() error {
 }
 
 // Restore восстановление данных.
-func (c *MetricCollector) Restore() error {
+func (c *MetricCollector) Restore(ctx context.Context) error {
 	switch t := c.storage.(type) {
 	case BackupStorage:
-		return t.Restore()
+		return t.Restore(ctx)
 	}
 
 	log.AppLogger.Debug("storage not supported restores")
@@ -118,7 +119,7 @@ func (c *MetricCollector) Restore() error {
 }
 
 // SaveAll сохраняет батч.
-func (c *MetricCollector) SaveAll(mt []metric.Metrics) error {
+func (c *MetricCollector) SaveAll(ctx context.Context, mt []metric.Metrics) error {
 	var err error
 	entities := make([]storage.MetricEntity, 0, len(mt))
 
@@ -141,10 +142,10 @@ func (c *MetricCollector) SaveAll(mt []metric.Metrics) error {
 
 	switch t := c.storage.(type) {
 	case BatchMetricStorage:
-		return t.UpsertAll(entities)
+		return t.UpsertAll(ctx, entities)
 	default:
 		for _, en := range entities {
-			if err = c.storage.Upsert(en); err != nil {
+			if err = c.storage.Upsert(ctx, en); err != nil {
 				return err
 			}
 		}
