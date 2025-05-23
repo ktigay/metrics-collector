@@ -97,7 +97,8 @@ func main() {
 		if err = httpServer.Shutdown(context.Background()); err != nil {
 			ilog.AppLogger.Errorf("can't shutdown http server: %v", err)
 		}
-		if err = db.MasterDB.Close(); err != nil {
+
+		if err = db.CloseMasterDB(); err != nil {
 			ilog.AppLogger.Errorf("can't close master db: %v", err)
 		}
 		wg.Done()

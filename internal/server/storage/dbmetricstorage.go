@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	upsertSQL = `
+	upsertQuery = `
 	insert into metrics (type, name, delta, value)
 	values ($1, $2, $3, $4)
 	ON CONFLICT ON CONSTRAINT type_name_uidx DO UPDATE
@@ -17,15 +17,15 @@ var (
 			value      = EXCLUDED.value,
 			updated_at = now()
 	`
-	findSQL = `
+	findQuery = `
 	SELECT 
 			"type", "name", "delta", "value" 
 		FROM metrics 
 		WHERE "type" = $1
 		AND "name" = $2
 	`
-	removeSQL    = `delete from metrics where type = $1 and name = $2`
-	selectAllSQL = `select type, name, delta, value from metrics`
+	removeQuery    = `delete from metrics where type = $1 and name = $2`
+	selectAllQuery = `select type, name, delta, value from metrics`
 )
 
 // DBMetricStorage репозиторий БД.
@@ -43,7 +43,7 @@ func NewDBMetricStorage(db *sql.DB, snapshot MetricSnapshot) (*DBMetricStorage, 
 
 // Upsert - сохраняет или обновляет существующую метрику.
 func (dbm *DBMetricStorage) Upsert(m MetricEntity) error {
-	_, err := dbm.db.Exec(upsertSQL,
+	_, err := dbm.db.Exec(upsertQuery,
 		m.Type, m.Name, m.Delta, m.Value)
 	return err
 }
@@ -51,7 +51,7 @@ func (dbm *DBMetricStorage) Upsert(m MetricEntity) error {
 // Find - поиск по ключу.
 func (dbm *DBMetricStorage) Find(t, n string) (*MetricEntity, error) {
 	m := MetricEntity{}
-	r := dbm.db.QueryRow(findSQL, t, n)
+	r := dbm.db.QueryRow(findQuery, t, n)
 	if err := r.Scan(&m.Type, &m.Name, &m.Delta, &m.Value); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
@@ -65,15 +65,15 @@ func (dbm *DBMetricStorage) Find(t, n string) (*MetricEntity, error) {
 
 // Remove удаляет по типу и наименованию.
 func (dbm *DBMetricStorage) Remove(t, n string) error {
-	if _, err := dbm.db.Exec(removeSQL, t, n); err != nil {
+	if _, err := dbm.db.Exec(removeQuery, t, n); err != nil {
 		return err
 	}
 	return nil
 }
 
-// All - вернуть все метрики.
+// All вернуть все метрики.
 func (dbm *DBMetricStorage) All() ([]MetricEntity, error) {
-	rows, err := dbm.db.Query(selectAllSQL)
+	rows, err := dbm.db.Query(selectAllQuery)
 	if err != nil {
 		return nil, err
 	}
@@ -152,7 +152,7 @@ func (dbm *DBMetricStorage) UpsertAll(mt []MetricEntity) error {
 		}
 	}()
 
-	if stmt, err = tx.Prepare(upsertSQL); err != nil {
+	if stmt, err = tx.Prepare(upsertQuery); err != nil {
 		return err
 	}
 	for _, m := range mt {

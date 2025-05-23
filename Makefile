@@ -74,30 +74,34 @@ run-test-a: \
 	run-test-a11 \
 	run-test-a12 \
 
+define test_cmd
+	$(DOCKER_RUN)  sh -c "metricstest -test.v -test.run=^TestIteration$(1)$$ -source-path=. -agent-binary-path=$(AGENT_PATH) -binary-path=$(SERVER_PATH)$(2)"
+endef
+
 run-test-a1:
-	$(DOCKER_RUN) sh -c "metricstest -test.v -test.run=^TestIteration1$$ -binary-path=$(SERVER_PATH)"
+	$(call test_cmd,1)
 run-test-a2:
-	$(DOCKER_RUN) sh -c "metricstest -test.v -test.run=^TestIteration2[AB]*$$ -source-path=. -agent-binary-path=$(AGENT_PATH)"
+	$(call test_cmd,2[AB])
 run-test-a3:
-	$(DOCKER_RUN)  sh -c "metricstest -test.v -test.run=^TestIteration3[AB]*$$ -source-path=. -agent-binary-path=$(AGENT_PATH) -binary-path=$(SERVER_PATH)"
+	$(call test_cmd,3[AB]*)
 run-test-a4:
-	$(DOCKER_RUN)  sh -c "metricstest -test.v -test.run=^TestIteration4$$ -agent-binary-path=$(AGENT_PATH) -binary-path=$(SERVER_PATH) -server-port=$(TEST_SERVER_PORT) -source-path=."
+	$(call test_cmd,4, -server-port=$(TEST_SERVER_PORT))
 run-test-a5:
-	$(DOCKER_RUN)  sh -c "metricstest -test.v -test.run=^TestIteration5$$ -agent-binary-path=$(AGENT_PATH) -binary-path=$(SERVER_PATH) -server-port=$(TEST_SERVER_PORT) -source-path=."
+	$(call test_cmd,5, -server-port=$(TEST_SERVER_PORT))
 run-test-a6:
-	$(DOCKER_RUN)  sh -c "metricstest -test.v -test.run=^TestIteration6$$ -agent-binary-path=$(AGENT_PATH) -binary-path=$(SERVER_PATH) -server-port=$(TEST_SERVER_PORT) -source-path=."
+	$(call test_cmd,6, -server-port=$(TEST_SERVER_PORT))
 run-test-a7:
-	$(DOCKER_RUN)  sh -c "metricstest -test.v -test.run=^TestIteration7$$ -agent-binary-path=$(AGENT_PATH) -binary-path=$(SERVER_PATH) -server-port=$(TEST_SERVER_PORT) -source-path=."
+	$(call test_cmd,7, -server-port=$(TEST_SERVER_PORT))
 run-test-a8:
-	$(DOCKER_RUN)  sh -c "metricstest -test.v -test.run=^TestIteration8$$ -agent-binary-path=$(AGENT_PATH) -binary-path=$(SERVER_PATH) -server-port=$(TEST_SERVER_PORT) -source-path=."
+	$(call test_cmd,8, -server-port=$(TEST_SERVER_PORT))
 run-test-a9:
-	$(DOCKER_RUN)  sh -c "metricstest -test.v -test.run=^TestIteration9$$ -agent-binary-path=$(AGENT_PATH) -binary-path=$(SERVER_PATH) -server-port=$(TEST_SERVER_PORT) -source-path=. -file-storage-path=$(TEMP_FILE)"
+	$(call test_cmd,9, -server-port=$(TEST_SERVER_PORT) -file-storage-path=$(TEMP_FILE))
 run-test-a10:
-	$(DOCKER_RUN)  sh -c "metricstest -test.v -test.run=^TestIteration10[AB]$$ -agent-binary-path=$(AGENT_PATH) -binary-path=$(SERVER_PATH) -database-dsn='$(DATABASE_DSN)' -server-port=$(TEST_SERVER_PORT) -source-path=."
+	$(call test_cmd,10[AB], -server-port=$(TEST_SERVER_PORT) -file-storage-path=$(TEMP_FILE) -database-dsn='$(DATABASE_DSN)')
 run-test-a11:
-	$(DOCKER_RUN)  sh -c "metricstest -test.v -test.run=^TestIteration11$$ -agent-binary-path=$(AGENT_PATH) -binary-path=$(SERVER_PATH) -database-dsn='$(DATABASE_DSN)' -server-port=$(TEST_SERVER_PORT) -source-path=."
+	$(call test_cmd,11, -server-port=$(TEST_SERVER_PORT) -file-storage-path=$(TEMP_FILE) -database-dsn='$(DATABASE_DSN)')
 run-test-a12:
-	$(DOCKER_RUN)  sh -c "metricstest -test.v -test.run=^TestIteration12$$ -agent-binary-path=$(AGENT_PATH) -binary-path=$(SERVER_PATH) -database-dsn='$(DATABASE_DSN)' -server-port=$(TEST_SERVER_PORT) -source-path=."
+	$(call test_cmd,12, -server-port=$(TEST_SERVER_PORT) -file-storage-path=$(TEMP_FILE) -database-dsn='$(DATABASE_DSN)')
 
 up: \
 	up-server \

@@ -23,7 +23,7 @@ var structure = []string{
 		guid       uuid                     DEFAULT gen_random_uuid(),
 		type       metric_type  NOT NULL,
 		name       varchar(255) NOT NULL,
-		delta      integer                  default 0,
+		delta      bigint                   default 0,
 		value      double precision         default .0,
 		created_at timestamp with time zone default now(),
 		updated_at timestamp with time zone default now(),
@@ -52,4 +52,12 @@ func CreateStructure() (err error) {
 	}
 
 	return nil
+}
+
+func CloseMasterDB() error {
+	if MasterDB == nil {
+		return nil
+	}
+
+	return MasterDB.Close()
 }
