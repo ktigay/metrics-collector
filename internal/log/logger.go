@@ -1,3 +1,4 @@
+// Package log Логгер.
 package log
 
 import (

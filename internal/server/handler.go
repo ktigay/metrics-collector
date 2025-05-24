@@ -1,13 +1,17 @@
+// Package server сервер.
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/ktigay/metrics-collector/internal/log"
 	"github.com/ktigay/metrics-collector/internal/metric"
+	"github.com/ktigay/metrics-collector/internal/server/db"
 	"github.com/ktigay/metrics-collector/internal/server/errors"
 	"github.com/ktigay/metrics-collector/internal/server/storage"
 	"go.uber.org/zap"
@@ -19,6 +23,10 @@ var errStatusMap = map[error]int{
 	errors.ErrValueNotFound: http.StatusNotFound,
 }
 
+const (
+	pingTimeout = 2 * time.Second
+)
+
 func statusFromError(err error) int {
 	if st, ok := errStatusMap[err]; ok {
 		return st
@@ -26,29 +34,30 @@ func statusFromError(err error) int {
 	return http.StatusInternalServerError
 }
 
-// CollectorInterface - Интерфейс сборщика статистики.
+// CollectorInterface Интерфейс сборщика статистики.
 type CollectorInterface interface {
-	Save(t, n string, v any) error
-	All() []storage.Entity
-	Find(t, n string) (*storage.Entity, error)
-	Remove(t, n string) error
+	Save(ctx context.Context, t, n string, v any) error
+	All(ctx context.Context) ([]storage.MetricEntity, error)
+	Find(ctx context.Context, t, n string) (*storage.MetricEntity, error)
+	Remove(ctx context.Context, t, n string) error
+	SaveAll(ctx context.Context, mt []metric.Metrics) error
 }
 
-// Server - структура с обработчиками запросов.
+// Server структура с обработчиками запросов.
 type Server struct {
 	collector CollectorInterface
 }
 
-// NewServer - конструктор.
+// NewServer конструктор.
 func NewServer(collector CollectorInterface) *Server {
 	return &Server{collector}
 }
 
-// CollectHandler - обработчик для сборка метрик.
+// CollectHandler обработчик для сборка метрик.
 func (c *Server) CollectHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
-	if err := c.collector.Save(vars["type"], vars["name"], vars["value"]); err != nil {
+	if err := c.collector.Save(r.Context(), vars["type"], vars["name"], vars["value"]); err != nil {
 		w.WriteHeader(statusFromError(err))
 		return
 	}
@@ -56,16 +65,16 @@ func (c *Server) CollectHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-// GetValueHandler - обработчик для получения значения метрики.
+// GetValueHandler обработчик для получения значения метрики.
 func (c *Server) GetValueHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
 	var (
 		err    error
-		entity *storage.Entity
+		entity *storage.MetricEntity
 	)
 
-	if entity, err = c.collector.Find(vars["type"], vars["name"]); err != nil {
+	if entity, err = c.collector.Find(r.Context(), vars["type"], vars["name"]); err != nil {
 		w.WriteHeader(statusFromError(err))
 		return
 	}
@@ -77,10 +86,10 @@ func (c *Server) GetValueHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// GetAllHandler - обработчик для получения списка метрик.
-func (c *Server) GetAllHandler(w http.ResponseWriter, _ *http.Request) {
+// GetAllHandler обработчик для получения списка метрик.
+func (c *Server) GetAllHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("content-type", "text/html; charset=utf-8")
-	metrics := c.collector.All()
+	metrics, _ := c.collector.All(r.Context())
 
 	names := make([]string, 0, len(metrics))
 	for _, m := range metrics {
@@ -106,7 +115,7 @@ func (c *Server) UpdateJSONHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		m      metric.Metrics
 		err    error
-		entity *storage.Entity
+		entity *storage.MetricEntity
 	)
 
 	if err = json.NewDecoder(r.Body).Decode(&m); err != nil {
@@ -115,12 +124,14 @@ func (c *Server) UpdateJSONHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = c.collector.Save(m.MType, m.ID, m.ValueByType()); err != nil {
+	ctx := r.Context()
+
+	if err = c.collector.Save(ctx, m.MType, m.ID, m.ValueByType()); err != nil {
 		w.WriteHeader(statusFromError(err))
 		return
 	}
 
-	if entity, err = c.collector.Find(m.MType, m.ID); err != nil {
+	if entity, err = c.collector.Find(ctx, m.MType, m.ID); err != nil {
 		w.WriteHeader(statusFromError(err))
 		return
 	}
@@ -131,6 +142,34 @@ func (c *Server) UpdateJSONHandler(w http.ResponseWriter, r *http.Request) {
 	if err = json.NewEncoder(w).Encode(um); err != nil {
 		log.AppLogger.Errorln("Failed to write response", zap.Error(err))
 	}
+}
+
+// UpdatesJSONHandler обработчик обновления метрик из json-строки.
+func (c *Server) UpdatesJSONHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Header.Get("content-type") != "application/json" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("content-type", "application/json")
+
+	var (
+		m   []metric.Metrics
+		err error
+	)
+
+	if err = json.NewDecoder(r.Body).Decode(&m); err != nil {
+		log.AppLogger.Errorln("Failed to write response", zap.Error(err))
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	if err = c.collector.SaveAll(r.Context(), m); err != nil {
+		w.WriteHeader(statusFromError(err))
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 // GetJSONValueHandler возвращает структуру в виде json-строки.
@@ -145,7 +184,7 @@ func (c *Server) GetJSONValueHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		m      metric.Metrics
 		err    error
-		entity *storage.Entity
+		entity *storage.MetricEntity
 	)
 
 	if err = json.NewDecoder(r.Body).Decode(&m); err != nil {
@@ -153,7 +192,7 @@ func (c *Server) GetJSONValueHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	entity, err = c.collector.Find(m.MType, m.ID)
+	entity, err = c.collector.Find(r.Context(), m.MType, m.ID)
 	if err != nil {
 		w.WriteHeader(statusFromError(err))
 		return
@@ -165,4 +204,24 @@ func (c *Server) GetJSONValueHandler(w http.ResponseWriter, r *http.Request) {
 	if err = json.NewEncoder(w).Encode(um); err != nil {
 		log.AppLogger.Errorln("Failed to write response", zap.Error(err))
 	}
+}
+
+// Ping пинг соединения с БД.
+func (c *Server) Ping(w http.ResponseWriter, r *http.Request) {
+	if db.MasterDB == nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	var err error
+
+	ctx, cancel := context.WithTimeout(r.Context(), pingTimeout)
+	defer cancel()
+
+	if err = db.MasterDB.PingContext(ctx); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.AppLogger.Errorf("Failed to connect to MasterDB %v", err)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }

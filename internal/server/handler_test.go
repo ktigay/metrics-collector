@@ -151,8 +151,8 @@ func TestServer_UpdateJSONHandler(t *testing.T) {
 			name: "Positive_test_counter",
 			fields: fields{
 				collector: service.NewMetricCollector(
-					&storage.MemStorage{
-						Metrics: map[string]storage.Entity{
+					&storage.MemMetricStorage{
+						Metrics: map[string]storage.MetricEntity{
 							"counter:TestSet91": {
 								Key:   "counter:TestSet91",
 								Name:  "TestSet91",
@@ -284,8 +284,8 @@ func TestServer_GetJSONValueHandler(t *testing.T) {
 			name: "Positive_test_gauge",
 			fields: fields{
 				collector: service.NewMetricCollector(
-					&storage.MemStorage{
-						Metrics: map[string]storage.Entity{
+					&storage.MemMetricStorage{
+						Metrics: map[string]storage.MetricEntity{
 							"gauge:TestSet90": {
 								Key:   "counter:TestSet90",
 								Name:  "TestSet90",
@@ -311,8 +311,8 @@ func TestServer_GetJSONValueHandler(t *testing.T) {
 			name: "Positive_test_counter",
 			fields: fields{
 				collector: service.NewMetricCollector(
-					&storage.MemStorage{
-						Metrics: map[string]storage.Entity{
+					&storage.MemMetricStorage{
+						Metrics: map[string]storage.MetricEntity{
 							"counter:TestSet91": {
 								Key:   "counter:TestSet91",
 								Name:  "TestSet91",
