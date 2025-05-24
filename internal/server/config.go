@@ -14,6 +14,7 @@ const (
 	defaultFileStoragePath = "/tmp/metrics-db.json"
 	defaultRestoreFlag     = true
 	defaultDatabaseDSN     = ""
+	defaultDatabaseDriver  = "pgx"
 )
 
 // Config конфигурация сервера.
@@ -24,13 +25,21 @@ type Config struct {
 	FileStoragePath string `env:"FILE_STORAGE_PATH"`
 	Restore         bool   `env:"RESTORE"`
 	DatabaseDSN     string `env:"DATABASE_DSN"`
+	DatabaseDriver  string `env:"DATABASE_DRIVER"`
+}
+
+// IsUseSQLDB использовать БД SQL.
+func (c *Config) IsUseSQLDB() bool {
+	return c.DatabaseDSN != "" && c.DatabaseDriver != ""
 }
 
 // InitializeConfig инициализирует конфигурацию.
 func InitializeConfig(args []string) (*Config, error) {
 	var err error
 
-	config := Config{}
+	config := Config{
+		DatabaseDriver: defaultDatabaseDriver,
+	}
 
 	flags := flag.NewFlagSet("server flags", flag.ContinueOnError)
 

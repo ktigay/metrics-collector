@@ -27,7 +27,7 @@ import (
 
 func main() {
 	mainCtx := context.TODO()
-	ctx, stop := signal.NotifyContext(mainCtx, os.Interrupt, syscall.SIGTERM)
+	exitCtx, stop := signal.NotifyContext(mainCtx, os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
 	config, err := server.InitializeConfig(os.Args[1:])
@@ -44,10 +44,8 @@ func main() {
 		}
 	}()
 
-	useSQL := config.DatabaseDSN != ""
-
-	if useSQL {
-		initDB(mainCtx, "pgx", config.DatabaseDSN)
+	if config.IsUseSQLDB() {
+		initDB(mainCtx, config.DatabaseDriver, config.DatabaseDSN)
 		defer func() {
 			if err = db.CloseMasterDB(); err != nil {
 				ilog.AppLogger.Errorf("can't close master db: %v", err)
@@ -97,14 +95,14 @@ func main() {
 
 	wg.Add(1)
 	go func() {
-		if err = saveSnapshot(mainCtx, ctx, collector, config.StoreInterval); err != nil {
+		if err = saveSnapshot(mainCtx, exitCtx, collector, config.StoreInterval); err != nil {
 			ilog.AppLogger.Errorf("can't save statistics snapshot: %v", err)
 		}
 		wg.Done()
 	}()
 
 	go func() {
-		<-ctx.Done()
+		<-exitCtx.Done()
 
 		ilog.AppLogger.Debug("http server shutting down")
 		if err = httpServer.Shutdown(context.Background()); err != nil {
@@ -147,7 +145,7 @@ func initMetricCollector(ctx context.Context, config *server.Config) (*service.M
 		sn = snapshot.NewFileMetricSnapshot(config.FileStoragePath)
 	}
 
-	if ms, err = initMetricStorage(sn, config.DatabaseDSN != ""); err != nil {
+	if ms, err = initMetricStorage(sn, config.IsUseSQLDB()); err != nil {
 		return nil, err
 	}
 
@@ -171,7 +169,7 @@ func initMetricStorage(sn storage.MetricSnapshot, useSQL bool) (service.MetricSt
 	return storage.NewMemStorage(sn)
 }
 
-func saveSnapshot(mainCtx, ctx context.Context, c *service.MetricCollector, storeInterval int) error {
+func saveSnapshot(mainCtx, exitCtx context.Context, c *service.MetricCollector, storeInterval int) error {
 	ticker := time.NewTicker(time.Duration(storeInterval) * time.Second)
 	defer ticker.Stop()
 	for {
@@ -182,7 +180,7 @@ func saveSnapshot(mainCtx, ctx context.Context, c *service.MetricCollector, stor
 				return err
 			}
 			ilog.AppLogger.Debug("saveSnapshot saving metrics finished")
-		case <-ctx.Done():
+		case <-exitCtx.Done():
 			ticker.Stop()
 			if err := c.Backup(mainCtx); err != nil {
 				return err
