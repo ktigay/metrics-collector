@@ -1,3 +1,4 @@
+// Package metric Метрики.
 package metric
 
 import (
@@ -5,76 +6,50 @@ import (
 	"runtime"
 )
 
-// Type - тип метрики.
+// Type тип метрики.
 type Type string
 
 func (t Type) String() string {
 	return string(t)
 }
 
-// GaugeMetric - тип собираемых метрик.
+// GaugeMetric тип собираемых метрик.
 type GaugeMetric string
 
+// Метрики
 const (
+	Alloc         GaugeMetric = "Alloc"
+	BuckHashSys   GaugeMetric = "BuckHashSys"
+	Frees         GaugeMetric = "Frees"
+	GCCPUFraction GaugeMetric = "GCCPUFraction"
+	GCSys         GaugeMetric = "GCSys"
+	HeapAlloc     GaugeMetric = "HeapAlloc"
+	HeapIdle      GaugeMetric = "HeapIdle"
+	HeapInuse     GaugeMetric = "HeapInuse"
+	HeapObjects   GaugeMetric = "HeapObjects"
+	HeapReleased  GaugeMetric = "HeapReleased"
+	HeapSys       GaugeMetric = "HeapSys"
+	LastGC        GaugeMetric = "LastGC"
+	Lookups       GaugeMetric = "Lookups"
+	MCacheInuse   GaugeMetric = "MCacheInuse"
+	MCacheSys     GaugeMetric = "MCacheSys"
+	MSpanInuse    GaugeMetric = "MSpanInuse"
+	MSpanSys      GaugeMetric = "MSpanSys"
+	Mallocs       GaugeMetric = "Mallocs"
+	NextGC        GaugeMetric = "NextGC"
+	NumForcedGC   GaugeMetric = "NumForcedGC"
+	NumGC         GaugeMetric = "NumGC"
+	OtherSys      GaugeMetric = "OtherSys"
+	PauseTotalNs  GaugeMetric = "PauseTotalNs"
+	StackInuse    GaugeMetric = "StackInuse"
+	StackSys      GaugeMetric = "StackSys"
+	Sys           GaugeMetric = "Sys"
+	TotalAlloc    GaugeMetric = "TotalAlloc"
+
 	// TypeGauge тип gauge.
 	TypeGauge Type = "gauge"
 	// TypeCounter тип counter.
 	TypeCounter Type = "counter"
-
-	// Alloc gauge.Alloc.
-	Alloc GaugeMetric = "Alloc"
-	// BuckHashSys gauge.BuckHashSys.
-	BuckHashSys GaugeMetric = "BuckHashSys"
-	// Frees gauge.Frees.
-	Frees GaugeMetric = "Frees"
-	// GCCPUFraction gauge.GCCPUFraction.
-	GCCPUFraction GaugeMetric = "GCCPUFraction"
-	// GCSys gauge.GCSys.
-	GCSys GaugeMetric = "GCSys"
-	// HeapAlloc gauge.HeapAlloc.
-	HeapAlloc GaugeMetric = "HeapAlloc"
-	// HeapIdle gauge.HeapIdle.
-	HeapIdle GaugeMetric = "HeapIdle"
-	// HeapInuse gauge.HeapInuse.
-	HeapInuse GaugeMetric = "HeapInuse"
-	// HeapObjects gauge.HeapObjects.
-	HeapObjects GaugeMetric = "HeapObjects"
-	// HeapReleased gauge.HeapReleased.
-	HeapReleased GaugeMetric = "HeapReleased"
-	// HeapSys gauge.HeapSys.
-	HeapSys GaugeMetric = "HeapSys"
-	// LastGC gauge.LastGC.
-	LastGC GaugeMetric = "LastGC"
-	// Lookups gauge.Lookups.
-	Lookups GaugeMetric = "Lookups"
-	// MCacheInuse gauge.MCacheInuse.
-	MCacheInuse GaugeMetric = "MCacheInuse"
-	// MCacheSys gauge.MCacheSys.
-	MCacheSys GaugeMetric = "MCacheSys"
-	// MSpanInuse gauge.MSpanInuse.
-	MSpanInuse GaugeMetric = "MSpanInuse"
-	// MSpanSys gauge.MSpanSys.
-	MSpanSys GaugeMetric = "MSpanSys"
-	// Mallocs gauge.Mallocs.
-	Mallocs GaugeMetric = "Mallocs"
-	// NextGC gauge.NextGC.
-	NextGC GaugeMetric = "NextGC"
-	// NumForcedGC gauge.NumForcedGC.
-	NumForcedGC GaugeMetric = "NumForcedGC"
-	// NumGC gauge.NumGC.
-	NumGC GaugeMetric = "NumGC"
-	// OtherSys gauge.OtherSys.
-	OtherSys GaugeMetric = "OtherSys"
-	// PauseTotalNs gauge.PauseTotalNs.
-	PauseTotalNs GaugeMetric = "PauseTotalNs"
-	// StackInuse gauge.StackInuse.
-	StackInuse GaugeMetric = "StackInuse"
-	// StackSys gauge.StackSys.
-	StackSys GaugeMetric = "StackSys"
-	// Sys gauge.Sys.
-	Sys GaugeMetric = "Sys"
-	// TotalAlloc gauge.TotalAlloc.
-	TotalAlloc GaugeMetric = "TotalAlloc"
 
 	// RandomValue рандомное число gauge.RandomValue.
 	RandomValue string = "RandomValue"
@@ -82,7 +57,7 @@ const (
 	PollCount string = "PollCount"
 )
 
-// String - название метрики в строку.
+// String название метрики в строку.
 func (m GaugeMetric) String() string {
 	return string(m)
 }
@@ -115,7 +90,7 @@ func (m *Metrics) Key() string {
 	return Key(m.MType, m.ID)
 }
 
-// ResolveType - получает из строки тип.
+// ResolveType получает из строки тип.
 func ResolveType(s string) (m Type, err error) {
 	switch s {
 	case string(TypeGauge):
@@ -127,12 +102,12 @@ func ResolveType(s string) (m Type, err error) {
 	}
 }
 
-// Key - возвращает ключ по типу и наименованию метрики.
+// Key возвращает ключ по типу и наименованию метрики.
 func Key(mType, mName string) string {
 	return fmt.Sprintf("%s:%s", mType, mName)
 }
 
-// MapGaugeFromMemStats - преобразует метрики из runtime в map.
+// MapGaugeFromMemStats преобразует метрики из runtime в map.
 func MapGaugeFromMemStats(m runtime.MemStats) map[GaugeMetric]float64 {
 	return map[GaugeMetric]float64{
 		Alloc:         float64(m.Alloc),

@@ -1,3 +1,4 @@
+// Сервер.
 package main
 
 import (

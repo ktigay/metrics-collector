@@ -1,3 +1,4 @@
+// Package server сервер.
 package server
 
 import (
@@ -33,7 +34,7 @@ func statusFromError(err error) int {
 	return http.StatusInternalServerError
 }
 
-// CollectorInterface - Интерфейс сборщика статистики.
+// CollectorInterface Интерфейс сборщика статистики.
 type CollectorInterface interface {
 	Save(ctx context.Context, t, n string, v any) error
 	All(ctx context.Context) ([]storage.MetricEntity, error)
@@ -42,17 +43,17 @@ type CollectorInterface interface {
 	SaveAll(ctx context.Context, mt []metric.Metrics) error
 }
 
-// Server - структура с обработчиками запросов.
+// Server структура с обработчиками запросов.
 type Server struct {
 	collector CollectorInterface
 }
 
-// NewServer - конструктор.
+// NewServer конструктор.
 func NewServer(collector CollectorInterface) *Server {
 	return &Server{collector}
 }
 
-// CollectHandler - обработчик для сборка метрик.
+// CollectHandler обработчик для сборка метрик.
 func (c *Server) CollectHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
@@ -64,7 +65,7 @@ func (c *Server) CollectHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-// GetValueHandler - обработчик для получения значения метрики.
+// GetValueHandler обработчик для получения значения метрики.
 func (c *Server) GetValueHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
@@ -85,7 +86,7 @@ func (c *Server) GetValueHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// GetAllHandler - обработчик для получения списка метрик.
+// GetAllHandler обработчик для получения списка метрик.
 func (c *Server) GetAllHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("content-type", "text/html; charset=utf-8")
 	metrics, _ := c.collector.All(r.Context())
@@ -205,6 +206,7 @@ func (c *Server) GetJSONValueHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Ping пинг соединения с БД.
 func (c *Server) Ping(w http.ResponseWriter, r *http.Request) {
 	if db.MasterDB == nil {
 		w.WriteHeader(http.StatusInternalServerError)

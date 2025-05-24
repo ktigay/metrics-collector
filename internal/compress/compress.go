@@ -1,3 +1,4 @@
+// Package compress Работа со сжатыми данными.
 package compress
 
 import "strings"

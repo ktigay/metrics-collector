@@ -1,3 +1,4 @@
+// Агент.
 package main
 
 import (

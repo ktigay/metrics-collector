@@ -1,3 +1,4 @@
+// Package storage Репозитории.
 package storage
 
 import (
@@ -40,6 +41,7 @@ type DBMetricStorage struct {
 	snapshot MetricSnapshot
 }
 
+// NewDBMetricStorage конструктор.
 func NewDBMetricStorage(db *sql.DB, snapshot MetricSnapshot) (*DBMetricStorage, error) {
 	return &DBMetricStorage{
 		db:       db,
@@ -47,7 +49,7 @@ func NewDBMetricStorage(db *sql.DB, snapshot MetricSnapshot) (*DBMetricStorage, 
 	}, nil
 }
 
-// Upsert - сохраняет или обновляет существующую метрику.
+// Upsert сохраняет или обновляет существующую метрику.
 func (dbm *DBMetricStorage) Upsert(ctx context.Context, m MetricEntity) error {
 	c, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
@@ -57,7 +59,7 @@ func (dbm *DBMetricStorage) Upsert(ctx context.Context, m MetricEntity) error {
 	return err
 }
 
-// Find - поиск по ключу.
+// Find поиск по ключу.
 func (dbm *DBMetricStorage) Find(ctx context.Context, t, n string) (*MetricEntity, error) {
 	c, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()

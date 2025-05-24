@@ -1,3 +1,4 @@
+// Package db БД.
 package db
 
 import (
@@ -60,6 +61,7 @@ func CreateStructure(ctx context.Context) (err error) {
 	return nil
 }
 
+// CloseMasterDB закрывает коннект к БД.
 func CloseMasterDB() error {
 	if MasterDB == nil {
 		return nil

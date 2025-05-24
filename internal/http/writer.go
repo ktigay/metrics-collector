@@ -1,3 +1,4 @@
+// Package http Writer для логирования данных.
 package http
 
 import "net/http"
@@ -17,7 +18,7 @@ type (
 	}
 )
 
-// NewWriter - конструктор.
+// NewWriter конструктор.
 func NewWriter(w http.ResponseWriter, d *ResponseData) *Writer {
 	return &Writer{
 		ResponseWriter: w,
@@ -25,7 +26,7 @@ func NewWriter(w http.ResponseWriter, d *ResponseData) *Writer {
 	}
 }
 
-// Write - запись ответа.
+// Write запись ответа.
 func (r *Writer) Write(b []byte) (int, error) {
 	r.responseData.Body = append(r.responseData.Body, b...)
 	size, err := r.ResponseWriter.Write(b)

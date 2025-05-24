@@ -7,7 +7,7 @@ import (
 	"github.com/ktigay/metrics-collector/internal/server/errors"
 )
 
-// MetricEntity - сущность для сохранения в storage.
+// MetricEntity сущность для сохранения в storage.
 type MetricEntity struct {
 	Key   string      `json:"key"`
 	Type  metric.Type `json:"type"`

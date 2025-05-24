@@ -1,3 +1,4 @@
+// Package errors ошибки приложения.
 package errors
 
 import "errors"

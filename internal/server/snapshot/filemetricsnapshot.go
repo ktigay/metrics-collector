@@ -1,3 +1,4 @@
+// Package snapshot Работа со снапшотами.
 package snapshot
 
 import (

@@ -1,3 +1,4 @@
+// Package client агент.
 package client
 
 import (
@@ -19,13 +20,13 @@ const (
 	compressType = compress.Gzip
 )
 
-// Sender - хендлер.
+// Sender хендлер.
 type Sender struct {
 	url          string
 	batchEnabled bool
 }
 
-// NewSender - конструктор.
+// NewSender конструктор.
 func NewSender(url string, batchEnabled bool) *Sender {
 	return &Sender{
 		url:          url,
@@ -33,7 +34,7 @@ func NewSender(url string, batchEnabled bool) *Sender {
 	}
 }
 
-// SendMetrics - отправляет метрики на сервер.
+// SendMetrics отправляет метрики на сервер.
 func (mh *Sender) SendMetrics(c collector.MetricCollectDTO) {
 	if mh.batchEnabled {
 		if err := mh.sendBatch(c); err != nil {

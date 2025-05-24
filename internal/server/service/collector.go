@@ -1,3 +1,4 @@
+// Package service сервисы.
 package service
 
 import (
@@ -29,17 +30,17 @@ type BatchMetricStorage interface {
 	UpsertAll(ctx context.Context, mt []storage.MetricEntity) error
 }
 
-// MetricCollector - сборщик статистики.
+// MetricCollector сборщик статистики.
 type MetricCollector struct {
 	storage MetricStorage
 }
 
-// NewMetricCollector - конструктор.
+// NewMetricCollector конструктор.
 func NewMetricCollector(storage MetricStorage) *MetricCollector {
 	return &MetricCollector{storage}
 }
 
-// Save - собирает статистику.
+// Save собирает статистику.
 func (c *MetricCollector) Save(ctx context.Context, t, n string, v any) error {
 	var (
 		tp      metric.Type
@@ -63,12 +64,12 @@ func (c *MetricCollector) Save(ctx context.Context, t, n string, v any) error {
 	return c.storage.Upsert(ctx, *memItem)
 }
 
-// All - возвращает все записи.
+// All возвращает все записи.
 func (c *MetricCollector) All(ctx context.Context) ([]storage.MetricEntity, error) {
 	return c.storage.All(ctx)
 }
 
-// Find - находит запись по ключу.
+// Find находит запись по ключу.
 func (c *MetricCollector) Find(ctx context.Context, t, n string) (*storage.MetricEntity, error) {
 	var (
 		entity *storage.MetricEntity

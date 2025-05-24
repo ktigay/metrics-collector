@@ -16,7 +16,7 @@ const (
 	defaultDatabaseDSN     = ""
 )
 
-// Config - конфигурация сервера.
+// Config конфигурация сервера.
 type Config struct {
 	ServerHost      string `env:"ADDRESS"`
 	LogLevel        string `env:"LOG_LEVEL"`

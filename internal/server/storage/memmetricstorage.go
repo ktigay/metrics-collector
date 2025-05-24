@@ -16,14 +16,14 @@ type MetricSnapshot interface {
 	Write([]MetricEntity) error
 }
 
-// MemMetricStorage - in-memory хранилище.
+// MemMetricStorage in-memory хранилище.
 type MemMetricStorage struct {
 	sm       sync.RWMutex
 	Metrics  map[string]MetricEntity
 	snapshot MetricSnapshot
 }
 
-// NewMemStorage - конструктор.
+// NewMemStorage конструктор.
 func NewMemStorage(snapshot MetricSnapshot) (*MemMetricStorage, error) {
 	storage := MemMetricStorage{
 		snapshot: snapshot,
@@ -33,7 +33,7 @@ func NewMemStorage(snapshot MetricSnapshot) (*MemMetricStorage, error) {
 	return &storage, nil
 }
 
-// Upsert - сохраняет или обновляет существующую метрику.
+// Upsert сохраняет или обновляет существующую метрику.
 func (s *MemMetricStorage) Upsert(_ context.Context, m MetricEntity) error {
 	s.sm.Lock()
 	defer s.sm.Unlock()
@@ -49,7 +49,7 @@ func (s *MemMetricStorage) Upsert(_ context.Context, m MetricEntity) error {
 	return nil
 }
 
-// Find - поиск по ключу.
+// Find поиск по ключу.
 func (s *MemMetricStorage) Find(_ context.Context, t, n string) (*MetricEntity, error) {
 	s.sm.RLock()
 	defer s.sm.RUnlock()
@@ -63,7 +63,7 @@ func (s *MemMetricStorage) Find(_ context.Context, t, n string) (*MetricEntity, 
 	return &entity, nil
 }
 
-// All - вернуть все метрики.
+// All вернуть все метрики.
 func (s *MemMetricStorage) All(_ context.Context) ([]MetricEntity, error) {
 	s.sm.RLock()
 	defer s.sm.RUnlock()
