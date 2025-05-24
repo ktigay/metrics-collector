@@ -1,6 +1,8 @@
-package server
+// Package handler сервер.
+package handler
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -26,29 +28,30 @@ func statusFromError(err error) int {
 	return http.StatusInternalServerError
 }
 
-// CollectorInterface - Интерфейс сборщика статистики.
+// CollectorInterface Интерфейс сборщика статистики.
 type CollectorInterface interface {
-	Save(t, n string, v any) error
-	All() []storage.Entity
-	Find(t, n string) (*storage.Entity, error)
-	Remove(t, n string) error
+	Save(ctx context.Context, t, n string, v any) error
+	All(ctx context.Context) ([]storage.MetricEntity, error)
+	Find(ctx context.Context, t, n string) (*storage.MetricEntity, error)
+	Remove(ctx context.Context, t, n string) error
+	SaveAll(ctx context.Context, mt []metric.Metrics) error
 }
 
-// Server - структура с обработчиками запросов.
-type Server struct {
+// MetricHandler структура с обработчиками запросов.
+type MetricHandler struct {
 	collector CollectorInterface
 }
 
-// NewServer - конструктор.
-func NewServer(collector CollectorInterface) *Server {
-	return &Server{collector}
+// NewMetricHandler конструктор.
+func NewMetricHandler(collector CollectorInterface) *MetricHandler {
+	return &MetricHandler{collector}
 }
 
-// CollectHandler - обработчик для сборка метрик.
-func (c *Server) CollectHandler(w http.ResponseWriter, r *http.Request) {
+// CollectHandler обработчик для сборка метрик.
+func (mh *MetricHandler) CollectHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
-	if err := c.collector.Save(vars["type"], vars["name"], vars["value"]); err != nil {
+	if err := mh.collector.Save(r.Context(), vars["type"], vars["name"], vars["value"]); err != nil {
 		w.WriteHeader(statusFromError(err))
 		return
 	}
@@ -56,16 +59,16 @@ func (c *Server) CollectHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-// GetValueHandler - обработчик для получения значения метрики.
-func (c *Server) GetValueHandler(w http.ResponseWriter, r *http.Request) {
+// GetValueHandler обработчик для получения значения метрики.
+func (mh *MetricHandler) GetValueHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
 	var (
 		err    error
-		entity *storage.Entity
+		entity *storage.MetricEntity
 	)
 
-	if entity, err = c.collector.Find(vars["type"], vars["name"]); err != nil {
+	if entity, err = mh.collector.Find(r.Context(), vars["type"], vars["name"]); err != nil {
 		w.WriteHeader(statusFromError(err))
 		return
 	}
@@ -77,10 +80,10 @@ func (c *Server) GetValueHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// GetAllHandler - обработчик для получения списка метрик.
-func (c *Server) GetAllHandler(w http.ResponseWriter, _ *http.Request) {
+// GetAllHandler обработчик для получения списка метрик.
+func (mh *MetricHandler) GetAllHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("content-type", "text/html; charset=utf-8")
-	metrics := c.collector.All()
+	metrics, _ := mh.collector.All(r.Context())
 
 	names := make([]string, 0, len(metrics))
 	for _, m := range metrics {
@@ -95,7 +98,7 @@ func (c *Server) GetAllHandler(w http.ResponseWriter, _ *http.Request) {
 }
 
 // UpdateJSONHandler обработчик обновления метрики из json-строки.
-func (c *Server) UpdateJSONHandler(w http.ResponseWriter, r *http.Request) {
+func (mh *MetricHandler) UpdateJSONHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("content-type") != "application/json" {
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -106,7 +109,7 @@ func (c *Server) UpdateJSONHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		m      metric.Metrics
 		err    error
-		entity *storage.Entity
+		entity *storage.MetricEntity
 	)
 
 	if err = json.NewDecoder(r.Body).Decode(&m); err != nil {
@@ -115,12 +118,14 @@ func (c *Server) UpdateJSONHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = c.collector.Save(m.MType, m.ID, m.ValueByType()); err != nil {
+	ctx := r.Context()
+
+	if err = mh.collector.Save(ctx, m.MType, m.ID, m.ValueByType()); err != nil {
 		w.WriteHeader(statusFromError(err))
 		return
 	}
 
-	if entity, err = c.collector.Find(m.MType, m.ID); err != nil {
+	if entity, err = mh.collector.Find(ctx, m.MType, m.ID); err != nil {
 		w.WriteHeader(statusFromError(err))
 		return
 	}
@@ -133,8 +138,36 @@ func (c *Server) UpdateJSONHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// UpdatesJSONHandler обработчик обновления метрик из json-строки.
+func (mh *MetricHandler) UpdatesJSONHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Header.Get("content-type") != "application/json" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("content-type", "application/json")
+
+	var (
+		m   []metric.Metrics
+		err error
+	)
+
+	if err = json.NewDecoder(r.Body).Decode(&m); err != nil {
+		log.AppLogger.Errorln("Failed to write response", zap.Error(err))
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	if err = mh.collector.SaveAll(r.Context(), m); err != nil {
+		w.WriteHeader(statusFromError(err))
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
 // GetJSONValueHandler возвращает структуру в виде json-строки.
-func (c *Server) GetJSONValueHandler(w http.ResponseWriter, r *http.Request) {
+func (mh *MetricHandler) GetJSONValueHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("content-type") != "application/json" {
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -145,7 +178,7 @@ func (c *Server) GetJSONValueHandler(w http.ResponseWriter, r *http.Request) {
 	var (
 		m      metric.Metrics
 		err    error
-		entity *storage.Entity
+		entity *storage.MetricEntity
 	)
 
 	if err = json.NewDecoder(r.Body).Decode(&m); err != nil {
@@ -153,7 +186,7 @@ func (c *Server) GetJSONValueHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	entity, err = c.collector.Find(m.MType, m.ID)
+	entity, err = mh.collector.Find(r.Context(), m.MType, m.ID)
 	if err != nil {
 		w.WriteHeader(statusFromError(err))
 		return

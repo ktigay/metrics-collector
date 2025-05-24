@@ -1,7 +1,6 @@
 package compress
 
 import (
-	"bytes"
 	"compress/gzip"
 	"compress/zlib"
 	"fmt"
@@ -11,31 +10,31 @@ import (
 	"github.com/andybalholm/brotli"
 )
 
-// Writer структура для записи сжатых данных.
-type Writer struct {
-	cmp io.WriteCloser
+// WriteCloser структура для записи сжатых данных.
+type WriteCloser struct {
+	compressor io.WriteCloser
 }
 
-// NewWriter конструктор.
-func NewWriter(t Type, bb *bytes.Buffer) (*Writer, error) {
+// NewWriteCloser конструктор.
+func NewWriteCloser(t Type, bb io.Writer) (io.WriteCloser, error) {
 	cmp, err := compressor(t, bb)
 	if err != nil {
 		return nil, err
 	}
 
-	return &Writer{
-		cmp: cmp,
+	return &WriteCloser{
+		compressor: cmp,
 	}, nil
 }
 
 // Write запись.
-func (w *Writer) Write(b []byte) (int, error) {
-	return w.cmp.Write(b)
+func (w *WriteCloser) Write(b []byte) (int, error) {
+	return w.compressor.Write(b)
 }
 
 // Close закрытие.
-func (w *Writer) Close() error {
-	return w.cmp.Close()
+func (w *WriteCloser) Close() error {
+	return w.compressor.Close()
 }
 
 // HTTPWriter структура для обработки сжатия ответа.

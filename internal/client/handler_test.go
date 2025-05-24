@@ -44,7 +44,7 @@ func TestMetricSender_sendCounter(t *testing.T) {
 			}))
 			defer svr.Close()
 
-			c := NewSender(svr.URL)
+			c := NewSender(svr.URL, false)
 			err := c.sendCounter(tt.args.c)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("sendCounter() error = %v, wantErr %v", err, tt.wantErr)
@@ -88,7 +88,7 @@ func TestMetricSender_sendGaugeMetrics(t *testing.T) {
 			}))
 			defer svr.Close()
 
-			c := NewSender(svr.URL)
+			c := NewSender(svr.URL, false)
 			err := c.sendGaugeMetrics(tt.args.c)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("sendGaugeMetrics() error = %v, wantErr %v", err, tt.wantErr)
@@ -129,7 +129,7 @@ func TestMetricSender_sendRand(t *testing.T) {
 			}))
 			defer svr.Close()
 
-			c := NewSender(svr.URL)
+			c := NewSender(svr.URL, false)
 			err := c.sendRand(tt.args.c)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("sendRand() error = %v, wantErr %v", err, tt.wantErr)
@@ -159,7 +159,7 @@ func TestNewMetricHandler(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewSender(tt.args.url); !reflect.DeepEqual(got, tt.want) {
+			if got := NewSender(tt.args.url, false); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewSender() = %v, want %v", got, tt.want)
 			}
 		})
