@@ -1,6 +1,8 @@
 package middleware
 
 import (
+	"bytes"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -32,20 +34,26 @@ func WithLogging(next http.Handler) http.Handler {
 		}
 		lw := serverhttp.NewWriter(w, &rd)
 
+		b, _ := io.ReadAll(r.Body)
+		r.Body = io.NopCloser(bytes.NewBuffer(b))
+
 		log.AppLogger.Infow(
 			"request",
 			"requestURI", r.RequestURI,
 			"method", r.Method,
+			"body", string(b),
 		)
 
 		next.ServeHTTP(lw, r)
 
 		duration := time.Since(start)
+
 		log.AppLogger.Infow(
 			"response",
 			"status", rd.Status,
 			"size", rd.Size,
 			"duration", duration,
+			"body", string(rd.Body),
 		)
 	})
 }

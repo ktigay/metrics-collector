@@ -119,8 +119,8 @@ func main() {
 func registerMiddleware(router *mux.Router) {
 	router.Use(
 		middleware.WithContentType,
-		middleware.WithLogging,
 		middleware.CompressHandler,
+		middleware.WithLogging,
 	)
 }
 

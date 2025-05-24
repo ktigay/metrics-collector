@@ -7,6 +7,7 @@ type (
 	ResponseData struct {
 		Status int
 		Size   int
+		Body   []byte
 	}
 
 	// Writer структура для вывода данных.
@@ -26,6 +27,7 @@ func NewWriter(w http.ResponseWriter, d *ResponseData) *Writer {
 
 // Write - запись ответа.
 func (r *Writer) Write(b []byte) (int, error) {
+	r.responseData.Body = append(r.responseData.Body, b...)
 	size, err := r.ResponseWriter.Write(b)
 	r.responseData.Size += size
 	return size, err
