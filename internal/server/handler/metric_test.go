@@ -92,11 +92,11 @@ func TestServer_CollectHandler(t *testing.T) {
 			})
 			router.HandleFunc("/update/{type}/{name}/{value}", h.CollectHandler)
 
-			svr := httptest.NewServer(router)
-			defer svr.Close()
+			srv := httptest.NewServer(router)
+			defer srv.Close()
 
 			for _, req := range tt.args.requests {
-				resp, _ := http.Post(svr.URL+req, "text/plain", strings.NewReader(""))
+				resp, _ := http.Post(srv.URL+req, "text/plain", strings.NewReader(""))
 				require.Equal(t, tt.wantStatus, resp.StatusCode)
 				require.Equal(t, tt.wantContentType, resp.Header.Get("Content-Type"))
 
@@ -229,10 +229,10 @@ func TestServer_UpdateJSONHandler(t *testing.T) {
 				tt.fields.collector,
 			)
 
-			svr := httptest.NewServer(http.HandlerFunc(h.UpdateJSONHandler))
-			defer svr.Close()
+			srv := httptest.NewServer(http.HandlerFunc(h.UpdateJSONHandler))
+			defer srv.Close()
 
-			resp, err := http.Post(svr.URL+"/update/", tt.args.contentType, bytes.NewReader(tt.args.request))
+			resp, err := http.Post(srv.URL+"/update/", tt.args.contentType, bytes.NewReader(tt.args.request))
 			if (err != nil) != tt.want.wantErr {
 				t.Errorf("UpdateJSONHandler() error = %v, wantErr %v", err, tt.want.wantErr)
 				return
@@ -402,10 +402,10 @@ func TestServer_GetJSONValueHandler(t *testing.T) {
 				tt.fields.collector,
 			)
 
-			svr := httptest.NewServer(http.HandlerFunc(h.GetJSONValueHandler))
-			defer svr.Close()
+			srv := httptest.NewServer(http.HandlerFunc(h.GetJSONValueHandler))
+			defer srv.Close()
 
-			resp, err := http.Post(svr.URL+"/value/", tt.args.contentType, bytes.NewReader(tt.args.request))
+			resp, err := http.Post(srv.URL+"/value/", tt.args.contentType, bytes.NewReader(tt.args.request))
 			if (err != nil) != tt.want.wantErr {
 				t.Errorf("GetJSONValueHandler() error = %v, wantErr %v", err, tt.want.wantErr)
 				return
@@ -543,10 +543,10 @@ func TestMetricHandler_UpdatesJSONHandler(t *testing.T) {
 			h := NewMetricHandler(
 				tt.fields.collector,
 			)
-			svr := httptest.NewServer(http.HandlerFunc(h.UpdatesJSONHandler))
-			defer svr.Close()
+			srv := httptest.NewServer(http.HandlerFunc(h.UpdatesJSONHandler))
+			defer srv.Close()
 
-			resp, err := http.Post(svr.URL+"/updates/", tt.args.contentType, bytes.NewReader(tt.args.request))
+			resp, err := http.Post(srv.URL+"/updates/", tt.args.contentType, bytes.NewReader(tt.args.request))
 			if (err != nil) != tt.want.wantErr {
 				t.Errorf("UpdatesJSONHandler() error = %v, wantErr %v", err, tt.want.wantErr)
 				return

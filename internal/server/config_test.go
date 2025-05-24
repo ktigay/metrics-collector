@@ -1,10 +1,11 @@
 package server
 
 import (
-	"github.com/stretchr/testify/assert"
 	"os"
 	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestConfig_IsUseSQLDB(t *testing.T) {
