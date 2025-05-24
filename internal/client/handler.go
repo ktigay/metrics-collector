@@ -2,9 +2,7 @@
 package client
 
 import (
-	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 
@@ -120,50 +118,30 @@ func (mh *Sender) sendBatch(c collector.MetricCollectDTO) error {
 
 func (mh *Sender) post(url string, m any) ([]byte, error) {
 	var (
-		b    []byte
+		body []byte
 		err  error
-		buff bytes.Buffer
-		cw   *compress.Writer
 		req  *http.Request
 		resp *http.Response
 	)
 
-	if b, err = json.Marshal(m); err != nil {
-		return nil, err
-	}
-	if cw, err = compress.NewWriter(compressType, &buff); err != nil {
-		return nil, err
-	}
-	if _, err = cw.Write(b); err != nil {
-		return nil, err
-	}
-	if err = cw.Close(); err != nil {
+	if body, err = json.Marshal(m); err != nil {
 		return nil, err
 	}
 
-	if req, err = http.NewRequest(http.MethodPost, url, &buff); err != nil {
+	if req, err = compress.
+		NewRequest(compressType, contentType).
+		R(http.MethodPost, url, body); err != nil {
 		return nil, err
 	}
 
-	req.Header.Set("Content-Type", contentType)
-	req.Header.Set("Content-Encoding", string(compressType))
-
-	client := http.Client{}
-	if resp, err = client.Do(req); err != nil {
+	if resp, err = compress.NewClient().Do(req); err != nil {
 		return nil, err
 	}
 	defer func() {
-		if resp == nil {
-			return
-		}
 		if err = resp.Body.Close(); err != nil {
 			log.AppLogger.Error("client.post error", zap.Error(err))
 		}
 	}()
-
-	if resp != nil && (resp.StatusCode > 300 || resp.StatusCode < 200) {
-		return nil, fmt.Errorf("status code is not OK %d", resp.StatusCode)
-	}
 
 	return io.ReadAll(resp.Body)
 }
