@@ -12,6 +12,7 @@ import (
 	"github.com/ktigay/metrics-collector/internal/compress"
 	"github.com/ktigay/metrics-collector/internal/log"
 	"github.com/ktigay/metrics-collector/internal/metric"
+	"github.com/ktigay/metrics-collector/internal/retry"
 	"go.uber.org/zap"
 )
 
@@ -37,7 +38,11 @@ func NewSender(url string, batchEnabled bool) *Sender {
 // SendMetrics отправляет метрики на сервер.
 func (mh *Sender) SendMetrics(c collector.MetricCollectDTO) {
 	if mh.batchEnabled {
-		if err := mh.sendBatch(c); err != nil {
+		handler := func(policy retry.RetPolicy) error {
+			log.AppLogger.Debugf("sending metrics to collector retries %d, err %v", policy.Retries(), policy.LastError())
+			return mh.sendBatch(c)
+		}
+		if err := retry.Ret(handler); err != nil {
 			log.AppLogger.Info("client.SendBatchMetrics error", zap.Error(err))
 		}
 		return

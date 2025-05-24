@@ -1,4 +1,4 @@
-package server
+package handler
 
 import (
 	"bytes"
@@ -79,7 +79,7 @@ func TestServer_CollectHandler(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			st, _ := storage.NewMemStorage(nil)
-			h := NewServer(
+			h := NewMetricHandler(
 				service.NewMetricCollector(st),
 			)
 
@@ -225,14 +225,11 @@ func TestServer_UpdateJSONHandler(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			h := NewServer(
+			h := NewMetricHandler(
 				tt.fields.collector,
 			)
 
-			router := mux.NewRouter()
-			router.HandleFunc("/update/", h.UpdateJSONHandler)
-
-			svr := httptest.NewServer(router)
+			svr := httptest.NewServer(http.HandlerFunc(h.UpdateJSONHandler))
 			defer svr.Close()
 
 			resp, err := http.Post(svr.URL+"/update/", tt.args.contentType, bytes.NewReader(tt.args.request))
@@ -401,14 +398,11 @@ func TestServer_GetJSONValueHandler(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			h := NewServer(
+			h := NewMetricHandler(
 				tt.fields.collector,
 			)
 
-			router := mux.NewRouter()
-			router.HandleFunc("/value/", h.GetJSONValueHandler)
-
-			svr := httptest.NewServer(router)
+			svr := httptest.NewServer(http.HandlerFunc(h.GetJSONValueHandler))
 			defer svr.Close()
 
 			resp, err := http.Post(svr.URL+"/value/", tt.args.contentType, bytes.NewReader(tt.args.request))
@@ -427,6 +421,144 @@ func TestServer_GetJSONValueHandler(t *testing.T) {
 
 			b, _ := io.ReadAll(resp.Body)
 			require.Equal(t, tt.want.response, string(b))
+		})
+	}
+}
+
+func TestMetricHandler_UpdatesJSONHandler(t *testing.T) {
+	newCollector := func() *service.MetricCollector {
+		st, _ := storage.NewMemStorage(nil)
+		return service.NewMetricCollector(st)
+	}
+	type fields struct {
+		collector CollectorInterface
+	}
+	type args struct {
+		request     []byte
+		contentType string
+	}
+	type want struct {
+		statusCode  int
+		contentType string
+		wantErr     bool
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   want
+	}{
+		{
+			name: "Positive_test_gauge",
+			fields: fields{
+				collector: newCollector(),
+			},
+			args: args{
+				request:     []byte(`[{"id":"TestSet90","type":"gauge","delta":0,"value":10}]`),
+				contentType: "application/json",
+			},
+			want: want{
+				statusCode:  http.StatusOK,
+				contentType: "application/json",
+				wantErr:     false,
+			},
+		},
+		{
+			name: "Positive_test_counter",
+			fields: fields{
+				collector: newCollector(),
+			},
+			args: args{
+				request:     []byte(`[{"id":"TestSet91","type":"counter","delta":15,"value":0}]`),
+				contentType: "application/json",
+			},
+			want: want{
+				statusCode:  http.StatusOK,
+				contentType: "application/json",
+				wantErr:     false,
+			},
+		},
+		{
+			name: "Bad_Request_Wrong_ContentType",
+			fields: fields{
+				collector: newCollector(),
+			},
+			args: args{
+				request:     []byte(`[{"id":"TestSet92","type":"gauge","delta":0,"value":10}]`),
+				contentType: "text/plain; charset=utf-8",
+			},
+			want: want{
+				statusCode:  http.StatusBadRequest,
+				contentType: "",
+				wantErr:     false,
+			},
+		},
+		{
+			name: "Bad_Request_Broken_Body",
+			fields: fields{
+				collector: newCollector(),
+			},
+			args: args{
+				request:     []byte(`[{"id":"TestSet93","type":"gauge","delta":0,"value":10]`),
+				contentType: "application/json",
+			},
+			want: want{
+				statusCode:  http.StatusBadRequest,
+				contentType: "application/json",
+				wantErr:     false,
+			},
+		},
+		{
+			name: "Bad_Request_Wrong_Body_Type",
+			fields: fields{
+				collector: newCollector(),
+			},
+			args: args{
+				request:     []byte(`{"id":"TestSet92","type":"gauge","delta":0,"value":10}`),
+				contentType: "application/json",
+			},
+			want: want{
+				statusCode:  http.StatusBadRequest,
+				contentType: "application/json",
+				wantErr:     false,
+			},
+		},
+		{
+			name: "Bad_Request_Wrong_Type",
+			fields: fields{
+				collector: newCollector(),
+			},
+			args: args{
+				request:     []byte(`[{"id":"TestSet94","type":"wrongType","delta":0,"value":10}]`),
+				contentType: "application/json",
+			},
+			want: want{
+				statusCode:  http.StatusBadRequest,
+				contentType: "application/json",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := NewMetricHandler(
+				tt.fields.collector,
+			)
+			svr := httptest.NewServer(http.HandlerFunc(h.UpdatesJSONHandler))
+			defer svr.Close()
+
+			resp, err := http.Post(svr.URL+"/updates/", tt.args.contentType, bytes.NewReader(tt.args.request))
+			if (err != nil) != tt.want.wantErr {
+				t.Errorf("UpdatesJSONHandler() error = %v, wantErr %v", err, tt.want.wantErr)
+				return
+			}
+			defer func() {
+				if resp != nil && resp.Body != nil {
+					_ = resp.Body.Close()
+				}
+			}()
+
+			require.Equal(t, tt.want.statusCode, resp.StatusCode)
+			require.Equal(t, tt.want.contentType, resp.Header.Get("Content-Type"))
 		})
 	}
 }

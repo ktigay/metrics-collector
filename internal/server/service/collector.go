@@ -7,6 +7,7 @@ import (
 
 	"github.com/ktigay/metrics-collector/internal/log"
 	"github.com/ktigay/metrics-collector/internal/metric"
+	"github.com/ktigay/metrics-collector/internal/retry"
 	e "github.com/ktigay/metrics-collector/internal/server/errors"
 	"github.com/ktigay/metrics-collector/internal/server/storage"
 )
@@ -112,7 +113,10 @@ func (c *MetricCollector) Backup(ctx context.Context) error {
 func (c *MetricCollector) Restore(ctx context.Context) error {
 	switch t := c.storage.(type) {
 	case BackupStorage:
-		return t.Restore(ctx)
+		return retry.Ret(func(policy retry.RetPolicy) error {
+			log.AppLogger.Debugf("try to restore storage retries %d, prev %v", policy.Retries(), policy.LastError())
+			return t.Restore(ctx)
+		})
 	}
 
 	log.AppLogger.Debug("storage not supported restores")

@@ -1,17 +1,15 @@
-// Package server сервер.
-package server
+// Package handler сервер.
+package handler
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/ktigay/metrics-collector/internal/log"
 	"github.com/ktigay/metrics-collector/internal/metric"
-	"github.com/ktigay/metrics-collector/internal/server/db"
 	"github.com/ktigay/metrics-collector/internal/server/errors"
 	"github.com/ktigay/metrics-collector/internal/server/storage"
 	"go.uber.org/zap"
@@ -22,10 +20,6 @@ var errStatusMap = map[error]int{
 	errors.ErrWrongValue:    http.StatusBadRequest,
 	errors.ErrValueNotFound: http.StatusNotFound,
 }
-
-const (
-	pingTimeout = 2 * time.Second
-)
 
 func statusFromError(err error) int {
 	if st, ok := errStatusMap[err]; ok {
@@ -43,21 +37,21 @@ type CollectorInterface interface {
 	SaveAll(ctx context.Context, mt []metric.Metrics) error
 }
 
-// Server структура с обработчиками запросов.
-type Server struct {
+// MetricHandler структура с обработчиками запросов.
+type MetricHandler struct {
 	collector CollectorInterface
 }
 
-// NewServer конструктор.
-func NewServer(collector CollectorInterface) *Server {
-	return &Server{collector}
+// NewMetricHandler конструктор.
+func NewMetricHandler(collector CollectorInterface) *MetricHandler {
+	return &MetricHandler{collector}
 }
 
 // CollectHandler обработчик для сборка метрик.
-func (c *Server) CollectHandler(w http.ResponseWriter, r *http.Request) {
+func (mh *MetricHandler) CollectHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
-	if err := c.collector.Save(r.Context(), vars["type"], vars["name"], vars["value"]); err != nil {
+	if err := mh.collector.Save(r.Context(), vars["type"], vars["name"], vars["value"]); err != nil {
 		w.WriteHeader(statusFromError(err))
 		return
 	}
@@ -66,7 +60,7 @@ func (c *Server) CollectHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetValueHandler обработчик для получения значения метрики.
-func (c *Server) GetValueHandler(w http.ResponseWriter, r *http.Request) {
+func (mh *MetricHandler) GetValueHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
 	var (
@@ -74,7 +68,7 @@ func (c *Server) GetValueHandler(w http.ResponseWriter, r *http.Request) {
 		entity *storage.MetricEntity
 	)
 
-	if entity, err = c.collector.Find(r.Context(), vars["type"], vars["name"]); err != nil {
+	if entity, err = mh.collector.Find(r.Context(), vars["type"], vars["name"]); err != nil {
 		w.WriteHeader(statusFromError(err))
 		return
 	}
@@ -87,9 +81,9 @@ func (c *Server) GetValueHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetAllHandler обработчик для получения списка метрик.
-func (c *Server) GetAllHandler(w http.ResponseWriter, r *http.Request) {
+func (mh *MetricHandler) GetAllHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("content-type", "text/html; charset=utf-8")
-	metrics, _ := c.collector.All(r.Context())
+	metrics, _ := mh.collector.All(r.Context())
 
 	names := make([]string, 0, len(metrics))
 	for _, m := range metrics {
@@ -104,7 +98,7 @@ func (c *Server) GetAllHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // UpdateJSONHandler обработчик обновления метрики из json-строки.
-func (c *Server) UpdateJSONHandler(w http.ResponseWriter, r *http.Request) {
+func (mh *MetricHandler) UpdateJSONHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("content-type") != "application/json" {
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -126,12 +120,12 @@ func (c *Server) UpdateJSONHandler(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 
-	if err = c.collector.Save(ctx, m.MType, m.ID, m.ValueByType()); err != nil {
+	if err = mh.collector.Save(ctx, m.MType, m.ID, m.ValueByType()); err != nil {
 		w.WriteHeader(statusFromError(err))
 		return
 	}
 
-	if entity, err = c.collector.Find(ctx, m.MType, m.ID); err != nil {
+	if entity, err = mh.collector.Find(ctx, m.MType, m.ID); err != nil {
 		w.WriteHeader(statusFromError(err))
 		return
 	}
@@ -145,7 +139,7 @@ func (c *Server) UpdateJSONHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // UpdatesJSONHandler обработчик обновления метрик из json-строки.
-func (c *Server) UpdatesJSONHandler(w http.ResponseWriter, r *http.Request) {
+func (mh *MetricHandler) UpdatesJSONHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("content-type") != "application/json" {
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -164,7 +158,7 @@ func (c *Server) UpdatesJSONHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = c.collector.SaveAll(r.Context(), m); err != nil {
+	if err = mh.collector.SaveAll(r.Context(), m); err != nil {
 		w.WriteHeader(statusFromError(err))
 		return
 	}
@@ -173,7 +167,7 @@ func (c *Server) UpdatesJSONHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetJSONValueHandler возвращает структуру в виде json-строки.
-func (c *Server) GetJSONValueHandler(w http.ResponseWriter, r *http.Request) {
+func (mh *MetricHandler) GetJSONValueHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("content-type") != "application/json" {
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -192,7 +186,7 @@ func (c *Server) GetJSONValueHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	entity, err = c.collector.Find(r.Context(), m.MType, m.ID)
+	entity, err = mh.collector.Find(r.Context(), m.MType, m.ID)
 	if err != nil {
 		w.WriteHeader(statusFromError(err))
 		return
@@ -204,24 +198,4 @@ func (c *Server) GetJSONValueHandler(w http.ResponseWriter, r *http.Request) {
 	if err = json.NewEncoder(w).Encode(um); err != nil {
 		log.AppLogger.Errorln("Failed to write response", zap.Error(err))
 	}
-}
-
-// Ping пинг соединения с БД.
-func (c *Server) Ping(w http.ResponseWriter, r *http.Request) {
-	if db.MasterDB == nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	var err error
-
-	ctx, cancel := context.WithTimeout(r.Context(), pingTimeout)
-	defer cancel()
-
-	if err = db.MasterDB.PingContext(ctx); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		log.AppLogger.Errorf("Failed to connect to MasterDB %v", err)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
 }

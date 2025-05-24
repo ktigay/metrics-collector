@@ -18,6 +18,7 @@ import (
 	ilog "github.com/ktigay/metrics-collector/internal/log"
 	"github.com/ktigay/metrics-collector/internal/server"
 	"github.com/ktigay/metrics-collector/internal/server/db"
+	"github.com/ktigay/metrics-collector/internal/server/handler"
 	"github.com/ktigay/metrics-collector/internal/server/middleware"
 	"github.com/ktigay/metrics-collector/internal/server/service"
 	"github.com/ktigay/metrics-collector/internal/server/snapshot"
@@ -58,7 +59,7 @@ func main() {
 	var (
 		collector *service.MetricCollector
 		router    *mux.Router
-		srv       *server.Server
+		mh        *handler.MetricHandler
 		wg        sync.WaitGroup
 	)
 
@@ -66,11 +67,11 @@ func main() {
 		log.Fatalf("can't initialize collector: %v", err)
 	}
 
-	srv = server.NewServer(collector)
+	mh = handler.NewMetricHandler(collector)
 	router = mux.NewRouter()
 
 	registerMiddleware(router)
-	registerRoutes(router, srv)
+	registerRoutes(router, mh)
 
 	httpServer := &http.Server{
 		Addr:    config.ServerHost,
@@ -123,14 +124,14 @@ func registerMiddleware(router *mux.Router) {
 	)
 }
 
-func registerRoutes(router *mux.Router, s *server.Server) {
-	router.HandleFunc("/update/{type}/{name}/{value}", s.CollectHandler).Methods(http.MethodPost)
-	router.HandleFunc("/update/", s.UpdateJSONHandler).Methods(http.MethodPost)
-	router.HandleFunc("/value/{type}/{name}", s.GetValueHandler).Methods(http.MethodGet)
-	router.HandleFunc("/value/", s.GetJSONValueHandler).Methods(http.MethodPost)
-	router.HandleFunc("/ping", s.Ping).Methods(http.MethodGet)
-	router.HandleFunc("/", s.GetAllHandler).Methods(http.MethodGet)
-	router.HandleFunc("/updates/", s.UpdatesJSONHandler).Methods(http.MethodPost)
+func registerRoutes(router *mux.Router, mh *handler.MetricHandler) {
+	router.HandleFunc("/update/{type}/{name}/{value}", mh.CollectHandler).Methods(http.MethodPost)
+	router.HandleFunc("/update/", mh.UpdateJSONHandler).Methods(http.MethodPost)
+	router.HandleFunc("/value/{type}/{name}", mh.GetValueHandler).Methods(http.MethodGet)
+	router.HandleFunc("/value/", mh.GetJSONValueHandler).Methods(http.MethodPost)
+	router.HandleFunc("/ping", handler.PingHandler).Methods(http.MethodGet)
+	router.HandleFunc("/", mh.GetAllHandler).Methods(http.MethodGet)
+	router.HandleFunc("/updates/", mh.UpdatesJSONHandler).Methods(http.MethodPost)
 }
 
 func initMetricCollector(ctx context.Context, config *server.Config) (*service.MetricCollector, error) {
@@ -193,7 +194,7 @@ func saveSnapshot(mainCtx, exitCtx context.Context, c *service.MetricCollector, 
 
 func initDB(ctx context.Context, driver, dsn string) {
 	var err error
-	if err = db.InitializeMasterDB(driver, dsn); err != nil {
+	if err = db.InitializeMasterDB(ctx, driver, dsn); err != nil {
 		ilog.AppLogger.Fatalf("can't initialize master db: %v", zap.Error(err))
 	}
 

@@ -4,10 +4,15 @@ package db
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/ktigay/metrics-collector/internal/log"
+	"github.com/ktigay/metrics-collector/internal/retry"
 )
+
+const connTimeout = 100 * time.Millisecond
 
 // MasterDB инстанс БД.
 var MasterDB *sql.DB
@@ -36,9 +41,31 @@ var structure = []string{
 }
 
 // InitializeMasterDB инициализация соединения к БД.
-func InitializeMasterDB(driver, dsn string) error {
+func InitializeMasterDB(ctx context.Context, driver, dsn string) error {
 	log.AppLogger.Debugf("Initializing master database %s", dsn)
 	db, err := sql.Open(driver, dsn)
+	if err != nil {
+		return err
+	}
+
+	err = retry.Ret(func(policy retry.RetPolicy) error {
+		ctxt, cancel := context.WithTimeout(ctx, connTimeout)
+		defer cancel()
+
+		log.AppLogger.Debugf("Attempting to connect to db %s, retries %d, prev %v", dsn, policy.Retries(), policy.LastError())
+
+		pingErr := db.PingContext(ctxt)
+
+		if pingErr != nil {
+			// скип, если это не ошибка соединения
+			var pgErr *pgconn.ConnectError
+			if !errors.As(pingErr, &pgErr) {
+				policy.SetSkip(true)
+			}
+		}
+
+		return pingErr
+	})
 	if err != nil {
 		return err
 	}

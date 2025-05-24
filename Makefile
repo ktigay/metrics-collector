@@ -74,6 +74,7 @@ run-test-a: \
 	run-test-a10 \
 	run-test-a11 \
 	run-test-a12 \
+	run-test-a13 \
 
 define test_cmd
 	$(DOCKER_RUN)  sh -c "metricstest -test.v -test.run=^TestIteration$(1)$$ -source-path=. -agent-binary-path=$(AGENT_PATH) -binary-path=$(SERVER_PATH)$(2)"
@@ -103,6 +104,8 @@ run-test-a11:
 	$(call test_cmd,11, -server-port=$(TEST_SERVER_PORT) -file-storage-path=$(TEMP_FILE) -database-dsn='$(DATABASE_DSN)')
 run-test-a12:
 	$(call test_cmd,12, -server-port=$(TEST_SERVER_PORT) -file-storage-path=$(TEMP_FILE) -database-dsn='$(DATABASE_DSN)')
+run-test-a13:
+	$(call test_cmd,13, -server-port=$(TEST_SERVER_PORT) -file-storage-path=$(TEMP_FILE) -database-dsn='$(DATABASE_DSN)')
 
 up: \
 	up-db \
