@@ -20,6 +20,14 @@ var (
 			value      = EXCLUDED.value,
 			updated_at = now()
 	`
+	replaceQuery = `
+	insert into metrics (type, name, delta, value)
+	values ($1, $2, $3, $4)
+	ON CONFLICT ON CONSTRAINT type_name_uidx DO UPDATE
+		SET delta      = metrics.delta,
+			value      = EXCLUDED.value,
+			updated_at = now()
+	`
 	findQuery = `
 	SELECT 
 			"type", "name", "delta", "value" 
@@ -150,11 +158,15 @@ func (dbm *DBMetricStorage) Restore(ctx context.Context) error {
 		return err
 	}
 
-	return dbm.UpsertAll(ctx, data)
+	return dbm.batch(ctx, replaceQuery, data)
 }
 
 // UpsertAll сохраняет батч.
 func (dbm *DBMetricStorage) UpsertAll(ctx context.Context, mt []MetricEntity) error {
+	return dbm.batch(ctx, upsertQuery, mt)
+}
+
+func (dbm *DBMetricStorage) batch(ctx context.Context, query string, mt []MetricEntity) error {
 	var (
 		err  error
 		tx   *sql.Tx
@@ -175,7 +187,7 @@ func (dbm *DBMetricStorage) UpsertAll(ctx context.Context, mt []MetricEntity) er
 		}
 	}()
 
-	if stmt, err = tx.Prepare(upsertQuery); err != nil {
+	if stmt, err = tx.Prepare(query); err != nil {
 		return err
 	}
 	for _, m := range mt {
