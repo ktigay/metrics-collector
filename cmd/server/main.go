@@ -20,9 +20,9 @@ import (
 	"github.com/ktigay/metrics-collector/internal/server/db"
 	"github.com/ktigay/metrics-collector/internal/server/handler"
 	"github.com/ktigay/metrics-collector/internal/server/middleware"
+	"github.com/ktigay/metrics-collector/internal/server/repository"
 	"github.com/ktigay/metrics-collector/internal/server/service"
 	"github.com/ktigay/metrics-collector/internal/server/snapshot"
-	"github.com/ktigay/metrics-collector/internal/server/storage"
 	"go.uber.org/zap"
 )
 
@@ -137,8 +137,8 @@ func registerRoutes(router *mux.Router, mh *handler.MetricHandler) {
 func initMetricCollector(ctx context.Context, config *server.Config) (*service.MetricCollector, error) {
 	var (
 		err       error
-		ms        service.MetricStorage
-		sn        storage.MetricSnapshot
+		ms        service.MetricRepository
+		sn        repository.MetricSnapshot
 		collector *service.MetricCollector
 	)
 
@@ -146,7 +146,7 @@ func initMetricCollector(ctx context.Context, config *server.Config) (*service.M
 		sn = snapshot.NewFileMetricSnapshot(config.FileStoragePath)
 	}
 
-	if ms, err = initMetricStorage(sn, config.IsUseSQLDB()); err != nil {
+	if ms, err = initMetricRepository(sn, config.IsUseSQLDB()); err != nil {
 		return nil, err
 	}
 
@@ -162,12 +162,12 @@ func initMetricCollector(ctx context.Context, config *server.Config) (*service.M
 	return collector, nil
 }
 
-func initMetricStorage(sn storage.MetricSnapshot, useSQL bool) (service.MetricStorage, error) {
+func initMetricRepository(sn repository.MetricSnapshot, useSQL bool) (service.MetricRepository, error) {
 	if useSQL {
-		return storage.NewDBMetricStorage(db.MasterDB, sn)
+		return repository.NewDBMetricRepository(db.MasterDB, sn)
 	}
 
-	return storage.NewMemStorage(sn)
+	return repository.NewMemRepository(sn)
 }
 
 func saveSnapshot(mainCtx, exitCtx context.Context, c *service.MetricCollector, storeInterval int) error {

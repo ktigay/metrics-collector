@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
+	"github.com/ktigay/metrics-collector/internal/server/repository"
 	"github.com/ktigay/metrics-collector/internal/server/service"
-	"github.com/ktigay/metrics-collector/internal/server/storage"
 	"github.com/stretchr/testify/require"
 )
 
@@ -78,7 +78,7 @@ func TestServer_CollectHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			st, _ := storage.NewMemStorage(nil)
+			st, _ := repository.NewMemRepository(nil)
 			h := NewMetricHandler(
 				service.NewMetricCollector(st),
 			)
@@ -108,7 +108,7 @@ func TestServer_CollectHandler(t *testing.T) {
 
 func TestServer_UpdateJSONHandler(t *testing.T) {
 	newCollector := func() *service.MetricCollector {
-		st, _ := storage.NewMemStorage(nil)
+		st, _ := repository.NewMemRepository(nil)
 		return service.NewMetricCollector(st)
 	}
 
@@ -151,8 +151,8 @@ func TestServer_UpdateJSONHandler(t *testing.T) {
 			name: "Positive_test_counter",
 			fields: fields{
 				collector: service.NewMetricCollector(
-					&storage.MemMetricStorage{
-						Metrics: map[string]storage.MetricEntity{
+					&repository.MemMetricRepository{
+						Metrics: map[string]repository.MetricEntity{
 							"counter:TestSet91": {
 								Key:   "counter:TestSet91",
 								Name:  "TestSet91",
@@ -254,7 +254,7 @@ func TestServer_UpdateJSONHandler(t *testing.T) {
 
 func TestServer_GetJSONValueHandler(t *testing.T) {
 	newCollector := func() *service.MetricCollector {
-		st, _ := storage.NewMemStorage(nil)
+		st, _ := repository.NewMemRepository(nil)
 		return service.NewMetricCollector(st)
 	}
 
@@ -281,8 +281,8 @@ func TestServer_GetJSONValueHandler(t *testing.T) {
 			name: "Positive_test_gauge",
 			fields: fields{
 				collector: service.NewMetricCollector(
-					&storage.MemMetricStorage{
-						Metrics: map[string]storage.MetricEntity{
+					&repository.MemMetricRepository{
+						Metrics: map[string]repository.MetricEntity{
 							"gauge:TestSet90": {
 								Key:   "counter:TestSet90",
 								Name:  "TestSet90",
@@ -308,8 +308,8 @@ func TestServer_GetJSONValueHandler(t *testing.T) {
 			name: "Positive_test_counter",
 			fields: fields{
 				collector: service.NewMetricCollector(
-					&storage.MemMetricStorage{
-						Metrics: map[string]storage.MetricEntity{
+					&repository.MemMetricRepository{
+						Metrics: map[string]repository.MetricEntity{
 							"counter:TestSet91": {
 								Key:   "counter:TestSet91",
 								Name:  "TestSet91",
@@ -427,7 +427,7 @@ func TestServer_GetJSONValueHandler(t *testing.T) {
 
 func TestMetricHandler_UpdatesJSONHandler(t *testing.T) {
 	newCollector := func() *service.MetricCollector {
-		st, _ := storage.NewMemStorage(nil)
+		st, _ := repository.NewMemRepository(nil)
 		return service.NewMetricCollector(st)
 	}
 	type fields struct {

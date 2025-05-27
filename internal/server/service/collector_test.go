@@ -5,13 +5,13 @@ import (
 	"testing"
 
 	"github.com/ktigay/metrics-collector/internal/metric"
-	"github.com/ktigay/metrics-collector/internal/server/storage"
+	"github.com/ktigay/metrics-collector/internal/server/repository"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestMetricCollector_Save(t *testing.T) {
 	type fields struct {
-		metrics map[string]storage.MetricEntity
+		metrics map[string]repository.MetricEntity
 	}
 	type args struct {
 		m []struct {
@@ -24,12 +24,12 @@ func TestMetricCollector_Save(t *testing.T) {
 		name   string
 		fields fields
 		args   args
-		want   []storage.MetricEntity
+		want   []repository.MetricEntity
 	}{
 		{
 			name: "Positive_test",
 			fields: fields{
-				metrics: map[string]storage.MetricEntity{
+				metrics: map[string]repository.MetricEntity{
 					"counter:PollCount": {
 						Key:   "counter:PollCount",
 						Type:  metric.TypeCounter,
@@ -67,7 +67,7 @@ func TestMetricCollector_Save(t *testing.T) {
 					},
 				},
 			},
-			want: []storage.MetricEntity{
+			want: []repository.MetricEntity{
 				{
 					Key:   "counter:PollCount",
 					Type:  metric.TypeCounter,
@@ -91,7 +91,7 @@ func TestMetricCollector_Save(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := NewMetricCollector(&storage.MemMetricStorage{
+			c := NewMetricCollector(&repository.MemMetricRepository{
 				Metrics: tt.fields.metrics,
 			})
 
@@ -100,7 +100,7 @@ func TestMetricCollector_Save(t *testing.T) {
 			}
 
 			var (
-				sm  []storage.MetricEntity
+				sm  []repository.MetricEntity
 				err error
 			)
 			if sm, err = c.All(context.Background()); err != nil {

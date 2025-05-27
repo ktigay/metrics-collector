@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/ktigay/metrics-collector/internal/log"
-	"github.com/ktigay/metrics-collector/internal/server/storage"
+	"github.com/ktigay/metrics-collector/internal/server/repository"
 	"go.uber.org/zap"
 )
 
@@ -23,7 +23,7 @@ func NewFileMetricSnapshot(filePath string) *FileMetricSnapshot {
 }
 
 // Read чтение снапшота из файла.
-func (f *FileMetricSnapshot) Read() ([]storage.MetricEntity, error) {
+func (f *FileMetricSnapshot) Read() ([]repository.MetricEntity, error) {
 	if err := ensureDir(filepath.Dir(f.filePath)); err != nil {
 		return nil, err
 	}
@@ -37,12 +37,12 @@ func (f *FileMetricSnapshot) Read() ([]storage.MetricEntity, error) {
 			log.AppLogger.Error("snapshot.Read error", zap.Error(err))
 		}
 	}()
-	all := make([]storage.MetricEntity, 0)
+	all := make([]repository.MetricEntity, 0)
 
 	dec := json.NewDecoder(file)
 
 	for {
-		var e storage.MetricEntity
+		var e repository.MetricEntity
 		if err = dec.Decode(&e); err != nil {
 			if err == io.EOF {
 				break
@@ -56,7 +56,7 @@ func (f *FileMetricSnapshot) Read() ([]storage.MetricEntity, error) {
 }
 
 // Write запись данных в файл.
-func (f *FileMetricSnapshot) Write(entities []storage.MetricEntity) error {
+func (f *FileMetricSnapshot) Write(entities []repository.MetricEntity) error {
 	if err := ensureDir(filepath.Dir(f.filePath)); err != nil {
 		return err
 	}

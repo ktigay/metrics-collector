@@ -11,7 +11,7 @@ import (
 	"github.com/ktigay/metrics-collector/internal/log"
 	"github.com/ktigay/metrics-collector/internal/metric"
 	"github.com/ktigay/metrics-collector/internal/server/errors"
-	"github.com/ktigay/metrics-collector/internal/server/storage"
+	"github.com/ktigay/metrics-collector/internal/server/repository"
 	"go.uber.org/zap"
 )
 
@@ -31,8 +31,8 @@ func statusFromError(err error) int {
 // CollectorInterface Интерфейс сборщика статистики.
 type CollectorInterface interface {
 	Save(ctx context.Context, t, n string, v any) error
-	All(ctx context.Context) ([]storage.MetricEntity, error)
-	Find(ctx context.Context, t, n string) (*storage.MetricEntity, error)
+	All(ctx context.Context) ([]repository.MetricEntity, error)
+	Find(ctx context.Context, t, n string) (*repository.MetricEntity, error)
 	Remove(ctx context.Context, t, n string) error
 	SaveAll(ctx context.Context, mt []metric.Metrics) error
 }
@@ -65,7 +65,7 @@ func (mh *MetricHandler) GetValueHandler(w http.ResponseWriter, r *http.Request)
 
 	var (
 		err    error
-		entity *storage.MetricEntity
+		entity *repository.MetricEntity
 	)
 
 	if entity, err = mh.collector.Find(r.Context(), vars["type"], vars["name"]); err != nil {
@@ -109,7 +109,7 @@ func (mh *MetricHandler) UpdateJSONHandler(w http.ResponseWriter, r *http.Reques
 	var (
 		m      metric.Metrics
 		err    error
-		entity *storage.MetricEntity
+		entity *repository.MetricEntity
 	)
 
 	if err = json.NewDecoder(r.Body).Decode(&m); err != nil {
@@ -178,7 +178,7 @@ func (mh *MetricHandler) GetJSONValueHandler(w http.ResponseWriter, r *http.Requ
 	var (
 		m      metric.Metrics
 		err    error
-		entity *storage.MetricEntity
+		entity *repository.MetricEntity
 	)
 
 	if err = json.NewDecoder(r.Body).Decode(&m); err != nil {

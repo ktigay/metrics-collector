@@ -1,4 +1,4 @@
-package storage
+package repository
 
 import (
 	"context"
@@ -16,25 +16,25 @@ type MetricSnapshot interface {
 	Write([]MetricEntity) error
 }
 
-// MemMetricStorage in-memory хранилище.
-type MemMetricStorage struct {
+// MemMetricRepository in-memory хранилище.
+type MemMetricRepository struct {
 	sm       sync.RWMutex
 	Metrics  map[string]MetricEntity
 	snapshot MetricSnapshot
 }
 
-// NewMemStorage конструктор.
-func NewMemStorage(snapshot MetricSnapshot) (*MemMetricStorage, error) {
-	storage := MemMetricStorage{
+// NewMemRepository конструктор.
+func NewMemRepository(snapshot MetricSnapshot) (*MemMetricRepository, error) {
+	repo := MemMetricRepository{
 		snapshot: snapshot,
 		Metrics:  make(map[string]MetricEntity),
 	}
 
-	return &storage, nil
+	return &repo, nil
 }
 
 // Upsert сохраняет или обновляет существующую метрику.
-func (s *MemMetricStorage) Upsert(_ context.Context, m MetricEntity) error {
+func (s *MemMetricRepository) Upsert(_ context.Context, m MetricEntity) error {
 	s.sm.Lock()
 	defer s.sm.Unlock()
 
@@ -50,7 +50,7 @@ func (s *MemMetricStorage) Upsert(_ context.Context, m MetricEntity) error {
 }
 
 // Find поиск по ключу.
-func (s *MemMetricStorage) Find(_ context.Context, t, n string) (*MetricEntity, error) {
+func (s *MemMetricRepository) Find(_ context.Context, t, n string) (*MetricEntity, error) {
 	s.sm.RLock()
 	defer s.sm.RUnlock()
 
@@ -64,7 +64,7 @@ func (s *MemMetricStorage) Find(_ context.Context, t, n string) (*MetricEntity, 
 }
 
 // All вернуть все метрики.
-func (s *MemMetricStorage) All(_ context.Context) ([]MetricEntity, error) {
+func (s *MemMetricRepository) All(_ context.Context) ([]MetricEntity, error) {
 	s.sm.RLock()
 	defer s.sm.RUnlock()
 
@@ -76,7 +76,7 @@ func (s *MemMetricStorage) All(_ context.Context) ([]MetricEntity, error) {
 }
 
 // Remove удаляет по типу и наименованию.
-func (s *MemMetricStorage) Remove(_ context.Context, t, n string) error {
+func (s *MemMetricRepository) Remove(_ context.Context, t, n string) error {
 	s.sm.Lock()
 	defer s.sm.Unlock()
 
@@ -86,7 +86,7 @@ func (s *MemMetricStorage) Remove(_ context.Context, t, n string) error {
 }
 
 // Backup бэкап данных в снапшот.
-func (s *MemMetricStorage) Backup(_ context.Context) error {
+func (s *MemMetricRepository) Backup(_ context.Context) error {
 	if s.snapshot == nil {
 		return nil
 	}
@@ -100,7 +100,7 @@ func (s *MemMetricStorage) Backup(_ context.Context) error {
 }
 
 // Restore восстановление данных из снапшота.
-func (s *MemMetricStorage) Restore(_ context.Context) error {
+func (s *MemMetricRepository) Restore(_ context.Context) error {
 	if s.snapshot == nil {
 		return nil
 	}
@@ -113,7 +113,7 @@ func (s *MemMetricStorage) Restore(_ context.Context) error {
 		s.Metrics[m.Key] = m
 	}
 
-	log.AppLogger.Debugf("storage.restore restored len=%d", len(data))
+	log.AppLogger.Debugf("repository.restore restored len=%d", len(data))
 
 	return nil
 }

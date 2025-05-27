@@ -1,5 +1,5 @@
-// Package storage Репозитории.
-package storage
+// Package repository Репозитории.
+package repository
 
 import (
 	"context"
@@ -43,22 +43,22 @@ const (
 	timeout = 1 * time.Second
 )
 
-// DBMetricStorage репозиторий БД.
-type DBMetricStorage struct {
+// DBMetricRepository репозиторий БД.
+type DBMetricRepository struct {
 	db       *sql.DB
 	snapshot MetricSnapshot
 }
 
-// NewDBMetricStorage конструктор.
-func NewDBMetricStorage(db *sql.DB, snapshot MetricSnapshot) (*DBMetricStorage, error) {
-	return &DBMetricStorage{
+// NewDBMetricRepository конструктор.
+func NewDBMetricRepository(db *sql.DB, snapshot MetricSnapshot) (*DBMetricRepository, error) {
+	return &DBMetricRepository{
 		db:       db,
 		snapshot: snapshot,
 	}, nil
 }
 
 // Upsert сохраняет или обновляет существующую метрику.
-func (dbm *DBMetricStorage) Upsert(ctx context.Context, m MetricEntity) error {
+func (dbm *DBMetricRepository) Upsert(ctx context.Context, m MetricEntity) error {
 	c, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
@@ -68,7 +68,7 @@ func (dbm *DBMetricStorage) Upsert(ctx context.Context, m MetricEntity) error {
 }
 
 // Find поиск по ключу.
-func (dbm *DBMetricStorage) Find(ctx context.Context, t, n string) (*MetricEntity, error) {
+func (dbm *DBMetricRepository) Find(ctx context.Context, t, n string) (*MetricEntity, error) {
 	c, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
@@ -86,7 +86,7 @@ func (dbm *DBMetricStorage) Find(ctx context.Context, t, n string) (*MetricEntit
 }
 
 // Remove удаляет по типу и наименованию.
-func (dbm *DBMetricStorage) Remove(ctx context.Context, t, n string) error {
+func (dbm *DBMetricRepository) Remove(ctx context.Context, t, n string) error {
 	c, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
@@ -97,7 +97,7 @@ func (dbm *DBMetricStorage) Remove(ctx context.Context, t, n string) error {
 }
 
 // All вернуть все метрики.
-func (dbm *DBMetricStorage) All(ctx context.Context) ([]MetricEntity, error) {
+func (dbm *DBMetricRepository) All(ctx context.Context) ([]MetricEntity, error) {
 	c, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
@@ -127,7 +127,7 @@ func (dbm *DBMetricStorage) All(ctx context.Context) ([]MetricEntity, error) {
 }
 
 // Backup бэкап данных в снапшот.
-func (dbm *DBMetricStorage) Backup(ctx context.Context) error {
+func (dbm *DBMetricRepository) Backup(ctx context.Context) error {
 	if dbm.snapshot == nil {
 		return nil
 	}
@@ -144,7 +144,7 @@ func (dbm *DBMetricStorage) Backup(ctx context.Context) error {
 }
 
 // Restore восстановление данных из снапшота.
-func (dbm *DBMetricStorage) Restore(ctx context.Context) error {
+func (dbm *DBMetricRepository) Restore(ctx context.Context) error {
 	if dbm.snapshot == nil {
 		return nil
 	}
@@ -162,11 +162,11 @@ func (dbm *DBMetricStorage) Restore(ctx context.Context) error {
 }
 
 // UpsertAll сохраняет батч.
-func (dbm *DBMetricStorage) UpsertAll(ctx context.Context, mt []MetricEntity) error {
+func (dbm *DBMetricRepository) UpsertAll(ctx context.Context, mt []MetricEntity) error {
 	return dbm.batch(ctx, upsertQuery, mt)
 }
 
-func (dbm *DBMetricStorage) batch(ctx context.Context, query string, mt []MetricEntity) error {
+func (dbm *DBMetricRepository) batch(ctx context.Context, query string, mt []MetricEntity) error {
 	var (
 		err  error
 		tx   *sql.Tx
