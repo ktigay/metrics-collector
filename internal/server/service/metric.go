@@ -3,7 +3,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/ktigay/metrics-collector/internal/log"
 	"github.com/ktigay/metrics-collector/internal/metric"
@@ -42,27 +41,26 @@ func NewMetricCollector(repo MetricRepository) *MetricCollector {
 }
 
 // Save собирает статистику.
-func (c *MetricCollector) Save(ctx context.Context, t, n string, v any) error {
+func (c *MetricCollector) Save(ctx context.Context, mt metric.Metrics) error {
 	var (
-		tp      metric.Type
-		memItem *repository.MetricEntity
+		t       metric.Type
+		memItem repository.MetricEntity
 		err     error
 	)
 
-	if tp, err = metric.ResolveType(t); err != nil {
+	if t, err = metric.ResolveType(mt.MType); err != nil {
 		return e.ErrWrongType
 	}
 
-	memItem = &repository.MetricEntity{
-		Key:  metric.Key(fmt.Sprint(tp), n),
-		Name: n,
-		Type: tp,
-	}
-	if err = memItem.SetValueByType(v); err != nil {
-		return err
+	memItem = repository.MetricEntity{
+		Key:   mt.Key(),
+		Name:  mt.ID,
+		Type:  t,
+		Delta: mt.GetDelta(),
+		Value: mt.GetValue(),
 	}
 
-	return c.repo.Upsert(ctx, *memItem)
+	return c.repo.Upsert(ctx, memItem)
 }
 
 // All возвращает все записи.
@@ -71,7 +69,7 @@ func (c *MetricCollector) All(ctx context.Context) ([]repository.MetricEntity, e
 }
 
 // Find находит запись по ключу.
-func (c *MetricCollector) Find(ctx context.Context, t, n string) (*repository.MetricEntity, error) {
+func (c *MetricCollector) Find(ctx context.Context, t, n string) (*metric.Metrics, error) {
 	var (
 		entity *repository.MetricEntity
 		err    error
@@ -87,7 +85,8 @@ func (c *MetricCollector) Find(ctx context.Context, t, n string) (*repository.Me
 		return nil, e.ErrValueNotFound
 	}
 
-	return entity, nil
+	m := entity.ToMetrics()
+	return &m, nil
 }
 
 // Remove удаление записи по ключу.
@@ -138,8 +137,8 @@ func (c *MetricCollector) SaveAll(ctx context.Context, mt []metric.Metrics) erro
 			Key:   metric.Key(m.MType, m.ID),
 			Name:  m.ID,
 			Type:  t,
-			Delta: *m.Delta,
-			Value: *m.Value,
+			Delta: m.GetDelta(),
+			Value: m.GetValue(),
 		}
 		entities = append(entities, en)
 	}

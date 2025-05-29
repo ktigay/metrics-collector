@@ -30,9 +30,9 @@ func statusFromError(err error) int {
 
 // CollectorInterface Интерфейс сборщика статистики.
 type CollectorInterface interface {
-	Save(ctx context.Context, t, n string, v any) error
+	Save(ctx context.Context, mt metric.Metrics) error
 	All(ctx context.Context) ([]repository.MetricEntity, error)
-	Find(ctx context.Context, t, n string) (*repository.MetricEntity, error)
+	Find(ctx context.Context, t, n string) (*metric.Metrics, error)
 	Remove(ctx context.Context, t, n string) error
 	SaveAll(ctx context.Context, mt []metric.Metrics) error
 }
@@ -51,7 +51,16 @@ func NewMetricHandler(collector CollectorInterface) *MetricHandler {
 func (mh *MetricHandler) CollectHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
-	if err := mh.collector.Save(r.Context(), vars["type"], vars["name"], vars["value"]); err != nil {
+	mt := metric.Metrics{
+		ID:    vars["name"],
+		MType: vars["type"],
+	}
+	if err := mt.SetValueByType(vars["value"]); err != nil {
+		w.WriteHeader(statusFromError(err))
+		return
+	}
+
+	if err := mh.collector.Save(r.Context(), mt); err != nil {
 		w.WriteHeader(statusFromError(err))
 		return
 	}
@@ -64,18 +73,18 @@ func (mh *MetricHandler) GetValueHandler(w http.ResponseWriter, r *http.Request)
 	vars := mux.Vars(r)
 
 	var (
-		err    error
-		entity *repository.MetricEntity
+		err error
+		m   *metric.Metrics
 	)
 
-	if entity, err = mh.collector.Find(r.Context(), vars["type"], vars["name"]); err != nil {
+	if m, err = mh.collector.Find(r.Context(), vars["type"], vars["name"]); err != nil {
 		w.WriteHeader(statusFromError(err))
 		return
 	}
 
 	w.WriteHeader(http.StatusOK)
 
-	if _, err = fmt.Fprintf(w, "%v", entity.ValueByType()); err != nil {
+	if _, err = fmt.Fprintf(w, "%v", m.ValueByType()); err != nil {
 		log.AppLogger.Errorln("Failed to write response", zap.Error(err))
 	}
 }
@@ -107,9 +116,9 @@ func (mh *MetricHandler) UpdateJSONHandler(w http.ResponseWriter, r *http.Reques
 	w.Header().Set("content-type", "application/json")
 
 	var (
-		m      metric.Metrics
-		err    error
-		entity *repository.MetricEntity
+		m   metric.Metrics
+		err error
+		mm  *metric.Metrics
 	)
 
 	if err = json.NewDecoder(r.Body).Decode(&m); err != nil {
@@ -120,20 +129,19 @@ func (mh *MetricHandler) UpdateJSONHandler(w http.ResponseWriter, r *http.Reques
 
 	ctx := r.Context()
 
-	if err = mh.collector.Save(ctx, m.MType, m.ID, m.ValueByType()); err != nil {
+	if err = mh.collector.Save(ctx, m); err != nil {
 		w.WriteHeader(statusFromError(err))
 		return
 	}
 
-	if entity, err = mh.collector.Find(ctx, m.MType, m.ID); err != nil {
+	if mm, err = mh.collector.Find(ctx, m.MType, m.ID); err != nil {
 		w.WriteHeader(statusFromError(err))
 		return
 	}
 
 	w.WriteHeader(http.StatusOK)
 
-	um := entity.ToMetrics()
-	if err = json.NewEncoder(w).Encode(um); err != nil {
+	if err = json.NewEncoder(w).Encode(mm); err != nil {
 		log.AppLogger.Errorln("Failed to write response", zap.Error(err))
 	}
 }
@@ -176,9 +184,9 @@ func (mh *MetricHandler) GetJSONValueHandler(w http.ResponseWriter, r *http.Requ
 	w.Header().Set("content-type", "application/json")
 
 	var (
-		m      metric.Metrics
-		err    error
-		entity *repository.MetricEntity
+		m   metric.Metrics
+		err error
+		mm  *metric.Metrics
 	)
 
 	if err = json.NewDecoder(r.Body).Decode(&m); err != nil {
@@ -186,7 +194,7 @@ func (mh *MetricHandler) GetJSONValueHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	entity, err = mh.collector.Find(r.Context(), m.MType, m.ID)
+	mm, err = mh.collector.Find(r.Context(), m.MType, m.ID)
 	if err != nil {
 		w.WriteHeader(statusFromError(err))
 		return
@@ -194,8 +202,7 @@ func (mh *MetricHandler) GetJSONValueHandler(w http.ResponseWriter, r *http.Requ
 
 	w.WriteHeader(http.StatusOK)
 
-	um := entity.ToMetrics()
-	if err = json.NewEncoder(w).Encode(um); err != nil {
+	if err = json.NewEncoder(w).Encode(mm); err != nil {
 		log.AppLogger.Errorln("Failed to write response", zap.Error(err))
 	}
 }

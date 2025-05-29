@@ -14,11 +14,7 @@ func TestMetricCollector_Save(t *testing.T) {
 		metrics map[string]repository.MetricEntity
 	}
 	type args struct {
-		m []struct {
-			Type  metric.Type
-			Name  string
-			Value string
-		}
+		m []metric.Metrics
 	}
 	tests := []struct {
 		name   string
@@ -45,25 +41,30 @@ func TestMetricCollector_Save(t *testing.T) {
 				},
 			},
 			args: args{
-				m: []struct {
-					Type  metric.Type
-					Name  string
-					Value string
-				}{
+				m: []metric.Metrics{
 					{
-						Type:  metric.TypeCounter,
-						Name:  metric.PollCount,
-						Value: "4",
+						MType: "counter",
+						ID:    "PollCount",
+						Delta: func() *int64 {
+							x := int64(4)
+							return &x
+						}(),
 					},
 					{
-						Type:  metric.TypeGauge,
-						Name:  string(metric.Alloc),
-						Value: "12.0",
+						MType: "gauge",
+						ID:    "Alloc",
+						Value: func() *float64 {
+							x := 12.0
+							return &x
+						}(),
 					},
 					{
-						Type:  metric.TypeGauge,
-						Name:  string(metric.BuckHashSys),
-						Value: "22.0",
+						MType: "gauge",
+						ID:    "BuckHashSys",
+						Value: func() *float64 {
+							x := 22.0
+							return &x
+						}(),
 					},
 				},
 			},
@@ -96,7 +97,7 @@ func TestMetricCollector_Save(t *testing.T) {
 			})
 
 			for _, m := range tt.args.m {
-				_ = c.Save(context.Background(), string(m.Type), m.Name, m.Value)
+				_ = c.Save(context.Background(), m)
 			}
 
 			var (

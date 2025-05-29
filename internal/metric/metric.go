@@ -4,6 +4,9 @@ package metric
 import (
 	"fmt"
 	"runtime"
+	"strconv"
+
+	"github.com/ktigay/metrics-collector/internal/server/errors"
 )
 
 // Type тип метрики.
@@ -85,9 +88,58 @@ func (m *Metrics) ValueByType() any {
 	return nil
 }
 
+func (m *Metrics) GetDelta() int64 {
+	if m.Delta == nil {
+		return 0
+	}
+	return *m.Delta
+}
+
+func (m *Metrics) GetValue() float64 {
+	if m.Value == nil {
+		return 0
+	}
+	return *m.Value
+}
+
 // Key ключ метрики.
 func (m *Metrics) Key() string {
 	return Key(m.MType, m.ID)
+}
+
+// SetValueByType присваивает значение в зависимости от типа метрики.
+func (m *Metrics) SetValueByType(v any) error {
+	var err error
+	switch Type(m.MType) {
+	case TypeCounter:
+		var val int64
+		switch vt := v.(type) {
+		case string:
+			if val, err = strconv.ParseInt(vt, 10, 64); err != nil {
+				return errors.ErrWrongValue
+			}
+		case int64:
+			val = vt
+		default:
+			return errors.ErrInvalidValueType
+		}
+		m.Delta = &val
+	case TypeGauge:
+		switch vt := v.(type) {
+		case string:
+			var vts float64
+			if vts, err = strconv.ParseFloat(vt, 64); err != nil {
+				return errors.ErrWrongValue
+			}
+			m.Value = &vts
+		case float64:
+			m.Value = &vt
+		default:
+			return errors.ErrInvalidValueType
+		}
+	}
+
+	return nil
 }
 
 // ResolveType получает из строки тип.
