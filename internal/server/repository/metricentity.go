@@ -1,11 +1,11 @@
-package storage
+package repository
 
 import (
 	"github.com/ktigay/metrics-collector/internal/metric"
 )
 
-// Entity - сущность для сохранения в storage.
-type Entity struct {
+// MetricEntity сущность для сохранения в repository.
+type MetricEntity struct {
 	Key   string      `json:"key"`
 	Type  metric.Type `json:"type"`
 	Name  string      `json:"name"`
@@ -14,7 +14,7 @@ type Entity struct {
 }
 
 // ValueByType возвращает значение в зависимости от типа.
-func (e *Entity) ValueByType() any {
+func (e *MetricEntity) ValueByType() any {
 	switch e.Type {
 	case metric.TypeCounter:
 		return e.Delta
@@ -25,7 +25,7 @@ func (e *Entity) ValueByType() any {
 }
 
 // ToMetrics мап сущности в дто.
-func (e *Entity) ToMetrics() metric.Metrics {
+func (e *MetricEntity) ToMetrics() metric.Metrics {
 	m := metric.Metrics{
 		ID:    e.Name,
 		MType: string(e.Type),

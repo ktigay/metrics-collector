@@ -1,42 +1,15 @@
 package compress
 
 import (
-	"bytes"
 	"compress/gzip"
 	"compress/zlib"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 
 	"github.com/andybalholm/brotli"
 )
-
-// Writer структура для записи сжатых данных.
-type Writer struct {
-	cmp io.WriteCloser
-}
-
-// NewWriter конструктор.
-func NewWriter(t Type, bb *bytes.Buffer) (*Writer, error) {
-	cmp, err := compressor(t, bb)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Writer{
-		cmp: cmp,
-	}, nil
-}
-
-// Write запись.
-func (w *Writer) Write(b []byte) (int, error) {
-	return w.cmp.Write(b)
-}
-
-// Close закрытие.
-func (w *Writer) Close() error {
-	return w.cmp.Close()
-}
 
 // HTTPWriter структура для обработки сжатия ответа.
 type HTTPWriter struct {
@@ -83,6 +56,24 @@ func (c *HTTPWriter) Close() error {
 		return nil
 	}
 	return c.compressor.Close()
+}
+
+// JSON сжатие json структуры.
+func JSON(t Type, w io.Writer, i any) error {
+	var (
+		cmp io.WriteCloser
+		err error
+	)
+	if cmp, err = compressor(t, w); err != nil {
+		return err
+	}
+	defer func() {
+		_ = cmp.Close()
+	}()
+	if err = json.NewEncoder(cmp).Encode(i); err != nil {
+		return err
+	}
+	return nil
 }
 
 func compressor(t Type, w io.Writer) (io.WriteCloser, error) {

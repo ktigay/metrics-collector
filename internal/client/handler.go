@@ -1,9 +1,7 @@
+// Package client агент.
 package client
 
 import (
-	"bytes"
-	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 
@@ -11,6 +9,7 @@ import (
 	"github.com/ktigay/metrics-collector/internal/compress"
 	"github.com/ktigay/metrics-collector/internal/log"
 	"github.com/ktigay/metrics-collector/internal/metric"
+	"github.com/ktigay/metrics-collector/internal/retry"
 	"go.uber.org/zap"
 )
 
@@ -19,20 +18,33 @@ const (
 	compressType = compress.Gzip
 )
 
-// Sender - хендлер.
+// Sender хендлер.
 type Sender struct {
-	url string
+	url          string
+	batchEnabled bool
 }
 
-// NewSender - конструктор.
-func NewSender(url string) *Sender {
+// NewSender конструктор.
+func NewSender(url string, batchEnabled bool) *Sender {
 	return &Sender{
-		url: url,
+		url:          url,
+		batchEnabled: batchEnabled,
 	}
 }
 
-// SendMetrics - отправляет метрики на сервер.
+// SendMetrics отправляет метрики на сервер.
 func (mh *Sender) SendMetrics(c collector.MetricCollectDTO) {
+	if mh.batchEnabled {
+		handler := func(policy retry.RetPolicy) error {
+			log.AppLogger.Debugf("sending metrics to collector retries %d, err %v", policy.Retries(), policy.LastError())
+			return mh.sendBatch(c)
+		}
+		if err := retry.Ret(handler); err != nil {
+			log.AppLogger.Info("client.SendBatchMetrics error", zap.Error(err))
+		}
+		return
+	}
+
 	errChan := make(chan error, 3)
 
 	go func() {
@@ -67,75 +79,66 @@ func (mh *Sender) SendMetrics(c collector.MetricCollectDTO) {
 	}
 }
 
-func (mh *Sender) sendGaugeMetrics(c collector.MetricCollectDTO) error {
+func (mh *Sender) sendGaugeMetrics(c collector.MetricCollectDTO) (err error) {
 	for n, m := range c.MemStats {
-		_, err := mh.post(mh.url+"/update/", metric.TypeGauge, string(n), m)
-		if err != nil {
-			return err
+		mm := makeMetrics(metric.TypeGauge, string(n), m)
+		if _, err = mh.post(mh.url+"/update/", mm); err != nil {
+			break
 		}
 	}
-	return nil
+	return err
 }
 
 func (mh *Sender) sendRand(c collector.MetricCollectDTO) error {
-	_, err := mh.post(mh.url+"/update/", metric.TypeGauge, metric.RandomValue, c.Rand)
+	mm := makeMetrics(metric.TypeGauge, metric.RandomValue, c.Rand)
+	_, err := mh.post(mh.url+"/update/", mm)
 	return err
 }
 
 func (mh *Sender) sendCounter(c collector.MetricCollectDTO) error {
-	_, err := mh.post(mh.url+"/update/", metric.TypeCounter, metric.PollCount, c.Counter)
+	mm := makeMetrics(metric.TypeCounter, metric.PollCount, c.Counter)
+	_, err := mh.post(mh.url+"/update/", mm)
 	return err
 }
 
-func (mh *Sender) post(url string, t metric.Type, id string, v any) ([]byte, error) {
+func (mh *Sender) sendBatch(c collector.MetricCollectDTO) error {
+	metrics := make([]metric.Metrics, 0, len(c.MemStats)+2)
+	for n, m := range c.MemStats {
+		mm := makeMetrics(metric.TypeGauge, string(n), m)
+		metrics = append(metrics, mm)
+	}
+	metrics = append(metrics, makeMetrics(metric.TypeGauge, metric.RandomValue, c.Rand))
+	metrics = append(metrics, makeMetrics(metric.TypeCounter, metric.PollCount, c.Counter))
+
+	_, err := mh.post(mh.url+"/updates/", metrics)
+
+	return err
+}
+
+func (mh *Sender) post(url string, body any) ([]byte, error) {
 	var (
-		m    metric.Metrics
-		b    []byte
 		err  error
-		buff bytes.Buffer
-		cw   *compress.Writer
 		req  *http.Request
 		resp *http.Response
 	)
 
-	m = makeMetrics(t, id, v)
-
-	if b, err = json.Marshal(m); err != nil {
-		return nil, err
-	}
-	if cw, err = compress.NewWriter(compressType, &buff); err != nil {
-		return nil, err
-	}
-	if _, err = cw.Write(b); err != nil {
-		return nil, err
-	}
-	if err = cw.Close(); err != nil {
+	if req, err = compress.NewJSONRequest(
+		http.MethodPost,
+		url,
+		compressType,
+		body,
+	); err != nil {
 		return nil, err
 	}
 
-	if req, err = http.NewRequest(http.MethodPost, url, &buff); err != nil {
-		return nil, err
-	}
-
-	req.Header.Set("Content-Type", contentType)
-	req.Header.Set("Content-Encoding", string(compressType))
-
-	client := http.Client{}
-	if resp, err = client.Do(req); err != nil {
+	if resp, err = compress.NewClient().Do(req); err != nil {
 		return nil, err
 	}
 	defer func() {
-		if resp == nil {
-			return
-		}
 		if err = resp.Body.Close(); err != nil {
 			log.AppLogger.Error("client.post error", zap.Error(err))
 		}
 	}()
-
-	if resp != nil && (resp.StatusCode > 300 || resp.StatusCode < 200) {
-		return nil, fmt.Errorf("status code is not OK %d", resp.StatusCode)
-	}
 
 	return io.ReadAll(resp.Body)
 }

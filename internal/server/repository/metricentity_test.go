@@ -1,4 +1,4 @@
-package storage
+package repository
 
 import (
 	"testing"
@@ -61,7 +61,7 @@ func TestEntity_ToMetrics(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			e := &Entity{
+			e := &MetricEntity{
 				Key:   tt.fields.Key,
 				Type:  tt.fields.Type,
 				Name:  tt.fields.Name,
@@ -111,7 +111,7 @@ func TestEntity_ValueByType(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			e := &Entity{
+			e := &MetricEntity{
 				Key:   tt.fields.Key,
 				Type:  tt.fields.Type,
 				Name:  tt.fields.Name,

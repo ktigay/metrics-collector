@@ -1,3 +1,4 @@
+// Package collector Сборщик метрик.
 package collector
 
 import (
@@ -7,25 +8,25 @@ import (
 	"github.com/ktigay/metrics-collector/internal/metric"
 )
 
-// RuntimeMetricCollector - сборщик метрик.
+// RuntimeMetricCollector сборщик метрик.
 type RuntimeMetricCollector struct {
 	counter int64
 	stat    MetricCollectDTO
 }
 
-// MetricCollectDTO - DTO.
+// MetricCollectDTO DTO.
 type MetricCollectDTO struct {
 	MemStats map[metric.GaugeMetric]float64
 	Counter  int64
 	Rand     float64
 }
 
-// NewRuntimeMetricCollector - конструктор.
+// NewRuntimeMetricCollector конструктор.
 func NewRuntimeMetricCollector() *RuntimeMetricCollector {
 	return &RuntimeMetricCollector{}
 }
 
-// PollStat - собирает метрики.
+// PollStat собирает метрики.
 func (c *RuntimeMetricCollector) PollStat() {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
@@ -39,7 +40,7 @@ func (c *RuntimeMetricCollector) PollStat() {
 	}
 }
 
-// GetStat - возвращает метрики.
+// GetStat возвращает метрики.
 func (c *RuntimeMetricCollector) GetStat() MetricCollectDTO {
 	return c.stat
 }

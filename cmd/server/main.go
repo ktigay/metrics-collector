@@ -1,9 +1,11 @@
+// Сервер.
 package main
 
 import (
 	"context"
 	"errors"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -12,19 +14,24 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	ilog "github.com/ktigay/metrics-collector/internal/log"
 	"github.com/ktigay/metrics-collector/internal/server"
+	"github.com/ktigay/metrics-collector/internal/server/db"
+	"github.com/ktigay/metrics-collector/internal/server/handler"
 	"github.com/ktigay/metrics-collector/internal/server/middleware"
+	"github.com/ktigay/metrics-collector/internal/server/repository"
 	"github.com/ktigay/metrics-collector/internal/server/service"
 	"github.com/ktigay/metrics-collector/internal/server/snapshot"
-	"github.com/ktigay/metrics-collector/internal/server/storage"
+	"go.uber.org/zap"
 )
 
 func main() {
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	mainCtx := context.TODO()
+	exitCtx, stop := signal.NotifyContext(mainCtx, os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	config, err := parseFlags(os.Args[1:])
+	config, err := server.InitializeConfig(os.Args[1:])
 	if err != nil {
 		log.Fatalf("can't parse flags: %v", err)
 	}
@@ -38,27 +45,40 @@ func main() {
 		}
 	}()
 
+	if config.IsUseSQLDB() {
+		initDB(mainCtx, config.DatabaseDriver, config.DatabaseDSN)
+		defer func() {
+			if err = db.CloseMasterDB(); err != nil {
+				ilog.AppLogger.Errorf("can't close master db: %v", err)
+				return
+			}
+			ilog.AppLogger.Debug("close master db successfully")
+		}()
+	}
+
 	var (
 		collector *service.MetricCollector
 		router    *mux.Router
-		srv       *server.Server
+		mh        *handler.MetricHandler
 		wg        sync.WaitGroup
 	)
 
-	collector, err = initCollector(config.Restore, config.FileStoragePath)
-	if err != nil {
+	if collector, err = initMetricCollector(mainCtx, config); err != nil {
 		log.Fatalf("can't initialize collector: %v", err)
 	}
 
-	srv = server.NewServer(collector)
+	mh = handler.NewMetricHandler(collector)
 	router = mux.NewRouter()
 
 	registerMiddleware(router)
-	registerRoutes(router, srv)
+	registerRoutes(router, mh)
 
 	httpServer := &http.Server{
 		Addr:    config.ServerHost,
 		Handler: router,
+		BaseContext: func(net.Listener) context.Context {
+			return mainCtx
+		},
 	}
 	wg.Add(1)
 	go func() {
@@ -68,6 +88,7 @@ func main() {
 				ilog.AppLogger.Debug("http server stopped")
 			} else {
 				ilog.AppLogger.Errorf("can't start http server: %v", err)
+				stop()
 			}
 		}
 		wg.Done()
@@ -75,20 +96,19 @@ func main() {
 
 	wg.Add(1)
 	go func() {
-		if err = saveSnapshot(ctx, collector, config.StoreInterval); err != nil {
+		if err = saveSnapshot(mainCtx, exitCtx, collector, config.StoreInterval); err != nil {
 			ilog.AppLogger.Errorf("can't save statistics snapshot: %v", err)
 		}
 		wg.Done()
 	}()
 
-	wg.Add(1)
 	go func() {
-		<-ctx.Done()
+		<-exitCtx.Done()
+
 		ilog.AppLogger.Debug("http server shutting down")
 		if err = httpServer.Shutdown(context.Background()); err != nil {
 			ilog.AppLogger.Errorf("can't shutdown http server: %v", err)
 		}
-		wg.Done()
 	}()
 
 	wg.Wait()
@@ -99,52 +119,88 @@ func main() {
 func registerMiddleware(router *mux.Router) {
 	router.Use(
 		middleware.WithContentType,
-		middleware.WithLogging,
 		middleware.CompressHandler,
+		middleware.WithLogging,
 	)
 }
 
-func registerRoutes(router *mux.Router, s *server.Server) {
-	router.HandleFunc("/update/{type}/{name}/{value}", s.CollectHandler).Methods(http.MethodPost)
-	router.HandleFunc("/update/", s.UpdateJSONHandler).Methods(http.MethodPost)
-	router.HandleFunc("/value/{type}/{name}", s.GetValueHandler).Methods(http.MethodGet)
-	router.HandleFunc("/value/", s.GetJSONValueHandler).Methods(http.MethodPost)
-	router.HandleFunc("/", s.GetAllHandler).Methods(http.MethodGet)
+func registerRoutes(router *mux.Router, mh *handler.MetricHandler) {
+	router.HandleFunc("/update/{type}/{name}/{value}", mh.CollectHandler).Methods(http.MethodPost)
+	router.HandleFunc("/update/", mh.UpdateJSONHandler).Methods(http.MethodPost)
+	router.HandleFunc("/value/{type}/{name}", mh.GetValueHandler).Methods(http.MethodGet)
+	router.HandleFunc("/value/", mh.GetJSONValueHandler).Methods(http.MethodPost)
+	router.HandleFunc("/ping", handler.PingHandler).Methods(http.MethodGet)
+	router.HandleFunc("/", mh.GetAllHandler).Methods(http.MethodGet)
+	router.HandleFunc("/updates/", mh.UpdatesJSONHandler).Methods(http.MethodPost)
 }
 
-func initCollector(restore bool, restorePath string) (*service.MetricCollector, error) {
-	var sn storage.Snapshot
+func initMetricCollector(ctx context.Context, config *server.Config) (*service.MetricCollector, error) {
+	var (
+		err       error
+		ms        service.MetricRepository
+		sn        repository.MetricSnapshot
+		collector *service.MetricCollector
+	)
 
-	if restore {
-		sn = snapshot.NewFileSnapshot(restorePath)
+	if config.Restore {
+		sn = snapshot.NewFileMetricSnapshot(config.FileStoragePath)
 	}
 
-	st, err := storage.NewMemStorage(sn)
-	if err != nil {
+	if ms, err = initMetricRepository(sn, config.IsUseSQLDB()); err != nil {
 		return nil, err
 	}
 
-	return service.NewMetricCollector(st), nil
+	collector = service.NewMetricCollector(ms)
+
+	if config.Restore {
+		if err = collector.Restore(ctx); err != nil {
+			return nil, err
+		}
+		ilog.AppLogger.Debug("metric collector restored")
+	}
+
+	return collector, nil
 }
 
-func saveSnapshot(ctx context.Context, c *service.MetricCollector, storeInterval int) error {
+func initMetricRepository(sn repository.MetricSnapshot, useSQL bool) (service.MetricRepository, error) {
+	if useSQL {
+		return repository.NewDBMetricRepository(db.MasterDB, sn)
+	}
+
+	return repository.NewMemRepository(sn)
+}
+
+func saveSnapshot(mainCtx, exitCtx context.Context, c *service.MetricCollector, storeInterval int) error {
 	ticker := time.NewTicker(time.Duration(storeInterval) * time.Second)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
 			ilog.AppLogger.Debug("saveSnapshot saving metrics started")
-			if err := c.Backup(); err != nil {
+			if err := c.Backup(mainCtx); err != nil {
 				return err
 			}
 			ilog.AppLogger.Debug("saveSnapshot saving metrics finished")
-		case <-ctx.Done():
+		case <-exitCtx.Done():
 			ticker.Stop()
-			if err := c.Backup(); err != nil {
+			if err := c.Backup(mainCtx); err != nil {
 				return err
 			}
 			ilog.AppLogger.Debug("saveSnapshot shutting down")
 			return nil
 		}
 	}
+}
+
+func initDB(ctx context.Context, driver, dsn string) {
+	var err error
+	if err = db.InitializeMasterDB(ctx, driver, dsn); err != nil {
+		ilog.AppLogger.Fatalf("can't initialize master db: %v", zap.Error(err))
+	}
+
+	if err = db.CreateStructure(ctx); err != nil {
+		ilog.AppLogger.Fatalf("can't create structure: %v", zap.Error(err))
+	}
+
+	ilog.AppLogger.Debug("initDB finished")
 }
