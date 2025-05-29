@@ -58,7 +58,7 @@ func (c *MetricCollector) Save(ctx context.Context, t, n string, v any) error {
 		Name: n,
 		Type: tp,
 	}
-	if err = memItem.AppendValue(v); err != nil {
+	if err = memItem.SetValueByType(v); err != nil {
 		return err
 	}
 
@@ -135,12 +135,11 @@ func (c *MetricCollector) SaveAll(ctx context.Context, mt []metric.Metrics) erro
 		}
 
 		en := repository.MetricEntity{
-			Key:  metric.Key(m.MType, m.ID),
-			Name: m.ID,
-			Type: t,
-		}
-		if err = en.AppendValue(m.ValueByType()); err != nil {
-			return err
+			Key:   metric.Key(m.MType, m.ID),
+			Name:  m.ID,
+			Type:  t,
+			Delta: *m.Delta,
+			Value: *m.Value,
 		}
 		entities = append(entities, en)
 	}

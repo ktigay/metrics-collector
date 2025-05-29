@@ -44,8 +44,8 @@ func (e *MetricEntity) ToMetrics() metric.Metrics {
 	return m
 }
 
-// AppendValue прибавляет/присваивает значение в зависимости от типа метрики.
-func (e *MetricEntity) AppendValue(v any) error {
+// SetValueByType прибавляет/присваивает значение в зависимости от типа метрики.
+func (e *MetricEntity) SetValueByType(v any) error {
 	var err error
 	switch e.Type {
 	case metric.TypeCounter:
@@ -60,7 +60,7 @@ func (e *MetricEntity) AppendValue(v any) error {
 		default:
 			return errors.ErrInvalidValueType
 		}
-		e.Delta += val
+		e.Delta = val
 	case metric.TypeGauge:
 		switch vt := v.(type) {
 		case string:
