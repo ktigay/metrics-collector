@@ -45,15 +45,11 @@ func main() {
 		}
 	}()
 
+	ilog.AppLogger.Infof("config: %+v", config)
+
 	if config.IsUseSQLDB() {
-		initDB(mainCtx, config.DatabaseDriver, config.DatabaseDSN)
-		defer func() {
-			if err = db.CloseMasterDB(); err != nil {
-				ilog.AppLogger.Errorf("can't close master db: %v", err)
-				return
-			}
-			ilog.AppLogger.Debug("close master db successfully")
-		}()
+		callback := initDBConnection(mainCtx, config.DatabaseDriver, config.DatabaseDSN)
+		defer callback()
 	}
 
 	var (
@@ -192,7 +188,7 @@ func saveSnapshot(mainCtx, exitCtx context.Context, c *service.MetricCollector, 
 	}
 }
 
-func initDB(ctx context.Context, driver, dsn string) {
+func initDBConnection(ctx context.Context, driver, dsn string) func() {
 	var err error
 	if err = db.InitializeMasterDB(ctx, driver, dsn); err != nil {
 		ilog.AppLogger.Fatalf("can't initialize master db: %v", zap.Error(err))
@@ -202,5 +198,13 @@ func initDB(ctx context.Context, driver, dsn string) {
 		ilog.AppLogger.Fatalf("can't create structure: %v", zap.Error(err))
 	}
 
-	ilog.AppLogger.Debug("initDB finished")
+	ilog.AppLogger.Debug("initDBConnection finished")
+
+	return func() {
+		if err = db.CloseMasterDB(); err != nil {
+			ilog.AppLogger.Errorf("can't close master db: %v", err)
+			return
+		}
+		ilog.AppLogger.Debug("close master db successfully")
+	}
 }
