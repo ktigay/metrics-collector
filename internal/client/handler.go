@@ -14,7 +14,6 @@ import (
 )
 
 const (
-	contentType  = "application/json"
 	compressType = compress.Gzip
 )
 
