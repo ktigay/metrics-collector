@@ -29,6 +29,8 @@ func statusFromError(err error) int {
 }
 
 // CollectorInterface Интерфейс сборщика статистики.
+//
+//go:generate mockgen -destination=./mocks/mock_collector.go -package=mocks github.com/ktigay/metrics-collector/internal/server/handler CollectorInterface
 type CollectorInterface interface {
 	Save(ctx context.Context, mt metric.Metrics) error
 	All(ctx context.Context) ([]repository.MetricEntity, error)

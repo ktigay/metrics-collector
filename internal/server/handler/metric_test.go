@@ -2,10 +2,12 @@ package handler
 
 import (
 	"bytes"
+	"github.com/golang/mock/gomock"
+	"github.com/ktigay/metrics-collector/internal/metric"
+	"github.com/ktigay/metrics-collector/internal/server/handler/mocks"
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/gorilla/mux"
@@ -16,27 +18,50 @@ import (
 
 func TestServer_CollectHandler(t *testing.T) {
 	type args struct {
-		requests    []string
+		request     string
 		contentType string
 	}
 	tests := []struct {
 		name            string
 		args            args
+		collector       func(controller *gomock.Controller) CollectorInterface
 		wantStatus      int
 		wantContentType string
 	}{
 		{
-			name: "Positive_test",
+			name: "Positive_test_gauge",
 			args: args{
-				requests: []string{
-					"/update/gauge/Alloc/122.1",
-					"/update/gauge/Lookups/122.00",
-					"/update/counter/PollCount/5",
-					"/update/gauge/Alloc/222.21",
-					"/update/gauge/Lookups/152.00",
-					"/update/counter/PollCount/10",
-				},
+				request:     "/update/gauge/Alloc/122.1",
 				contentType: "text/plain",
+			},
+			collector: func(mockCtrl *gomock.Controller) CollectorInterface {
+				st := mocks.NewMockCollectorInterface(mockCtrl)
+				v := 122.1
+				st.EXPECT().Save(gomock.Any(), gomock.Eq(metric.Metrics{
+					ID:    "Alloc",
+					MType: "gauge",
+					Value: &v,
+				})).Return(nil).Times(1)
+				return st
+			},
+			wantStatus:      http.StatusOK,
+			wantContentType: "text/plain",
+		},
+		{
+			name: "Positive_test_counter",
+			args: args{
+				request:     "/update/counter/PollCount/12345",
+				contentType: "text/plain",
+			},
+			collector: func(mockCtrl *gomock.Controller) CollectorInterface {
+				st := mocks.NewMockCollectorInterface(mockCtrl)
+				v := int64(12345)
+				st.EXPECT().Save(gomock.Any(), gomock.Eq(metric.Metrics{
+					ID:    "PollCount",
+					MType: "counter",
+					Delta: &v,
+				})).Return(nil).Times(1)
+				return st
 			},
 			wantStatus:      http.StatusOK,
 			wantContentType: "text/plain",
@@ -44,10 +69,13 @@ func TestServer_CollectHandler(t *testing.T) {
 		{
 			name: "Not_found_test",
 			args: args{
-				requests: []string{
-					"/update/gauge/",
-				},
+				request:     "/update/gauge/",
 				contentType: "text/plain",
+			},
+			collector: func(mockCtrl *gomock.Controller) CollectorInterface {
+				st := mocks.NewMockCollectorInterface(mockCtrl)
+				st.EXPECT().Save(gomock.Any(), gomock.Any()).Return(nil).Times(0)
+				return st
 			},
 			wantStatus:      http.StatusNotFound,
 			wantContentType: "text/plain; charset=utf-8",
@@ -55,10 +83,13 @@ func TestServer_CollectHandler(t *testing.T) {
 		{
 			name: "Not_found_test_with_value",
 			args: args{
-				requests: []string{
-					"/update/gauge/222.33",
-				},
+				request:     "/update/gauge/222.33",
 				contentType: "text/plain",
+			},
+			collector: func(mockCtrl *gomock.Controller) CollectorInterface {
+				st := mocks.NewMockCollectorInterface(mockCtrl)
+				st.EXPECT().Save(gomock.Any(), gomock.Any()).Return(nil).Times(0)
+				return st
 			},
 			wantStatus:      http.StatusNotFound,
 			wantContentType: "text/plain; charset=utf-8",
@@ -66,10 +97,13 @@ func TestServer_CollectHandler(t *testing.T) {
 		{
 			name: "Not_found_test_with_wrong_url",
 			args: args{
-				requests: []string{
-					"/update/gauge/Alloc/222.33/111",
-				},
+				request:     "/update/gauge/Alloc/222.33/111",
 				contentType: "text/plain",
+			},
+			collector: func(mockCtrl *gomock.Controller) CollectorInterface {
+				st := mocks.NewMockCollectorInterface(mockCtrl)
+				st.EXPECT().Save(gomock.Any(), gomock.Any()).Return(nil).Times(0)
+				return st
 			},
 			wantStatus:      http.StatusNotFound,
 			wantContentType: "text/plain; charset=utf-8",
@@ -78,10 +112,10 @@ func TestServer_CollectHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			st, _ := repository.NewMemRepository(nil)
-			h := NewMetricHandler(
-				service.NewMetricCollector(st),
-			)
+			mockCtrl := gomock.NewController(t)
+			defer mockCtrl.Finish()
+
+			h := NewMetricHandler(tt.collector(mockCtrl))
 
 			router := mux.NewRouter()
 			router.Use(func(next http.Handler) http.Handler {
@@ -95,13 +129,11 @@ func TestServer_CollectHandler(t *testing.T) {
 			srv := httptest.NewServer(router)
 			defer srv.Close()
 
-			for _, req := range tt.args.requests {
-				resp, _ := http.Post(srv.URL+req, "text/plain", strings.NewReader(""))
-				require.Equal(t, tt.wantStatus, resp.StatusCode)
-				require.Equal(t, tt.wantContentType, resp.Header.Get("Content-Type"))
+			resp, _ := http.Post(srv.URL+tt.args.request, "text/plain", nil)
+			require.Equal(t, tt.wantStatus, resp.StatusCode)
+			require.Equal(t, tt.wantContentType, resp.Header.Get("Content-Type"))
 
-				_ = resp.Body.Close()
-			}
+			_ = resp.Body.Close()
 		})
 	}
 }
