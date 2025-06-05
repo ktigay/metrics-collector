@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"context"
 	"testing"
 
 	"github.com/ktigay/metrics-collector/internal/metric"
@@ -36,7 +37,7 @@ func TestRuntimeMetricCollector_PollStat(t *testing.T) {
 				stat:    tt.fields.stat,
 			}
 
-			c.PollStat()
+			c.PollStat(context.TODO())
 
 			assert.Equal(t, tt.want, c.counter)
 			assert.Equal(t, tt.want, c.GetStat().Counter)

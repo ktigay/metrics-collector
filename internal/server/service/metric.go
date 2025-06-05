@@ -3,12 +3,13 @@ package service
 
 import (
 	"context"
+	"time"
 
-	"github.com/ktigay/metrics-collector/internal/log"
 	"github.com/ktigay/metrics-collector/internal/metric"
 	"github.com/ktigay/metrics-collector/internal/retry"
 	e "github.com/ktigay/metrics-collector/internal/server/errors"
 	"github.com/ktigay/metrics-collector/internal/server/repository"
+	"go.uber.org/zap"
 )
 
 // MetricRepository интерфейс хранилища.
@@ -32,12 +33,16 @@ type BatchMetricRepository interface {
 
 // MetricCollector сборщик статистики.
 type MetricCollector struct {
-	repo MetricRepository
+	repo   MetricRepository
+	logger *zap.SugaredLogger
 }
 
 // NewMetricCollector конструктор.
-func NewMetricCollector(repo MetricRepository) *MetricCollector {
-	return &MetricCollector{repo}
+func NewMetricCollector(repo MetricRepository, logger *zap.SugaredLogger) *MetricCollector {
+	return &MetricCollector{
+		repo:   repo,
+		logger: logger,
+	}
 }
 
 // Save собирает статистику.
@@ -98,27 +103,53 @@ func (c *MetricCollector) Remove(ctx context.Context, t, n string) error {
 }
 
 // Backup бэкап данных.
-func (c *MetricCollector) Backup(ctx context.Context) error {
+func (c *MetricCollector) Backup(mainCtx, exitCtx context.Context, storeInterval int) error {
+	var repo BackupRepository
 	switch t := c.repo.(type) {
 	case BackupRepository:
-		return t.Backup(ctx)
+		repo = t
 	}
 
-	log.AppLogger.Debug("repo not supported backups")
-	return nil
+	if repo == nil {
+		c.logger.Debug("repo not supported backups")
+		return nil
+	}
+
+	ticker := time.NewTicker(time.Duration(storeInterval) * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			c.logger.Debug("saveSnapshot saving metrics started")
+			if err := repo.Backup(mainCtx); err != nil {
+				return err
+			}
+			c.logger.Debug("saveSnapshot saving metrics finished")
+		case <-exitCtx.Done():
+			ticker.Stop()
+			if err := repo.Backup(mainCtx); err != nil {
+				return err
+			}
+			c.logger.Debug("saveSnapshot shutting down")
+			return nil
+		}
+	}
 }
 
 // Restore восстановление данных.
 func (c *MetricCollector) Restore(ctx context.Context) error {
 	switch t := c.repo.(type) {
 	case BackupRepository:
-		return retry.Ret(func(policy retry.RetPolicy) error {
-			log.AppLogger.Debugf("try to restore repo retries %d, prev %v", policy.Retries(), policy.LastError())
-			return t.Restore(ctx)
+		var err error
+		retry.Ret(func(policy retry.Policy) bool {
+			err = t.Restore(ctx)
+			c.logger.Debugf("try to restore repo retries %d, prev %v", policy.RetIndex()+1, err)
+			return err == nil
 		})
+		return err
 	}
 
-	log.AppLogger.Debug("repo not supported restores")
+	c.logger.Debug("repo not supported restores")
 	return nil
 }
 

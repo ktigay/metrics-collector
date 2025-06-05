@@ -1,13 +1,13 @@
-PROJECT_NAME=metrics-collector
+PROJECT_NAME:=metrics-collector
+
+SHELL := /bin/bash
+CURRENT_UID := $(shell id -u)
+CURRENT_GID := $(shell id -g)
 
 AGENT_PATH=./cmd/agent/agent
 SERVER_PATH=./cmd/server/server
 TEMP_FILE=/tmp/metric_storage.txt
 TEST_SERVER_PORT=\$$(random unused-port)
-
-SHELL := /bin/bash
-CURRENT_UID := $(shell id -u)
-CURRENT_GID := $(shell id -g)
 
 # локальный, внешний порт.
 LOCAL_PORT=4001
@@ -22,7 +22,8 @@ DATABASE_DSN=postgres://postgres:postgres@192.168.1.46:5430/praktikum?sslmode=di
 
 COMPOSE := export PROJECT_NAME=$(PROJECT_NAME) CURRENT_UID=$(CURRENT_UID) \
  		   CURRENT_GID=$(CURRENT_GID) SRV_LISTEN=$(SRV_LISTEN) SRV_PORT=$(SRV_PORT) \
- 		   LOCAL_PORT=$(LOCAL_PORT) SRV_ADDR=$(SRV_ADDR) DATABASE_DSN=$(DATABASE_DSN) && cd docker &&
+ 		   LOCAL_PORT=$(LOCAL_PORT) SRV_ADDR=$(SRV_ADDR) DATABASE_DSN=$(DATABASE_DSN) && cd docker && \
+ 		   docker compose -p $(PROJECT_NAME)
 
 DOCKER_RUN := cd docker && docker run --rm -v ${PWD}:/app -it $(PROJECT_NAME)-app
 
@@ -31,15 +32,15 @@ build-local:
 	go build -o $(AGENT_PATH) ./cmd/agent/*.go
 
 build:
-	$(COMPOSE) docker compose -f docker-compose.build.yml build app
+	$(COMPOSE) -f docker-compose.build.yml build app
 
 go-build-server:
 	cd docker && docker run --rm -v ${PWD}:/app -it $(PROJECT_NAME)-app \
-	go build -gcflags "all=-N -l" -o /app/cmd/server/server -tags dynamic /app/cmd/server/
+	go build -gcflags "all=-N -l" -o /app/cmd/server/server /app/cmd/server/
 
 go-build-agent:
 	cd docker && docker run --rm -v ${PWD}:/app -it $(PROJECT_NAME)-app \
-	go build -gcflags "all=-N -l" -o /app/cmd/agent/agent -tags dynamic /app/cmd/agent/
+	go build -gcflags "all=-N -l" -o /app/cmd/agent/agent /app/cmd/agent/
 
 run-test: \
 	go-build-server \
@@ -114,17 +115,17 @@ up: \
 
 up-server: \
 	go-build-server
-	$(COMPOSE) docker compose up -d server
+	$(COMPOSE) up -d server
 
 up-agent: \
 	go-build-agent
-	$(COMPOSE) docker compose up -d agent
+	$(COMPOSE) up -d agent
 
 up-db:
-	$(COMPOSE) docker compose up -d postgres
+	$(COMPOSE) up -d postgres
 
 down:
-	$(COMPOSE) docker compose down server agent postgres
+	$(COMPOSE) down server agent postgres
 
 update-tpl:
 	# git remote add -m main template https://github.com/Yandex-Practicum/go-musthave-metrics-tpl.git

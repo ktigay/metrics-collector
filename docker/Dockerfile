@@ -17,6 +17,8 @@ RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/ins
 
 RUN go install mvdan.cc/gofumpt@latest
 
+RUN go install github.com/golang/mock/mockgen@latest
+
 WORKDIR /app
 
 COPY . .

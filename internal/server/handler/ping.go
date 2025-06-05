@@ -2,21 +2,35 @@ package handler
 
 import (
 	"context"
+	"database/sql"
 	"net/http"
 	"time"
 
-	"github.com/ktigay/metrics-collector/internal/log"
 	"github.com/ktigay/metrics-collector/internal/retry"
-	"github.com/ktigay/metrics-collector/internal/server/db"
+	"go.uber.org/zap"
 )
 
 const (
 	pingTimeout = 2 * time.Second
 )
 
-// PingHandler пинг хендлер.
-func PingHandler(w http.ResponseWriter, r *http.Request) {
-	if db.MasterDB == nil {
+// PingHandler структура для обработки ping.
+type PingHandler struct {
+	db     *sql.DB
+	logger *zap.SugaredLogger
+}
+
+// NewPingHandler конструктор.
+func NewPingHandler(db *sql.DB, logger *zap.SugaredLogger) *PingHandler {
+	return &PingHandler{
+		db:     db,
+		logger: logger,
+	}
+}
+
+// Ping пинг хендлер.
+func (p *PingHandler) Ping(w http.ResponseWriter, r *http.Request) {
+	if p.db == nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -25,12 +39,14 @@ func PingHandler(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), pingTimeout)
 	defer cancel()
 
-	handler := func(_ retry.RetPolicy) error {
-		return db.MasterDB.PingContext(ctx)
-	}
-	if err = retry.Ret(handler); err != nil {
+	retry.Ret(func(_ retry.Policy) bool {
+		err = p.db.PingContext(ctx)
+		return err == nil
+	})
+
+	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		log.AppLogger.Errorf("Failed to connect to MasterDB %v", err)
+		p.logger.Errorf("Failed to connect to DB %v", err)
 		return
 	}
 

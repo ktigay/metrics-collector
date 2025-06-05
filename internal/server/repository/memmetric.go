@@ -6,8 +6,8 @@ import (
 	"slices"
 	"sync"
 
-	"github.com/ktigay/metrics-collector/internal/log"
 	"github.com/ktigay/metrics-collector/internal/metric"
+	"go.uber.org/zap"
 )
 
 // MetricSnapshot интерфейс для чтения/сохранения снимка данных.
@@ -21,13 +21,15 @@ type MemMetricRepository struct {
 	sm       sync.RWMutex
 	Metrics  map[string]MetricEntity
 	snapshot MetricSnapshot
+	logger   *zap.SugaredLogger
 }
 
 // NewMemRepository конструктор.
-func NewMemRepository(snapshot MetricSnapshot) (*MemMetricRepository, error) {
+func NewMemRepository(snapshot MetricSnapshot, logger *zap.SugaredLogger) (*MemMetricRepository, error) {
 	repo := MemMetricRepository{
 		snapshot: snapshot,
 		Metrics:  make(map[string]MetricEntity),
+		logger:   logger,
 	}
 
 	return &repo, nil
@@ -113,7 +115,6 @@ func (s *MemMetricRepository) Restore(_ context.Context) error {
 		s.Metrics[m.Key] = m
 	}
 
-	log.AppLogger.Debugf("repository.restore restored len=%d", len(data))
-
+	s.logger.Debugf("repository.restore restored len=%d", len(data))
 	return nil
 }

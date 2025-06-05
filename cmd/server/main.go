@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"log"
 	"net"
@@ -11,7 +12,6 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
-	"time"
 
 	"github.com/gorilla/mux"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -31,43 +31,52 @@ func main() {
 	exitCtx, stop := signal.NotifyContext(mainCtx, os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	config, err := server.InitializeConfig(os.Args[1:])
-	if err != nil {
+	var (
+		config *server.Config
+		logger *zap.SugaredLogger
+		err    error
+	)
+
+	if config, err = server.InitializeConfig(os.Args[1:]); err != nil {
 		log.Fatalf("can't parse flags: %v", err)
 	}
 
-	if err = ilog.Initialize(config.LogLevel); err != nil {
+	if logger, err = ilog.Initialize(config.LogLevel); err != nil {
 		log.Fatalf("can't initialize zap logger: %v", err)
 	}
 	defer func() {
-		if err = ilog.AppLogger.Sync(); err != nil && !errors.Is(err, syscall.EINVAL) {
+		if err = logger.Sync(); err != nil && !errors.Is(err, syscall.EINVAL) {
 			log.Printf("can't sync logger: %t", err)
 		}
 	}()
 
-	ilog.AppLogger.Infof("config: %+v", config)
+	logger.Infof("config: %+v", config)
 
+	var dbPool *sql.DB
 	if config.IsUseSQLDB() {
-		callback := initDBConnection(mainCtx, config.DatabaseDriver, config.DatabaseDSN)
+		var callback func()
+		dbPool, callback = initDBConnection(mainCtx, config.DatabaseDriver, config.DatabaseDSN, logger)
 		defer callback()
 	}
 
 	var (
 		collector *service.MetricCollector
 		router    *mux.Router
-		mh        *handler.MetricHandler
 		wg        sync.WaitGroup
 	)
 
-	if collector, err = initMetricCollector(mainCtx, config); err != nil {
+	if collector, err = initMetricCollector(mainCtx, config, dbPool, logger); err != nil {
 		log.Fatalf("can't initialize collector: %v", err)
 	}
 
-	mh = handler.NewMetricHandler(collector)
+	mh := handler.NewMetricHandler(collector, logger)
+	ph := handler.NewPingHandler(dbPool, logger)
 	router = mux.NewRouter()
 
-	registerMiddleware(router)
-	registerRoutes(router, mh)
+	regMiddleware(router, logger)
+
+	regMetricRoutes(router, mh)
+	regPingRoutes(router, ph)
 
 	httpServer := &http.Server{
 		Addr:    config.ServerHost,
@@ -78,12 +87,12 @@ func main() {
 	}
 	wg.Add(1)
 	go func() {
-		ilog.AppLogger.Debug("http server started")
+		logger.Debug("http server started")
 		if err = httpServer.ListenAndServe(); err != nil {
 			if errors.Is(err, http.ErrServerClosed) {
-				ilog.AppLogger.Debug("http server stopped")
+				logger.Debug("http server stopped")
 			} else {
-				ilog.AppLogger.Errorf("can't start http server: %v", err)
+				logger.Errorf("can't start http server: %v", err)
 				stop()
 			}
 		}
@@ -92,8 +101,8 @@ func main() {
 
 	wg.Add(1)
 	go func() {
-		if err = saveSnapshot(mainCtx, exitCtx, collector, config.StoreInterval); err != nil {
-			ilog.AppLogger.Errorf("can't save statistics snapshot: %v", err)
+		if err = collector.Backup(mainCtx, exitCtx, config.StoreInterval); err != nil {
+			logger.Errorf("can't save statistics snapshot: %v", err)
 		}
 		wg.Done()
 	}()
@@ -101,36 +110,39 @@ func main() {
 	go func() {
 		<-exitCtx.Done()
 
-		ilog.AppLogger.Debug("http server shutting down")
+		logger.Debug("http server shutting down")
 		if err = httpServer.Shutdown(context.Background()); err != nil {
-			ilog.AppLogger.Errorf("can't shutdown http server: %v", err)
+			logger.Errorf("can't shutdown http server: %v", err)
 		}
 	}()
 
 	wg.Wait()
 
-	ilog.AppLogger.Debug("program exited")
+	logger.Debug("program exited")
 }
 
-func registerMiddleware(router *mux.Router) {
+func regMiddleware(router *mux.Router, logger *zap.SugaredLogger) {
 	router.Use(
 		middleware.WithContentType,
-		middleware.CompressHandler,
-		middleware.WithLogging,
+		middleware.CompressHandler(logger),
+		middleware.WithLogging(logger),
 	)
 }
 
-func registerRoutes(router *mux.Router, mh *handler.MetricHandler) {
+func regMetricRoutes(router *mux.Router, mh *handler.MetricHandler) {
 	router.HandleFunc("/update/{type}/{name}/{value}", mh.CollectHandler).Methods(http.MethodPost)
 	router.HandleFunc("/update/", mh.UpdateJSONHandler).Methods(http.MethodPost)
 	router.HandleFunc("/value/{type}/{name}", mh.GetValueHandler).Methods(http.MethodGet)
 	router.HandleFunc("/value/", mh.GetJSONValueHandler).Methods(http.MethodPost)
-	router.HandleFunc("/ping", handler.PingHandler).Methods(http.MethodGet)
 	router.HandleFunc("/", mh.GetAllHandler).Methods(http.MethodGet)
 	router.HandleFunc("/updates/", mh.UpdatesJSONHandler).Methods(http.MethodPost)
 }
 
-func initMetricCollector(ctx context.Context, config *server.Config) (*service.MetricCollector, error) {
+func regPingRoutes(router *mux.Router, ph *handler.PingHandler) {
+	router.HandleFunc("/ping", ph.Ping).Methods(http.MethodGet)
+}
+
+func initMetricCollector(ctx context.Context, config *server.Config, dbPool *sql.DB, logger *zap.SugaredLogger) (*service.MetricCollector, error) {
 	var (
 		err       error
 		ms        service.MetricRepository
@@ -139,72 +151,53 @@ func initMetricCollector(ctx context.Context, config *server.Config) (*service.M
 	)
 
 	if config.Restore {
-		sn = snapshot.NewFileMetricSnapshot(config.FileStoragePath)
+		sn = snapshot.NewFileMetricSnapshot(config.FileStoragePath, logger)
 	}
 
-	if ms, err = initMetricRepository(sn, config.IsUseSQLDB()); err != nil {
+	if ms, err = initMetricRepository(sn, dbPool, config.IsUseSQLDB(), logger); err != nil {
 		return nil, err
 	}
 
-	collector = service.NewMetricCollector(ms)
+	collector = service.NewMetricCollector(ms, logger)
 
 	if config.Restore {
 		if err = collector.Restore(ctx); err != nil {
 			return nil, err
 		}
-		ilog.AppLogger.Debug("metric collector restored")
+		logger.Debug("metric collector restored")
 	}
 
 	return collector, nil
 }
 
-func initMetricRepository(sn repository.MetricSnapshot, useSQL bool) (service.MetricRepository, error) {
+func initMetricRepository(sn repository.MetricSnapshot, dbPool *sql.DB, useSQL bool, logger *zap.SugaredLogger) (service.MetricRepository, error) {
 	if useSQL {
-		return repository.NewDBMetricRepository(db.MasterDB, sn)
+		return repository.NewDBMetricRepository(dbPool, sn, logger)
 	}
 
-	return repository.NewMemRepository(sn)
+	return repository.NewMemRepository(sn, logger)
 }
 
-func saveSnapshot(mainCtx, exitCtx context.Context, c *service.MetricCollector, storeInterval int) error {
-	ticker := time.NewTicker(time.Duration(storeInterval) * time.Second)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ticker.C:
-			ilog.AppLogger.Debug("saveSnapshot saving metrics started")
-			if err := c.Backup(mainCtx); err != nil {
-				return err
-			}
-			ilog.AppLogger.Debug("saveSnapshot saving metrics finished")
-		case <-exitCtx.Done():
-			ticker.Stop()
-			if err := c.Backup(mainCtx); err != nil {
-				return err
-			}
-			ilog.AppLogger.Debug("saveSnapshot shutting down")
-			return nil
-		}
-	}
-}
-
-func initDBConnection(ctx context.Context, driver, dsn string) func() {
-	var err error
-	if err = db.InitializeMasterDB(ctx, driver, dsn); err != nil {
-		ilog.AppLogger.Fatalf("can't initialize master db: %v", zap.Error(err))
+func initDBConnection(ctx context.Context, driver, dsn string, logger *zap.SugaredLogger) (*sql.DB, func()) {
+	var (
+		dbPool *sql.DB
+		err    error
+	)
+	if dbPool, err = db.InitializeDB(ctx, driver, dsn, logger); err != nil {
+		logger.Fatalf("can't initialize master db: %v", zap.Error(err))
 	}
 
-	if err = db.CreateStructure(ctx); err != nil {
-		ilog.AppLogger.Fatalf("can't create structure: %v", zap.Error(err))
+	if err = db.CreateStructure(ctx, dbPool); err != nil {
+		logger.Fatalf("can't create structure: %v", zap.Error(err))
 	}
 
-	ilog.AppLogger.Debug("initDBConnection finished")
+	logger.Debug("initDBConnection finished")
 
-	return func() {
-		if err = db.CloseMasterDB(); err != nil {
-			ilog.AppLogger.Errorf("can't close master db: %v", err)
+	return dbPool, func() {
+		if err = db.CloseDB(dbPool); err != nil {
+			logger.Errorf("can't close master db: %v", err)
 			return
 		}
-		ilog.AppLogger.Debug("close master db successfully")
+		logger.Debug("close master db successfully")
 	}
 }

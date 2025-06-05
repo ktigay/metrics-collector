@@ -4,11 +4,13 @@ import (
 	"compress/gzip"
 	"compress/zlib"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 
 	"github.com/andybalholm/brotli"
+	cerr "github.com/ktigay/metrics-collector/internal/compress/errors"
 )
 
 // HTTPWriter структура для обработки сжатия ответа.
@@ -59,7 +61,7 @@ func (c *HTTPWriter) Close() error {
 }
 
 // JSON сжатие json структуры.
-func JSON(t Type, w io.Writer, i any) error {
+func JSON(t Type, w io.Writer, i any, logger Logger) error {
 	var (
 		cmp io.WriteCloser
 		err error
@@ -68,7 +70,9 @@ func JSON(t Type, w io.Writer, i any) error {
 		return err
 	}
 	defer func() {
-		_ = cmp.Close()
+		if e := cmp.Close(); e != nil && !errors.Is(e, io.ErrClosedPipe) {
+			logger.Errorf("JSON compressor close error: %v", e)
+		}
 	}()
 	if err = json.NewEncoder(cmp).Encode(i); err != nil {
 		return err
@@ -85,5 +89,8 @@ func compressor(t Type, w io.Writer) (io.WriteCloser, error) {
 	case Br:
 		return brotli.NewWriter(w), nil
 	}
-	return nil, fmt.Errorf("unsupported compress type: %v", t)
+	return nil, &cerr.UnsupportedTypeError{
+		Type:    t.String(),
+		Message: fmt.Sprintf("unsupported compress type: %v", t),
+	}
 }

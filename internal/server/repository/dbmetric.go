@@ -9,24 +9,25 @@ import (
 	"time"
 
 	"github.com/ktigay/metrics-collector/internal/metric"
+	"go.uber.org/zap"
 )
 
 var (
 	upsertQuery = `
-	insert into metrics (type, name, delta, value)
-	values ($1, $2, $3, $4)
+	INSERT INTO metrics ("type", "name", "delta", "value")
+	VALUES ($1, $2, $3, $4)
 	ON CONFLICT ON CONSTRAINT type_name_uidx DO UPDATE
-		SET delta      = metrics.delta + EXCLUDED.delta,
-			value      = EXCLUDED.value,
-			updated_at = now()
+		SET "delta"      = metrics.delta + EXCLUDED.delta,
+			"value"      = EXCLUDED.value,
+			"updated_at" = NOW()
 	`
 	replaceQuery = `
-	insert into metrics (type, name, delta, value)
-	values ($1, $2, $3, $4)
+	INSERT INTO metrics (type, name, delta, value)
+	VALUES ($1, $2, $3, $4)
 	ON CONFLICT ON CONSTRAINT type_name_uidx DO UPDATE
-		SET delta      = metrics.delta,
-			value      = EXCLUDED.value,
-			updated_at = now()
+		SET "delta"      = metrics.delta,
+			"value"      = EXCLUDED.value,
+			"updated_at" = NOW()
 	`
 	findQuery = `
 	SELECT 
@@ -35,8 +36,8 @@ var (
 		WHERE "type" = $1
 		AND "name" = $2
 	`
-	removeQuery    = `delete from metrics where type = $1 and name = $2`
-	selectAllQuery = `select type, name, delta, value from metrics`
+	removeQuery    = `DELETE FROM metrics WHERE "type" = $1 AND "name" = $2`
+	selectAllQuery = `SELECT "type", "name", "delta", "value" FROM metrics`
 )
 
 const (
@@ -47,13 +48,15 @@ const (
 type DBMetricRepository struct {
 	db       *sql.DB
 	snapshot MetricSnapshot
+	logger   *zap.SugaredLogger
 }
 
 // NewDBMetricRepository конструктор.
-func NewDBMetricRepository(db *sql.DB, snapshot MetricSnapshot) (*DBMetricRepository, error) {
+func NewDBMetricRepository(db *sql.DB, snapshot MetricSnapshot, logger *zap.SugaredLogger) (*DBMetricRepository, error) {
 	return &DBMetricRepository{
 		db:       db,
 		snapshot: snapshot,
+		logger:   logger,
 	}, nil
 }
 
@@ -106,7 +109,9 @@ func (dbm *DBMetricRepository) All(ctx context.Context) ([]MetricEntity, error) 
 		return nil, err
 	}
 	defer func() {
-		_ = rows.Close()
+		if e := rows.Close(); e != nil {
+			dbm.logger.Errorf("rows close error: %v", e)
+		}
 	}()
 
 	entities := make([]MetricEntity, 0)
@@ -183,7 +188,9 @@ func (dbm *DBMetricRepository) batch(ctx context.Context, query string, mt []Met
 	txOK := false
 	defer func() {
 		if !txOK {
-			_ = tx.Rollback()
+			if e := tx.Rollback(); e != nil {
+				dbm.logger.Errorf("tx.Rollback error: %v", e)
+			}
 		}
 	}()
 

@@ -8,7 +8,6 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"github.com/ktigay/metrics-collector/internal/log"
 	"github.com/ktigay/metrics-collector/internal/metric"
 	"github.com/ktigay/metrics-collector/internal/server/errors"
 	"github.com/ktigay/metrics-collector/internal/server/repository"
@@ -42,11 +41,15 @@ type CollectorInterface interface {
 // MetricHandler структура с обработчиками запросов.
 type MetricHandler struct {
 	collector CollectorInterface
+	logger    *zap.SugaredLogger
 }
 
 // NewMetricHandler конструктор.
-func NewMetricHandler(collector CollectorInterface) *MetricHandler {
-	return &MetricHandler{collector}
+func NewMetricHandler(collector CollectorInterface, logger *zap.SugaredLogger) *MetricHandler {
+	return &MetricHandler{
+		collector: collector,
+		logger:    logger,
+	}
 }
 
 // CollectHandler обработчик для сборка метрик.
@@ -87,7 +90,7 @@ func (mh *MetricHandler) GetValueHandler(w http.ResponseWriter, r *http.Request)
 	w.WriteHeader(http.StatusOK)
 
 	if _, err = fmt.Fprintf(w, "%v", m.ValueByType()); err != nil {
-		log.AppLogger.Errorln("Failed to write response", zap.Error(err))
+		mh.logger.Errorln("Failed to write response", zap.Error(err))
 	}
 }
 
@@ -104,7 +107,7 @@ func (mh *MetricHandler) GetAllHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	if err := json.NewEncoder(w).Encode(names); err != nil {
-		log.AppLogger.Errorln("Failed to write response", zap.Error(err))
+		mh.logger.Errorln("Failed to write response", zap.Error(err))
 	}
 }
 
@@ -124,7 +127,7 @@ func (mh *MetricHandler) UpdateJSONHandler(w http.ResponseWriter, r *http.Reques
 	)
 
 	if err = json.NewDecoder(r.Body).Decode(&m); err != nil {
-		log.AppLogger.Errorln("Failed to write response", zap.Error(err))
+		mh.logger.Errorln("Failed to write response", zap.Error(err))
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -144,7 +147,7 @@ func (mh *MetricHandler) UpdateJSONHandler(w http.ResponseWriter, r *http.Reques
 	w.WriteHeader(http.StatusOK)
 
 	if err = json.NewEncoder(w).Encode(mm); err != nil {
-		log.AppLogger.Errorln("Failed to write response", zap.Error(err))
+		mh.logger.Errorln("Failed to write response", zap.Error(err))
 	}
 }
 
@@ -163,7 +166,7 @@ func (mh *MetricHandler) UpdatesJSONHandler(w http.ResponseWriter, r *http.Reque
 	)
 
 	if err = json.NewDecoder(r.Body).Decode(&m); err != nil {
-		log.AppLogger.Errorln("Failed to write response", zap.Error(err))
+		mh.logger.Errorln("Failed to write response", zap.Error(err))
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -205,6 +208,6 @@ func (mh *MetricHandler) GetJSONValueHandler(w http.ResponseWriter, r *http.Requ
 	w.WriteHeader(http.StatusOK)
 
 	if err = json.NewEncoder(w).Encode(mm); err != nil {
-		log.AppLogger.Errorln("Failed to write response", zap.Error(err))
+		mh.logger.Errorln("Failed to write response", zap.Error(err))
 	}
 }
