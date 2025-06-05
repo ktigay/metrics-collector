@@ -2,6 +2,7 @@
 package collector
 
 import (
+	"context"
 	"math/rand/v2"
 	"runtime"
 
@@ -27,7 +28,7 @@ func NewRuntimeMetricCollector() *RuntimeMetricCollector {
 }
 
 // PollStat собирает метрики.
-func (c *RuntimeMetricCollector) PollStat() {
+func (c *RuntimeMetricCollector) PollStat(_ context.Context) {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 

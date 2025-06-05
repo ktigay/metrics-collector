@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+
+	e "github.com/ktigay/metrics-collector/internal/compress/errors"
 )
 
 // NewJSONRequest запрос.
-func NewJSONRequest(method, url string, t Type, body any) (*http.Request, error) {
+func NewJSONRequest(method, url string, t Type, body any, logger Logger) (*http.Request, error) {
 	var (
 		err error
 		req *http.Request
@@ -16,8 +18,10 @@ func NewJSONRequest(method, url string, t Type, body any) (*http.Request, error)
 	r, w := io.Pipe()
 
 	go func() {
-		e := JSON(t, w, body)
-		_ = w.CloseWithError(e)
+		jsonErr := JSON(t, w, body, logger)
+		if ec := w.CloseWithError(jsonErr); ec != nil {
+			logger.Errorf("w.CloseWithError error: %v", ec)
+		}
 	}()
 
 	if req, err = http.NewRequest(method, url, r); err != nil {
@@ -59,7 +63,10 @@ func (c Client) Do(req *http.Request) (*http.Response, error) {
 		return nil, err
 	}
 	if resp.StatusCode > 300 || resp.StatusCode < 200 {
-		return nil, fmt.Errorf("status code is not OK %d", resp.StatusCode)
+		return nil, &e.StatusCodeError{
+			StatusCode: resp.StatusCode,
+			Message:    fmt.Sprintf("status code is not OK %d", resp.StatusCode),
+		}
 	}
 
 	enc := resp.Header.Get("Content-Encoding")

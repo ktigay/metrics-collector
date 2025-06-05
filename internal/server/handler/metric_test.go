@@ -2,18 +2,19 @@ package handler
 
 import (
 	"bytes"
-	"github.com/golang/mock/gomock"
-	"github.com/ktigay/metrics-collector/internal/metric"
-	"github.com/ktigay/metrics-collector/internal/server/handler/mocks"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/golang/mock/gomock"
 	"github.com/gorilla/mux"
+	"github.com/ktigay/metrics-collector/internal/metric"
+	"github.com/ktigay/metrics-collector/internal/server/handler/mocks"
 	"github.com/ktigay/metrics-collector/internal/server/repository"
 	"github.com/ktigay/metrics-collector/internal/server/service"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 )
 
 func TestServer_CollectHandler(t *testing.T) {
@@ -115,7 +116,7 @@ func TestServer_CollectHandler(t *testing.T) {
 			mockCtrl := gomock.NewController(t)
 			defer mockCtrl.Finish()
 
-			h := NewMetricHandler(tt.collector(mockCtrl))
+			h := NewMetricHandler(tt.collector(mockCtrl), zap.NewNop().Sugar())
 
 			router := mux.NewRouter()
 			router.Use(func(next http.Handler) http.Handler {
@@ -140,8 +141,8 @@ func TestServer_CollectHandler(t *testing.T) {
 
 func TestServer_UpdateJSONHandler(t *testing.T) {
 	newCollector := func() *service.MetricCollector {
-		st, _ := repository.NewMemRepository(nil)
-		return service.NewMetricCollector(st)
+		st, _ := repository.NewMemRepository(nil, zap.NewNop().Sugar())
+		return service.NewMetricCollector(st, zap.NewNop().Sugar())
 	}
 
 	type fields struct {
@@ -193,6 +194,7 @@ func TestServer_UpdateJSONHandler(t *testing.T) {
 							},
 						},
 					},
+					zap.NewNop().Sugar(),
 				),
 			},
 			args: args{
@@ -259,6 +261,7 @@ func TestServer_UpdateJSONHandler(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			h := NewMetricHandler(
 				tt.fields.collector,
+				zap.NewNop().Sugar(),
 			)
 
 			srv := httptest.NewServer(http.HandlerFunc(h.UpdateJSONHandler))
@@ -286,8 +289,9 @@ func TestServer_UpdateJSONHandler(t *testing.T) {
 
 func TestServer_GetJSONValueHandler(t *testing.T) {
 	newCollector := func() *service.MetricCollector {
-		st, _ := repository.NewMemRepository(nil)
-		return service.NewMetricCollector(st)
+		logger := zap.NewNop().Sugar()
+		st, _ := repository.NewMemRepository(nil, logger)
+		return service.NewMetricCollector(st, logger)
 	}
 
 	type fields struct {
@@ -323,6 +327,7 @@ func TestServer_GetJSONValueHandler(t *testing.T) {
 							},
 						},
 					},
+					zap.NewNop().Sugar(),
 				),
 			},
 			args: args{
@@ -350,6 +355,7 @@ func TestServer_GetJSONValueHandler(t *testing.T) {
 							},
 						},
 					},
+					zap.NewNop().Sugar(),
 				),
 			},
 			args: args{
@@ -432,6 +438,7 @@ func TestServer_GetJSONValueHandler(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			h := NewMetricHandler(
 				tt.fields.collector,
+				zap.NewNop().Sugar(),
 			)
 
 			srv := httptest.NewServer(http.HandlerFunc(h.GetJSONValueHandler))
@@ -459,8 +466,9 @@ func TestServer_GetJSONValueHandler(t *testing.T) {
 
 func TestMetricHandler_UpdatesJSONHandler(t *testing.T) {
 	newCollector := func() *service.MetricCollector {
-		st, _ := repository.NewMemRepository(nil)
-		return service.NewMetricCollector(st)
+		logger := zap.NewNop().Sugar()
+		st, _ := repository.NewMemRepository(nil, logger)
+		return service.NewMetricCollector(st, logger)
 	}
 	type fields struct {
 		collector CollectorInterface
@@ -574,6 +582,7 @@ func TestMetricHandler_UpdatesJSONHandler(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			h := NewMetricHandler(
 				tt.fields.collector,
+				zap.NewNop().Sugar(),
 			)
 			srv := httptest.NewServer(http.HandlerFunc(h.UpdatesJSONHandler))
 			defer srv.Close()

@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/ktigay/metrics-collector/internal/log"
 	"github.com/ktigay/metrics-collector/internal/server/repository"
 	"go.uber.org/zap"
 )
@@ -15,11 +14,15 @@ import (
 // FileMetricSnapshot структура для сохранения снапшота в файле.
 type FileMetricSnapshot struct {
 	filePath string
+	logger   *zap.SugaredLogger
 }
 
 // NewFileMetricSnapshot конструктор.
-func NewFileMetricSnapshot(filePath string) *FileMetricSnapshot {
-	return &FileMetricSnapshot{filePath: filePath}
+func NewFileMetricSnapshot(filePath string, logger *zap.SugaredLogger) *FileMetricSnapshot {
+	return &FileMetricSnapshot{
+		filePath: filePath,
+		logger:   logger,
+	}
 }
 
 // Read чтение снапшота из файла.
@@ -34,7 +37,7 @@ func (f *FileMetricSnapshot) Read() ([]repository.MetricEntity, error) {
 	}
 	defer func() {
 		if err = file.Close(); err != nil {
-			log.AppLogger.Error("snapshot.Read error", zap.Error(err))
+			f.logger.Error("snapshot.Read error", zap.Error(err))
 		}
 	}()
 	all := make([]repository.MetricEntity, 0)
@@ -61,7 +64,7 @@ func (f *FileMetricSnapshot) Write(entities []repository.MetricEntity) error {
 		return err
 	}
 
-	writer, err := NewAtomicFileWriter(f.filePath)
+	writer, err := NewAtomicFileWriter(f.filePath, f.logger)
 	if err != nil {
 		return err
 	}

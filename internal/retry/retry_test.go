@@ -1,7 +1,6 @@
 package retry
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -11,74 +10,98 @@ import (
 func TestRetWithDelays(t *testing.T) {
 	type args struct {
 		handler DelayHandler
-		delays  []time.Duration
+		options []Options
 	}
 	tests := []struct {
 		name      string
 		args      args
 		wantTries int
-		wantErr   bool
+		wantSleep time.Duration
 	}{
 		{
 			name: "Fist_call_success",
 			args: args{
-				handler: func(_ RetPolicy) error {
-					return nil
+				handler: func(_ Policy) bool {
+					return true
 				},
-				delays: []time.Duration{
-					1 * time.Second,
+				options: []Options{
+					WithDelays([]time.Duration{
+						1 * time.Second,
+						1 * time.Second,
+						1 * time.Second,
+					}),
 				},
 			},
 			wantTries: 1,
-			wantErr:   false,
+			wantSleep: 0,
 		},
 		{
-			name: "Retries_with_error",
+			name: "Retries_with_max_tries",
 			args: args{
-				handler: func(_ RetPolicy) error {
-					return fmt.Errorf("some error")
+				handler: func(_ Policy) bool {
+					return false
 				},
-				delays: []time.Duration{
-					10 * time.Millisecond,
-					10 * time.Millisecond,
-					10 * time.Millisecond,
-					10 * time.Millisecond,
+				options: []Options{
+					WithDelays([]time.Duration{
+						10 * time.Millisecond,
+						20 * time.Millisecond,
+						30 * time.Millisecond,
+						40 * time.Millisecond,
+					}),
 				},
 			},
 			wantTries: 5,
-			wantErr:   true,
+			wantSleep: 100 * time.Millisecond,
 		},
 		{
 			name: "Retries_with_skip",
 			args: args{
-				handler: func(policy RetPolicy) error {
-					if policy.Retries() == 1 {
-						policy.SetSkip(true)
-					}
-					return fmt.Errorf("some error")
+				handler: func(policy Policy) bool {
+					return policy.RetIndex() == 1
 				},
-				delays: []time.Duration{
-					10 * time.Millisecond,
-					10 * time.Millisecond,
-					10 * time.Millisecond,
-					10 * time.Millisecond,
+				options: []Options{
+					WithDelays([]time.Duration{
+						10 * time.Millisecond,
+						20 * time.Millisecond,
+						30 * time.Millisecond,
+					}),
 				},
 			},
 			wantTries: 2,
-			wantErr:   true,
+			wantSleep: 10 * time.Millisecond,
+		},
+		{
+			name: "Retries_with_retries_count",
+			args: args{
+				handler: func(policy Policy) bool {
+					return false
+				},
+				options: []Options{
+					WithRetries(5),
+					WithDelays([]time.Duration{
+						10 * time.Millisecond,
+						40 * time.Millisecond,
+					}),
+				},
+			},
+			wantTries: 5,
+			wantSleep: 130 * time.Millisecond,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var tries int
-			handler := func(policy RetPolicy) error {
-				tries++
+			var execCount int
+			handler := func(policy Policy) bool {
+				execCount++
 				return tt.args.handler(policy)
 			}
-			if err := RetWithDelays(handler, NewDefaultRetPolicy(tt.args.delays)); (err != nil) != tt.wantErr {
-				t.Errorf("RetWithDelays() error = %v, wantErr %v", err, tt.wantErr)
-			}
-			assert.Equal(t, tt.wantTries, tries)
+
+			start := time.Now()
+			Ret(handler, tt.args.options...)
+			elapsed := time.Since(start)
+
+			assert.Equal(t, tt.wantTries, execCount)
+			assert.Greater(t, elapsed, tt.wantSleep)
 		})
 	}
 }

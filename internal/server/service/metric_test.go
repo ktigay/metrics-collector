@@ -7,6 +7,7 @@ import (
 	"github.com/ktigay/metrics-collector/internal/metric"
 	"github.com/ktigay/metrics-collector/internal/server/repository"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 )
 
 func TestMetricCollector_Save(t *testing.T) {
@@ -92,9 +93,12 @@ func TestMetricCollector_Save(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := NewMetricCollector(&repository.MemMetricRepository{
-				Metrics: tt.fields.metrics,
-			})
+			c := NewMetricCollector(
+				&repository.MemMetricRepository{
+					Metrics: tt.fields.metrics,
+				},
+				zap.NewNop().Sugar(),
+			)
 
 			for _, m := range tt.args.m {
 				_ = c.Save(context.Background(), m)
