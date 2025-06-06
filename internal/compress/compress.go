@@ -1,3 +1,4 @@
+// Package compress Работа со сжатыми данными.
 package compress
 
 import "strings"
@@ -38,4 +39,9 @@ func TypeFromString(str string) Type {
 		}
 	}
 	return ""
+}
+
+// Logger логгер.
+type Logger interface {
+	Errorf(string, ...interface{})
 }

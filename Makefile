@@ -1,13 +1,13 @@
-PROJECT_NAME=metrics-collector
+PROJECT_NAME:=metrics-collector
+
+SHELL := /bin/bash
+CURRENT_UID := $(shell id -u)
+CURRENT_GID := $(shell id -g)
 
 AGENT_PATH=./cmd/agent/agent
 SERVER_PATH=./cmd/server/server
 TEMP_FILE=/tmp/metric_storage.txt
 TEST_SERVER_PORT=\$$(random unused-port)
-
-SHELL := /bin/bash
-CURRENT_UID := $(shell id -u)
-CURRENT_GID := $(shell id -g)
 
 # локальный, внешний порт.
 LOCAL_PORT=4001
@@ -17,10 +17,13 @@ SRV_PORT=8080
 SRV_LISTEN=:$(SRV_PORT)
 # адрес, по которому стучится агент.
 SRV_ADDR=server:$(SRV_PORT)
+# dsn к postgres
+DATABASE_DSN=postgres://postgres:postgres@192.168.1.46:5430/praktikum?sslmode=disable
 
 COMPOSE := export PROJECT_NAME=$(PROJECT_NAME) CURRENT_UID=$(CURRENT_UID) \
  		   CURRENT_GID=$(CURRENT_GID) SRV_LISTEN=$(SRV_LISTEN) SRV_PORT=$(SRV_PORT) \
- 		   LOCAL_PORT=$(LOCAL_PORT) SRV_ADDR=$(SRV_ADDR) && cd docker &&
+ 		   LOCAL_PORT=$(LOCAL_PORT) SRV_ADDR=$(SRV_ADDR) DATABASE_DSN=$(DATABASE_DSN) && cd docker && \
+ 		   docker compose -p $(PROJECT_NAME)
 
 DOCKER_RUN := cd docker && docker run --rm -v ${PWD}:/app -it $(PROJECT_NAME)-app
 
@@ -29,15 +32,15 @@ build-local:
 	go build -o $(AGENT_PATH) ./cmd/agent/*.go
 
 build:
-	$(COMPOSE) docker compose -f docker-compose.build.yml build app
+	$(COMPOSE) -f docker-compose.build.yml build app
 
 go-build-server:
 	cd docker && docker run --rm -v ${PWD}:/app -it $(PROJECT_NAME)-app \
-	go build -gcflags "all=-N -l" -o /app/cmd/server/server -tags dynamic /app/cmd/server/
+	go build -gcflags "all=-N -l" -o /app/cmd/server/server /app/cmd/server/
 
 go-build-agent:
 	cd docker && docker run --rm -v ${PWD}:/app -it $(PROJECT_NAME)-app \
-	go build -gcflags "all=-N -l" -o /app/cmd/agent/agent -tags dynamic /app/cmd/agent/
+	go build -gcflags "all=-N -l" -o /app/cmd/agent/agent /app/cmd/agent/
 
 run-test: \
 	go-build-server \
@@ -68,40 +71,61 @@ run-test-a: \
 	run-test-a6 \
 	run-test-a7 \
 	run-test-a8 \
+	run-test-a9 \
+	run-test-a10 \
+	run-test-a11 \
+	run-test-a12 \
+	run-test-a13 \
+
+define test_cmd
+	$(DOCKER_RUN)  sh -c "metricstest -test.v -test.run=^TestIteration$(1)$$ -source-path=. -agent-binary-path=$(AGENT_PATH) -binary-path=$(SERVER_PATH)$(2)"
+endef
 
 run-test-a1:
-	$(DOCKER_RUN) sh -c "metricstest -test.v -test.run=^TestIteration1$$ -binary-path=$(SERVER_PATH)"
+	$(call test_cmd,1)
 run-test-a2:
-	$(DOCKER_RUN) sh -c "metricstest -test.v -test.run=^TestIteration2[AB]*$$ -source-path=. -agent-binary-path=$(AGENT_PATH)"
+	$(call test_cmd,2[AB])
 run-test-a3:
-	$(DOCKER_RUN)  sh -c "metricstest -test.v -test.run=^TestIteration3[AB]*$$ -source-path=. -agent-binary-path=$(AGENT_PATH) -binary-path=$(SERVER_PATH)"
+	$(call test_cmd,3[AB]*)
 run-test-a4:
-	$(DOCKER_RUN)  sh -c "metricstest -test.v -test.run=^TestIteration4$$ -agent-binary-path=$(AGENT_PATH) -binary-path=$(SERVER_PATH) -server-port=$(TEST_SERVER_PORT) -source-path=."
+	$(call test_cmd,4, -server-port=$(TEST_SERVER_PORT))
 run-test-a5:
-	$(DOCKER_RUN)  sh -c "metricstest -test.v -test.run=^TestIteration5$$ -agent-binary-path=$(AGENT_PATH) -binary-path=$(SERVER_PATH) -server-port=$(TEST_SERVER_PORT) -source-path=."
+	$(call test_cmd,5, -server-port=$(TEST_SERVER_PORT))
 run-test-a6:
-	$(DOCKER_RUN)  sh -c "metricstest -test.v -test.run=^TestIteration6$$ -agent-binary-path=$(AGENT_PATH) -binary-path=$(SERVER_PATH) -server-port=$(TEST_SERVER_PORT) -source-path=."
+	$(call test_cmd,6, -server-port=$(TEST_SERVER_PORT))
 run-test-a7:
-	$(DOCKER_RUN)  sh -c "metricstest -test.v -test.run=^TestIteration7$$ -agent-binary-path=$(AGENT_PATH) -binary-path=$(SERVER_PATH) -server-port=$(TEST_SERVER_PORT) -source-path=."
+	$(call test_cmd,7, -server-port=$(TEST_SERVER_PORT))
 run-test-a8:
-	$(DOCKER_RUN)  sh -c "metricstest -test.v -test.run=^TestIteration8$$ -agent-binary-path=$(AGENT_PATH) -binary-path=$(SERVER_PATH) -server-port=$(TEST_SERVER_PORT) -source-path=."
+	$(call test_cmd,8, -server-port=$(TEST_SERVER_PORT))
 run-test-a9:
-	$(DOCKER_RUN)  sh -c "metricstest -test.v -test.run=^TestIteration9$$ -agent-binary-path=$(AGENT_PATH) -binary-path=$(SERVER_PATH) -server-port=$(TEST_SERVER_PORT) -source-path=. -file-storage-path=$(TEMP_FILE)"
+	$(call test_cmd,9, -server-port=$(TEST_SERVER_PORT) -file-storage-path=$(TEMP_FILE))
+run-test-a10:
+	$(call test_cmd,10[AB], -server-port=$(TEST_SERVER_PORT) -file-storage-path=$(TEMP_FILE) -database-dsn='$(DATABASE_DSN)')
+run-test-a11:
+	$(call test_cmd,11, -server-port=$(TEST_SERVER_PORT) -file-storage-path=$(TEMP_FILE) -database-dsn='$(DATABASE_DSN)')
+run-test-a12:
+	$(call test_cmd,12, -server-port=$(TEST_SERVER_PORT) -file-storage-path=$(TEMP_FILE) -database-dsn='$(DATABASE_DSN)')
+run-test-a13:
+	$(call test_cmd,13, -server-port=$(TEST_SERVER_PORT) -file-storage-path=$(TEMP_FILE) -database-dsn='$(DATABASE_DSN)')
 
 up: \
+	up-db \
 	up-server \
 	up-agent \
 
 up-server: \
 	go-build-server
-	$(COMPOSE) docker compose up -d server
+	$(COMPOSE) up -d server
 
 up-agent: \
 	go-build-agent
-	$(COMPOSE) docker compose up -d agent
+	$(COMPOSE) up -d agent
+
+up-db:
+	$(COMPOSE) up -d postgres
 
 down:
-	$(COMPOSE) docker compose down server agent
+	$(COMPOSE) down server agent postgres
 
 update-tpl:
 	# git remote add -m main template https://github.com/Yandex-Practicum/go-musthave-metrics-tpl.git
