@@ -73,7 +73,7 @@ func main() {
 	ph := handler.NewPingHandler(dbPool, logger)
 	router = mux.NewRouter()
 
-	regMiddleware(router, logger)
+	regMiddleware(router, logger, config.HashKey)
 
 	regMetricRoutes(router, mh)
 	regPingRoutes(router, ph)
@@ -121,11 +121,14 @@ func main() {
 	logger.Debug("program exited")
 }
 
-func regMiddleware(router *mux.Router, logger *zap.SugaredLogger) {
+func regMiddleware(router *mux.Router, logger *zap.SugaredLogger, hashKey string) {
 	router.Use(
+		middleware.WithBufferedWriter(hashKey),
 		middleware.WithContentType,
 		middleware.CompressHandler(logger),
+		middleware.CheckSumRequestHandler(logger, hashKey),
 		middleware.WithLogging(logger),
+		middleware.FlushBufferedWriter,
 	)
 }
 

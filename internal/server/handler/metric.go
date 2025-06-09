@@ -69,8 +69,6 @@ func (mh *MetricHandler) CollectHandler(w http.ResponseWriter, r *http.Request) 
 		w.WriteHeader(statusFromError(err))
 		return
 	}
-
-	w.WriteHeader(http.StatusOK)
 }
 
 // GetValueHandler обработчик для получения значения метрики.
@@ -87,8 +85,6 @@ func (mh *MetricHandler) GetValueHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-
 	if _, err = fmt.Fprintf(w, "%v", m.ValueByType()); err != nil {
 		mh.logger.Errorln("Failed to write response", zap.Error(err))
 	}
@@ -103,8 +99,6 @@ func (mh *MetricHandler) GetAllHandler(w http.ResponseWriter, r *http.Request) {
 	for _, m := range metrics {
 		names = append(names, m.Name)
 	}
-
-	w.WriteHeader(http.StatusOK)
 
 	if err := json.NewEncoder(w).Encode(names); err != nil {
 		mh.logger.Errorln("Failed to write response", zap.Error(err))
@@ -144,8 +138,6 @@ func (mh *MetricHandler) UpdateJSONHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-
 	if err = json.NewEncoder(w).Encode(mm); err != nil {
 		mh.logger.Errorln("Failed to write response", zap.Error(err))
 	}
@@ -175,8 +167,6 @@ func (mh *MetricHandler) UpdatesJSONHandler(w http.ResponseWriter, r *http.Reque
 		w.WriteHeader(statusFromError(err))
 		return
 	}
-
-	w.WriteHeader(http.StatusOK)
 }
 
 // GetJSONValueHandler возвращает структуру в виде json-строки.
@@ -204,8 +194,6 @@ func (mh *MetricHandler) GetJSONValueHandler(w http.ResponseWriter, r *http.Requ
 		w.WriteHeader(statusFromError(err))
 		return
 	}
-
-	w.WriteHeader(http.StatusOK)
 
 	if err = json.NewEncoder(w).Encode(mm); err != nil {
 		mh.logger.Errorln("Failed to write response", zap.Error(err))
