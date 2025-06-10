@@ -46,7 +46,7 @@ func InitializeConfig(args []string) (*Config, error) {
 	flags := flag.NewFlagSet("server flags", flag.ContinueOnError)
 
 	flags.StringVar(&config.ServerHost, "a", defaultServerHost, "address and port to run server")
-	flags.StringVar(&config.LogLevel, "l", defaultLogLevel, "log level")
+	flags.StringVar(&config.LogLevel, "lvl", defaultLogLevel, "log level")
 	flags.IntVar(&config.StoreInterval, "i", defaultStoreInterval, "storage interval in seconds")
 	flags.StringVar(&config.FileStoragePath, "f", defaultFileStoragePath, "file storage path")
 	flags.BoolVar(&config.Restore, "r", defaultRestoreFlag, "restore data from storage")

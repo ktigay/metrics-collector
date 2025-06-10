@@ -4,43 +4,30 @@ import (
 	"context"
 	"testing"
 
-	"github.com/ktigay/metrics-collector/internal/metric"
-	"github.com/stretchr/testify/assert"
+	"github.com/golang/mock/gomock"
+	"github.com/ktigay/metrics-collector/internal/client/collector/mocks"
 )
 
 func TestRuntimeMetricCollector_PollStat(t *testing.T) {
-	type fields struct {
-		counter int64
-		stat    MetricCollectDTO
-	}
 	tests := []struct {
-		name   string
-		fields fields
-		want   int64
+		name string
 	}{
 		{
 			name: "Positive_test",
-			fields: fields{
-				stat: MetricCollectDTO{
-					MemStats: map[metric.GaugeMetric]float64{},
-					Rand:     1222.222,
-				},
-				counter: 12,
-			},
-			want: 13,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			mockCtrl := gomock.NewController(t)
+			storage := mocks.NewMockStorageInterface(mockCtrl)
+
+			storage.EXPECT().Save(gomock.All()).Times(1)
+
 			c := &RuntimeMetricCollector{
-				counter: tt.fields.counter,
-				stat:    tt.fields.stat,
+				storage: storage,
 			}
 
 			c.PollStat(context.TODO())
-
-			assert.Equal(t, tt.want, c.counter)
-			assert.Equal(t, tt.want, c.GetStat().Counter)
 		})
 	}
 }

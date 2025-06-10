@@ -43,27 +43,32 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	cl := collector.NewRuntimeMetricCollector()
-	clPoller := collector.NewIntervalPoller(cl, time.Duration(config.PollInterval)*time.Second, logger)
+	storage := collector.NewStorage(logger)
+	cl := collector.NewRuntimeMetricCollector(storage)
+	rnPoller := collector.NewIntervalPoller(cl, time.Duration(config.PollInterval)*time.Second, logger)
+
+	gp := collector.NewGopsUtilCollector(storage)
+	gpPoller := collector.NewIntervalPoller(gp, time.Duration(config.PollInterval)*time.Second, logger)
 
 	t := transport.NewHTTPClient(config.ServerProtocol+"://"+config.ServerHost, config.HashKey, logger)
-	sn := sender.NewMetricSender(t, config.BatchEnabled)
+	sn := sender.NewMetricSender(t, config.BatchEnabled, config.RateLimit, logger)
 
-	statService := service.NewStatService(cl, sn, time.Duration(config.ReportInterval)*time.Second, logger)
+	statService := service.NewStatService(storage, sn, time.Duration(config.ReportInterval)*time.Second, logger)
 
 	var wg sync.WaitGroup
+	tasks := []func(context.Context){
+		rnPoller.PollStat,
+		gpPoller.PollStat,
+		statService.SendStat,
+	}
 
-	wg.Add(1)
-	go func() {
-		clPoller.PollStat(ctx)
-		wg.Done()
-	}()
-
-	wg.Add(1)
-	go func() {
-		statService.SendStat(ctx)
-		wg.Done()
-	}()
+	for _, task := range tasks {
+		wg.Add(1)
+		go func() {
+			task(ctx)
+			wg.Done()
+		}()
+	}
 
 	wg.Wait()
 

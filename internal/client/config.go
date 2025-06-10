@@ -16,6 +16,7 @@ const (
 	defaultServerProtocol = "http"
 	defaultBatchEnabled   = false
 	defaultHashKey        = ""
+	defaultRateLimit      = 1
 )
 
 // Config конфигурация клиента.
@@ -27,6 +28,7 @@ type Config struct {
 	LogLevel       string `env:"LOG_LEVEL"`
 	BatchEnabled   bool   `env:"BATCH_ENABLED"`
 	HashKey        string `env:"KEY"`
+	RateLimit      int    `env:"RATE_LIMIT"`
 }
 
 // InitializeConfig инициализирует конфиг клиента.
@@ -38,11 +40,12 @@ func InitializeConfig(args []string) (*Config, error) {
 	flags := flag.NewFlagSet("agent flags", flag.ContinueOnError)
 
 	flags.StringVar(&config.ServerHost, "a", defaultServerHost, "address and port to run server")
-	flags.StringVar(&config.LogLevel, "l", defaultLogLevel, "log level")
+	flags.StringVar(&config.LogLevel, "lvl", defaultLogLevel, "log level")
 	flags.IntVar(&config.ReportInterval, "r", defaultReportInterval, "interval between reports")
 	flags.IntVar(&config.PollInterval, "p", defaultPollInterval, "interval between polls")
 	flags.BoolVar(&config.BatchEnabled, "b", defaultBatchEnabled, "enable batchEnabled request")
 	flags.StringVar(&config.HashKey, "k", defaultHashKey, "SHA256 hash key")
+	flags.IntVar(&config.RateLimit, "l", defaultRateLimit, "requests rate limit")
 
 	if err := flags.Parse(args); err != nil {
 		return nil, err

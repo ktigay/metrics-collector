@@ -3,28 +3,27 @@ package collector
 
 import (
 	"context"
-	"math/rand/v2"
 	"runtime"
 
+	_ "github.com/golang/mock/mockgen/model"
 	"github.com/ktigay/metrics-collector/internal/metric"
 )
 
-// RuntimeMetricCollector сборщик метрик.
-type RuntimeMetricCollector struct {
-	counter int64
-	stat    MetricCollectDTO
+//go:generate mockgen -destination=./mocks/mock_storage.go -package=mocks github.com/ktigay/metrics-collector/internal/client/collector StorageInterface
+type StorageInterface interface {
+	Save(metrics []metric.Metrics)
 }
 
-// MetricCollectDTO DTO.
-type MetricCollectDTO struct {
-	MemStats map[metric.GaugeMetric]float64
-	Counter  int64
-	Rand     float64
+// RuntimeMetricCollector сборщик метрик.
+type RuntimeMetricCollector struct {
+	storage StorageInterface
 }
 
 // NewRuntimeMetricCollector конструктор.
-func NewRuntimeMetricCollector() *RuntimeMetricCollector {
-	return &RuntimeMetricCollector{}
+func NewRuntimeMetricCollector(storage *Storage) *RuntimeMetricCollector {
+	return &RuntimeMetricCollector{
+		storage: storage,
+	}
 }
 
 // PollStat собирает метрики.
@@ -32,16 +31,16 @@ func (c *RuntimeMetricCollector) PollStat(_ context.Context) {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 
-	c.counter++
-
-	c.stat = MetricCollectDTO{
-		MemStats: metric.MapGaugeFromMemStats(m),
-		Counter:  c.counter,
-		Rand:     rand.Float64(),
+	gaugeMap := metric.MapGaugeFromMemStats(m)
+	metrics := make([]metric.Metrics, 0, len(gaugeMap))
+	typeGauge := string(metric.TypeGauge)
+	for k, v := range gaugeMap {
+		metrics = append(metrics, metric.Metrics{
+			ID:    string(k),
+			MType: typeGauge,
+			Value: &v,
+		})
 	}
-}
 
-// GetStat возвращает метрики.
-func (c *RuntimeMetricCollector) GetStat() MetricCollectDTO {
-	return c.stat
+	c.storage.Save(metrics)
 }

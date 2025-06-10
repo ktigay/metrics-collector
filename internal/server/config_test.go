@@ -83,7 +83,7 @@ func TestInitializeConfig(t *testing.T) {
 			args: args{
 				args: []string{
 					"-a=localhost:1001",
-					"-l=info",
+					"-lvl=info",
 					"-i=123",
 					"-f=/tmp/restore-args.txt",
 					"-r=0",
@@ -105,7 +105,7 @@ func TestInitializeConfig(t *testing.T) {
 			args: args{
 				args: []string{
 					"-a=localhost:1001",
-					"-l=info",
+					"-lvl=info",
 					"-i=123",
 					"-f=/tmp/restore-args.txt",
 					"-r=0",
