@@ -1,42 +1,17 @@
 package compress
 
 import (
-	"bytes"
 	"compress/gzip"
 	"compress/zlib"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 
 	"github.com/andybalholm/brotli"
+	cerr "github.com/ktigay/metrics-collector/internal/compress/errors"
 )
-
-// Writer структура для записи сжатых данных.
-type Writer struct {
-	cmp io.WriteCloser
-}
-
-// NewWriter конструктор.
-func NewWriter(t Type, bb *bytes.Buffer) (*Writer, error) {
-	cmp, err := compressor(t, bb)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Writer{
-		cmp: cmp,
-	}, nil
-}
-
-// Write запись.
-func (w *Writer) Write(b []byte) (int, error) {
-	return w.cmp.Write(b)
-}
-
-// Close закрытие.
-func (w *Writer) Close() error {
-	return w.cmp.Close()
-}
 
 // HTTPWriter структура для обработки сжатия ответа.
 type HTTPWriter struct {
@@ -85,6 +60,26 @@ func (c *HTTPWriter) Close() error {
 	return c.compressor.Close()
 }
 
+// JSON сжатие json структуры.
+func JSON(t Type, w io.Writer, i any, logger Logger) error {
+	var (
+		cmp io.WriteCloser
+		err error
+	)
+	if cmp, err = compressor(t, w); err != nil {
+		return err
+	}
+	defer func() {
+		if e := cmp.Close(); e != nil && !errors.Is(e, io.ErrClosedPipe) {
+			logger.Errorf("JSON compressor close error: %v", e)
+		}
+	}()
+	if err = json.NewEncoder(cmp).Encode(i); err != nil {
+		return err
+	}
+	return nil
+}
+
 func compressor(t Type, w io.Writer) (io.WriteCloser, error) {
 	switch t {
 	case Gzip:
@@ -94,5 +89,8 @@ func compressor(t Type, w io.Writer) (io.WriteCloser, error) {
 	case Br:
 		return brotli.NewWriter(w), nil
 	}
-	return nil, fmt.Errorf("unsupported compress type: %v", t)
+	return nil, &cerr.UnsupportedTypeError{
+		Type:    t.String(),
+		Message: fmt.Sprintf("unsupported compress type: %v", t),
+	}
 }

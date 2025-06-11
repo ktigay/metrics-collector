@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/ktigay/metrics-collector/internal/log"
+	"go.uber.org/zap"
 )
 
 // Encoder интерфейс энкодера.
@@ -21,10 +21,11 @@ type AtomicFileWriter struct {
 	filePath string
 	writer   *bufio.Writer
 	encoder  Encoder
+	logger   *zap.SugaredLogger
 }
 
 // NewAtomicFileWriter конструктор.
-func NewAtomicFileWriter(filePath string) (*AtomicFileWriter, error) {
+func NewAtomicFileWriter(filePath string, logger *zap.SugaredLogger) (*AtomicFileWriter, error) {
 	tmp, err := os.CreateTemp(tempDir(filePath), "atomic-*")
 	if err != nil {
 		return nil, err
@@ -35,6 +36,7 @@ func NewAtomicFileWriter(filePath string) (*AtomicFileWriter, error) {
 		tmpFile:  tmp,
 		writer:   writer,
 		encoder:  defaultEncoder(writer),
+		logger:   logger,
 	}, nil
 }
 
@@ -86,10 +88,10 @@ func (a *AtomicFileWriter) Close() (err error) {
 func (a *AtomicFileWriter) onError() {
 	if a.tmpFile != nil {
 		if err := a.tmpFile.Close(); err != nil {
-			log.AppLogger.Errorf("failed to close tmp file: %v", err)
+			a.logger.Errorf("failed to close tmp file: %v", err)
 		}
 		if err := os.Remove(a.tmpFile.Name()); err != nil {
-			log.AppLogger.Errorf("failed to remove tmp file: %v", err)
+			a.logger.Errorf("failed to remove tmp file: %v", err)
 		}
 	}
 }

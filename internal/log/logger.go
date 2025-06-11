@@ -1,3 +1,4 @@
+// Package log Логгер.
 package log
 
 import (
@@ -7,14 +8,11 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-// AppLogger глобальный логгер.
-var AppLogger = *zap.NewNop().Sugar()
-
 // Initialize инициализация глобального логгера.
-func Initialize(level string) error {
+func Initialize(level string) (*zap.SugaredLogger, error) {
 	lvl, err := zap.ParseAtomicLevel(level)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	encoderConfig := zap.NewDevelopmentEncoderConfig()
@@ -27,9 +25,8 @@ func Initialize(level string) error {
 
 	var logger *zap.Logger
 	if logger, err = cfg.Build(); err != nil {
-		return err
+		return nil, err
 	}
 
-	AppLogger = *logger.Sugar()
-	return nil
+	return logger.Sugar(), nil
 }

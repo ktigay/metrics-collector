@@ -1,0 +1,193 @@
+# https://taskfile.dev
+
+version: '3'
+
+env:
+  # проект
+  PROJECT_NAME: metrics-collector
+  # пользователь
+  CURRENT_UID:
+    sh: id -u
+  # группа пользователя
+  CURRENT_GID:
+    sh: id -g
+  # локальный, внешний порт.
+  LOCAL_PORT: 4001
+  # внутренний порт сервера.
+  SRV_PORT: 8080
+  # адрес, который слушает сервер.
+  SRV_LISTEN: :8080
+  # адрес, по которому стучится агент.
+  SRV_ADDR: server:8080
+  # dsn к postgres
+  DATABASE_DSN: postgres://postgres:postgres@192.168.1.46:5430/praktikum?sslmode=disable
+
+vars:
+  PROJECT_NAME:
+    ref: .PROJECT_NAME
+  AGENT_PATH: ./cmd/agent/agent
+  SERVER_PATH: ./cmd/server/server
+  TEMP_FILE: /tmp/metric_storage.txt
+  TEST_SERVER_PORT: \$(random unused-port)
+  DATABASE_DSN:
+    ref: .DATABASE_DSN
+  AUTOTESTS_LIST: [1, "2[AB]", "3[AB]", 4, 5, 6, 7, 8, 9, "10[AB]", 11, 12, 13]
+
+tasks:
+  default:
+    - task: run-test
+
+  build:
+    desc: Билд образов docker
+    dir: ./docker
+    cmds:
+      - docker compose -f docker-compose.build.yml build app
+
+  docker-run:*:
+    desc: Запускает команду под докером
+    dir: ./docker
+    cmds:
+      - docker run --rm -v {{.USER_WORKING_DIR}}:/app -it {{.PROJECT_NAME}}-app {{index .MATCH 0}}
+
+  gen-local:
+    desc: Генерит моки локально
+    run: once
+    cmds:
+      - go generate ./...
+
+  go-build-local:
+    desc: Локальный билд бинарников
+    deps:
+      - gen-local
+    run: when_changed
+    cmds:
+      - go build -gcflags "all=-N -l" -o {{.SERVER_PATH}} ./cmd/server/*.go
+      - go build -gcflags "all=-N -l" -o {{.AGENT_PATH}} ./cmd/agent/*.go
+    sources:
+      - ./**/*.go
+      - ./internal/**/*.go
+      - ./internal/client/**/*.go
+      - ./internal/server/**/*.go
+      - ./cmd/**/*.go
+    generates:
+      - ./cmd/server/server{{exeExt}}
+      - ./cmd/agent/agent{{exeExt}}
+
+  gen:
+    desc: Генерит моки из докера
+    run: once
+    deps:
+      - cs-fix
+    cmds:
+      - task: docker-run:go generate ./...
+
+  go-build-server:
+    desc: Билд сервера из докера
+    run: once
+    deps:
+      - cs-fix
+    cmds:
+      - task: docker-run:go build -gcflags "all=-N -l" -o /app/cmd/server/server /app/cmd/server/
+
+  go-build-agent:
+    desc: Билд агента из докера
+    run: once
+    deps:
+      - cs-fix
+    cmds:
+      - task: docker-run:go build -gcflags "all=-N -l" -o /app/cmd/agent/agent /app/cmd/agent/
+
+  run-test:
+    deps:
+      - go-build-server
+      - go-build-agent
+    cmds:
+      - task: run-test-a
+      - task: run-test-u
+      - task: run-test-s
+      - task: run-lint
+
+  run-test-u:
+    desc: Юнит тесты
+    cmds:
+      - task: docker-run:sh -c "go test ./..."
+
+  run-test-s:
+    desc: Статик тесты
+    cmds:
+      - task: docker-run:sh -c "go vet -vettool=\$(which statictest) ./..."
+
+  run-lint:
+    desc: Линтеры
+    cmds:
+      - task: docker-run:golangci-lint run
+
+  cs-fix:
+    run: once
+    desc: Форматирование стиля
+    cmds:
+      - task: docker-run:gofumpt -w -extra internal/ cmd/
+
+  run-test-a:
+    desc: Запускает все автотесты
+    vars:
+      tasks:
+        ref: .AUTOTESTS_LIST
+    cmds:
+      - for:
+          var: tasks
+        task: run-test-a:{{.ITEM}}
+
+  run-test-a:*:
+    desc: Запускает один автотест {{.AUTOTESTS_LIST}}
+    deps:
+      - go-build-server
+      - go-build-agent
+    cmds:
+      - task: docker-run:sh -c "metricstest -test.v -test.run=^TestIteration{{index .MATCH 0}}$ -source-path=. -agent-binary-path={{.AGENT_PATH}} -binary-path={{.SERVER_PATH}} -server-port={{.TEST_SERVER_PORT}} -file-storage-path={{.TEMP_FILE}} -database-dsn='{{.DATABASE_DSN}}'"
+
+  compose:*:
+    dir: ./docker
+    cmds:
+      - docker compose -p {{.PROJECT_NAME}} {{index .MATCH 0}}
+
+  up:
+    desc: Поднимает сервер, агент и БД
+    cmds:
+      - task: up-db
+      - task: up-server
+      - task: up-agent
+
+  up-server:
+    desc: Поднимает сервер
+    deps:
+      - go-build-server
+    cmds:
+      - task: compose:up -d server
+
+  up-agent:
+    desc: Поднимает агент
+    deps:
+      - go-build-agent
+    cmds:
+      - task: compose:up -d agent
+
+  up-db:
+    desc: Поднимает БД
+    cmds:
+      - task: compose:up -d postgres
+
+  down:
+    desc: Останавливает сервер, агент и БД
+    cmds:
+      - task: compose:down server agent postgres
+
+  down:*:
+    desc: Останавливает сервис
+    cmds:
+      - task: compose:down {{index .MATCH 0}}
+
+  update-tpl:
+    # git remote add -m main template https://github.com/Yandex-Practicum/go-musthave-metrics-tpl.git
+    cmds:
+      - git fetch template && git checkout template/main .github
