@@ -14,13 +14,15 @@ type HTTPClient struct {
 	url          string
 	compressType compress.Type
 	logger       *zap.SugaredLogger
+	hashKey      string
 }
 
 // NewHTTPClient конструктор.
-func NewHTTPClient(url string, logger *zap.SugaredLogger) *HTTPClient {
+func NewHTTPClient(url, hashKey string, logger *zap.SugaredLogger) *HTTPClient {
 	return &HTTPClient{
 		url:          url,
 		compressType: compress.Gzip,
+		hashKey:      hashKey,
 		logger:       logger,
 	}
 }
@@ -47,7 +49,8 @@ func (h *HTTPClient) send(url string, body any) ([]byte, error) {
 		url,
 		h.compressType,
 		body,
-		h.logger,
+		compress.WithHashKey(h.hashKey),
+		compress.WithLogger(h.logger),
 	); err != nil {
 		return nil, err
 	}

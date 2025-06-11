@@ -15,6 +15,7 @@ const (
 	defaultPollInterval   = 2
 	defaultServerProtocol = "http"
 	defaultBatchEnabled   = false
+	defaultHashKey        = ""
 )
 
 // Config конфигурация клиента.
@@ -25,6 +26,7 @@ type Config struct {
 	PollInterval   int    `env:"POLL_INTERVAL"`
 	LogLevel       string `env:"LOG_LEVEL"`
 	BatchEnabled   bool   `env:"BATCH_ENABLED"`
+	HashKey        string `env:"KEY"`
 }
 
 // InitializeConfig инициализирует конфиг клиента.
@@ -40,6 +42,7 @@ func InitializeConfig(args []string) (*Config, error) {
 	flags.IntVar(&config.ReportInterval, "r", defaultReportInterval, "interval between reports")
 	flags.IntVar(&config.PollInterval, "p", defaultPollInterval, "interval between polls")
 	flags.BoolVar(&config.BatchEnabled, "b", defaultBatchEnabled, "enable batchEnabled request")
+	flags.StringVar(&config.HashKey, "k", defaultHashKey, "SHA256 hash key")
 
 	if err := flags.Parse(args); err != nil {
 		return nil, err

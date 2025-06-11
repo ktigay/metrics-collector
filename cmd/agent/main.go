@@ -46,7 +46,7 @@ func main() {
 	cl := collector.NewRuntimeMetricCollector()
 	clPoller := collector.NewIntervalPoller(cl, time.Duration(config.PollInterval)*time.Second, logger)
 
-	t := transport.NewHTTPClient(config.ServerProtocol+"://"+config.ServerHost, logger)
+	t := transport.NewHTTPClient(config.ServerProtocol+"://"+config.ServerHost, config.HashKey, logger)
 	sn := sender.NewMetricSender(t, config.BatchEnabled)
 
 	statService := service.NewStatService(cl, sn, time.Duration(config.ReportInterval)*time.Second, logger)
