@@ -15,6 +15,7 @@ const (
 	defaultRestoreFlag     = true
 	defaultDatabaseDSN     = ""
 	defaultDatabaseDriver  = "pgx"
+	defaultHashKey         = ""
 )
 
 // Config конфигурация сервера.
@@ -26,6 +27,7 @@ type Config struct {
 	Restore         bool   `env:"RESTORE"`
 	DatabaseDSN     string `env:"DATABASE_DSN"`
 	DatabaseDriver  string `env:"DATABASE_DRIVER"`
+	HashKey         string `env:"KEY"`
 }
 
 // IsUseSQLDB использовать БД SQL.
@@ -44,11 +46,12 @@ func InitializeConfig(args []string) (*Config, error) {
 	flags := flag.NewFlagSet("server flags", flag.ContinueOnError)
 
 	flags.StringVar(&config.ServerHost, "a", defaultServerHost, "address and port to run server")
-	flags.StringVar(&config.LogLevel, "l", defaultLogLevel, "log level")
+	flags.StringVar(&config.LogLevel, "lvl", defaultLogLevel, "log level")
 	flags.IntVar(&config.StoreInterval, "i", defaultStoreInterval, "storage interval in seconds")
 	flags.StringVar(&config.FileStoragePath, "f", defaultFileStoragePath, "file storage path")
 	flags.BoolVar(&config.Restore, "r", defaultRestoreFlag, "restore data from storage")
 	flags.StringVar(&config.DatabaseDSN, "d", defaultDatabaseDSN, "database DSN")
+	flags.StringVar(&config.HashKey, "k", defaultHashKey, "SHA256 hash key")
 
 	if err = flags.Parse(args); err != nil {
 		return nil, err

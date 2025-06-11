@@ -3,6 +3,8 @@ package middleware
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"io"
 	"net/http"
 	"strings"
@@ -15,6 +17,34 @@ import (
 )
 
 var acceptTypes = []string{"text/html", "application/json", "*/*"}
+
+func WithBufferedWriter(hashKey string) mux.MiddlewareFunc {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			rd := serverhttp.ResponseData{
+				Status: 0,
+				Size:   0,
+			}
+
+			sw := serverhttp.NewWriter(w, &rd, hashKey)
+			next.ServeHTTP(sw, r)
+		})
+	}
+}
+
+func FlushBufferedWriter(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		next.ServeHTTP(w, r)
+
+		if bw, ok := w.(*serverhttp.Writer); ok {
+			bw.Flush()
+			if err := bw.ResponseData().Err; err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+		}
+	})
+}
 
 // WithContentType устанавливает в ResponseWriter Content-Type.
 func WithContentType(next http.Handler) http.Handler {
@@ -30,12 +60,6 @@ func WithLogging(logger *zap.SugaredLogger) mux.MiddlewareFunc {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
 
-			rd := serverhttp.ResponseData{
-				Status: 0,
-				Size:   0,
-			}
-			lw := serverhttp.NewWriter(w, &rd)
-
 			b, _ := io.ReadAll(r.Body)
 			r.Body = io.NopCloser(bytes.NewBuffer(b))
 
@@ -44,17 +68,23 @@ func WithLogging(logger *zap.SugaredLogger) mux.MiddlewareFunc {
 				"requestURI", r.RequestURI,
 				"method", r.Method,
 				"body", string(b),
+				"headers", r.Header,
 			)
 
-			next.ServeHTTP(lw, r)
+			next.ServeHTTP(w, r)
+
+			sw, ok := w.(*serverhttp.Writer)
+			if !ok {
+				return
+			}
 
 			duration := time.Since(start)
-
+			rd := sw.ResponseData()
 			logger.Infow(
 				"response",
+				"duration", duration,
 				"status", rd.Status,
 				"size", rd.Size,
-				"duration", duration,
 				"body", string(rd.Body),
 			)
 		})
@@ -86,20 +116,78 @@ func CompressHandler(logger *zap.SugaredLogger) mux.MiddlewareFunc {
 				return false
 			}()
 
+			var aeAlg compress.Type
 			if isAccepted {
-				if aeAlg := compress.TypeFromString(acceptEncoding); string(aeAlg) != "" {
-					cw, err := compress.NewHTTPWriter(aeAlg, w)
-					if err != nil {
-						w.WriteHeader(http.StatusInternalServerError)
-						return
+				aeAlg = compress.TypeFromString(acceptEncoding)
+			}
+
+			if string(aeAlg) == "" {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			var (
+				cw  *compress.HTTPWriter
+				err error
+			)
+			if sw, ok := w.(*serverhttp.Writer); ok {
+				sw.WithWriter(func(writer http.ResponseWriter) http.ResponseWriter {
+					cw, err = compress.NewHTTPWriter(aeAlg, writer)
+					if err == nil {
+						return cw
 					}
-					w = cw
-					defer func() {
-						if err = cw.Close(); err != nil {
-							logger.Error("middleware.CompressHandler error", zap.Error(err))
-						}
-					}()
+					return nil
+				})
+			} else {
+				cw, err = compress.NewHTTPWriter(aeAlg, w)
+			}
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+
+			defer func() {
+				if err = cw.Close(); err != nil {
+					logger.Error("middleware.CompressHandler error", zap.Error(err))
 				}
+			}()
+		})
+	}
+}
+
+func CheckSumRequestHandler(logger *zap.SugaredLogger, hashKey string) mux.MiddlewareFunc {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var (
+				checkSum string
+				err      error
+				buff     []byte
+				chBytes  []byte
+			)
+			if checkSum = r.Header.Get(serverhttp.HashSHA256Header); checkSum == "" {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			if buff, err = io.ReadAll(r.Body); err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+
+			r.Body = io.NopCloser(bytes.NewBuffer(buff))
+
+			if chBytes, err = hex.DecodeString(checkSum); err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+
+			b := sha256.Sum256(append(buff, hashKey...))
+			if !bytes.Equal(b[:], chBytes) {
+				w.WriteHeader(http.StatusBadRequest)
+				logger.Warnf("CheckSumRequestHandler: invalid checksum %s", checkSum)
+				return
 			}
 
 			next.ServeHTTP(w, r)

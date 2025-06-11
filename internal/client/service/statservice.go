@@ -4,19 +4,19 @@ import (
 	"context"
 	"time"
 
-	"github.com/ktigay/metrics-collector/internal/client/collector"
+	"github.com/ktigay/metrics-collector/internal/metric"
 	"github.com/ktigay/metrics-collector/internal/retry"
 	"go.uber.org/zap"
 )
 
 // StatSender отправка метрик.
 type StatSender interface {
-	SendMetrics(c collector.MetricCollectDTO) error
+	SendMetrics([]metric.Metrics) error
 }
 
 // StatGetter получение метрик.
 type StatGetter interface {
-	GetStat() collector.MetricCollectDTO
+	GetStat() []metric.Metrics
 }
 
 // StatService провайдер статистики.
@@ -45,10 +45,14 @@ func (s *StatService) SendStat(ctx context.Context) {
 					s.logger.Debug("retry.Ret stopped")
 					return true
 				default:
+					start := time.Now()
 					err := s.sender.SendMetrics(s.getter.GetStat())
 					if err != nil {
 						s.logger.Errorf("sendStat err: %v", err)
 					}
+
+					s.logger.Debug("SendMetrics time %v", time.Since(start))
+
 					return err == nil
 				}
 			})
