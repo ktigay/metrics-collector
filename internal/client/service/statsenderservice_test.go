@@ -26,13 +26,18 @@ func TestStatSenderService_SendStat(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockCtrl := gomock.NewController(t)
-			sender := mocks.NewMockStatSender(mockCtrl)
 
+			sender := mocks.NewMockStatSender(mockCtrl)
 			sender.EXPECT().SendMetrics(gomock.All(), gomock.Any()).Times(1)
 
+			handler := mocks.NewMockMetricsHandler(mockCtrl)
+			handler.EXPECT().Processing(gomock.Any()).Times(1)
+
 			s := &StatSenderService{
-				sender: sender,
-				logger: zap.NewNop().Sugar(),
+				sender:   sender,
+				handler:  handler,
+				interval: 50 * time.Millisecond,
+				logger:   zap.NewNop().Sugar(),
 			}
 
 			ctx, cancel := context.WithTimeout(context.Background(), timeout)

@@ -30,6 +30,7 @@ func (m *IntervalPoller) PollStat(ctx context.Context, ch chan<- []metric.Metric
 	for {
 		select {
 		case <-ticker.C:
+			m.logger.Debug("pollStat collect")
 			ch <- m.source.GetStat()
 		case <-ctx.Done():
 			m.logger.Debug("pollStat done")

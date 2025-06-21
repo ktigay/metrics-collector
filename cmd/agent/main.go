@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"math"
 	"os"
 	"os/signal"
 	"sync"
@@ -52,20 +53,15 @@ func main() {
 	gp := collector.NewGopsUtilCollector()
 	gpPoller := collector.NewIntervalPoller(gp, time.Duration(config.PollInterval)*time.Second, logger)
 
-	storage := collector.NewStorage(logger)
-	statSaver := service.NewStatSaverService(storage, logger)
-
-	statPoller := collector.NewIntervalPoller(storage, time.Duration(config.ReportInterval)*time.Second, logger)
-
 	t := transport.NewHTTPClient(config.ServerProtocol+"://"+config.ServerHost, config.HashKey, logger)
 	sn := sender.NewMetricSender(t, config.BatchEnabled, config.RateLimit, logger)
-	statSender := service.NewStatSenderService(sn, logger)
+	handler := collector.NewMetricsHandler()
+	statSender := service.NewStatSenderService(sn, handler, time.Duration(config.ReportInterval)*time.Second, logger)
 
-	pollChan := make(chan []metric.Metrics)
+	// размер канала такой, чтобы не блокировать сборку статистики.
+	chSize := int64(math.Ceil(float64(config.ReportInterval)/float64(config.PollInterval))) * 2
+	pollChan := make(chan []metric.Metrics, chSize)
 	defer close(pollChan)
-
-	sendChan := make(chan []metric.Metrics)
-	defer close(sendChan)
 
 	tasks := []Task{
 		func(ctx context.Context) {
@@ -75,13 +71,7 @@ func main() {
 			gpPoller.PollStat(ctx, pollChan)
 		},
 		func(ctx context.Context) {
-			statSaver.PushStat(ctx, pollChan)
-		},
-		func(ctx context.Context) {
-			statPoller.PollStat(ctx, sendChan)
-		},
-		func(ctx context.Context) {
-			statSender.SendStat(ctx, sendChan)
+			statSender.SendStat(ctx, pollChan)
 		},
 	}
 	var wg sync.WaitGroup

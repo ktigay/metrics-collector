@@ -9,19 +9,19 @@ import (
 )
 
 type (
-	virtualMemory func() (*mem.VirtualMemoryStat, error)
-	cpuPercent    func(interval time.Duration, percpu bool) ([]float64, error)
+	virtualMemoryFn func() (*mem.VirtualMemoryStat, error)
+	cpuPercentFn    func(interval time.Duration, percpu bool) ([]float64, error)
 )
 
 // GopsUtilCollector структура для метрик из gopsutil.
 type GopsUtilCollector struct {
-	mem        virtualMemory
-	cpuPercent cpuPercent
+	memFn        virtualMemoryFn
+	cpuPercentFn cpuPercentFn
 }
 
 // GetStat собирает метрики.
 func (g *GopsUtilCollector) GetStat() []metric.Metrics {
-	v, _ := g.mem()
+	v, _ := g.memFn()
 	typeGauge := string(metric.TypeGauge)
 
 	metrics := []metric.Metrics{
@@ -45,7 +45,7 @@ func (g *GopsUtilCollector) GetStat() []metric.Metrics {
 			ID:   string(metric.CPUutilization1),
 			Type: typeGauge,
 			Value: func() *float64 {
-				util, _ := g.cpuPercent(0, false)
+				util, _ := g.cpuPercentFn(0, false)
 				return &util[0]
 			}(),
 		},
@@ -57,7 +57,7 @@ func (g *GopsUtilCollector) GetStat() []metric.Metrics {
 // NewGopsUtilCollector конструктор.
 func NewGopsUtilCollector() *GopsUtilCollector {
 	return &GopsUtilCollector{
-		mem:        mem.VirtualMemory,
-		cpuPercent: cpu.Percent,
+		memFn:        mem.VirtualMemory,
+		cpuPercentFn: cpu.Percent,
 	}
 }

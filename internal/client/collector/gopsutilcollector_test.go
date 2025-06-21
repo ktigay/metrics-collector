@@ -12,8 +12,8 @@ import (
 
 func TestGopsUtilCollector_GetStat(t *testing.T) {
 	type fields struct {
-		mem        virtualMemory
-		cpuPercent cpuPercent
+		memFn        virtualMemoryFn
+		cpuPercentFn cpuPercentFn
 	}
 	tests := []struct {
 		name   string
@@ -23,14 +23,14 @@ func TestGopsUtilCollector_GetStat(t *testing.T) {
 		{
 			name: "Positive_test_GetStat",
 			fields: fields{
-				mem: func() (*mem.VirtualMemoryStat, error) {
+				memFn: func() (*mem.VirtualMemoryStat, error) {
 					stat := &mem.VirtualMemoryStat{
 						Total: 100,
 						Free:  200,
 					}
 					return stat, nil
 				},
-				cpuPercent: func(interval time.Duration, percpu bool) ([]float64, error) {
+				cpuPercentFn: func(interval time.Duration, percpu bool) ([]float64, error) {
 					return []float64{10, 20}, nil
 				},
 			},
@@ -65,8 +65,8 @@ func TestGopsUtilCollector_GetStat(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			g := &GopsUtilCollector{
-				mem:        tt.fields.mem,
-				cpuPercent: tt.fields.cpuPercent,
+				memFn:        tt.fields.memFn,
+				cpuPercentFn: tt.fields.cpuPercentFn,
 			}
 			got := g.GetStat()
 			sort.Slice(got, func(i, j int) bool { return got[i].ID < got[j].ID })

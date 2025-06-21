@@ -11,8 +11,8 @@ import (
 
 func TestRuntimeMetricCollector_GetStat(t *testing.T) {
 	type fields struct {
-		readMem readMemStats
-		mapper  mapper
+		readMem readMemStatsFn
+		mapper  mapperFn
 	}
 	tests := []struct {
 		name   string
@@ -57,8 +57,8 @@ func TestRuntimeMetricCollector_GetStat(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := &RuntimeMetricCollector{
-				readMem: tt.fields.readMem,
-				mapper:  tt.fields.mapper,
+				readMemFn: tt.fields.readMem,
+				mapperFn:  tt.fields.mapper,
 			}
 			got := c.GetStat()
 			sort.Slice(got, func(i, j int) bool { return got[i].ID < got[j].ID })
