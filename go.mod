@@ -1,11 +1,12 @@
 module github.com/ktigay/metrics-collector
 
-go 1.24.1
+go 1.24.4
 
 require (
 	github.com/andybalholm/brotli v1.1.1
 	github.com/caarlos0/env/v6 v6.10.1
 	github.com/golang/mock v1.6.0
+	github.com/google/go-cmp v0.7.0
 	github.com/gorilla/mux v1.8.1
 	github.com/jackc/pgx/v5 v5.7.5
 	github.com/shirou/gopsutil/v4 v4.25.5

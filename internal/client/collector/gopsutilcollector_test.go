@@ -1,18 +1,19 @@
 package collector
 
 import (
-	"runtime"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/ktigay/metrics-collector/internal/metric"
+	"github.com/shirou/gopsutil/v4/mem"
 )
 
-func TestRuntimeMetricCollector_GetStat(t *testing.T) {
+func TestGopsUtilCollector_GetStat(t *testing.T) {
 	type fields struct {
-		readMem readMemStats
-		mapper  mapper
+		mem        virtualMemory
+		cpuPercent cpuPercent
 	}
 	tests := []struct {
 		name   string
@@ -22,20 +23,20 @@ func TestRuntimeMetricCollector_GetStat(t *testing.T) {
 		{
 			name: "Positive_test_GetStat",
 			fields: fields{
-				readMem: func(stats *runtime.MemStats) {
-					stats.Alloc = 100
-					stats.TotalAlloc = 200
-				},
-				mapper: func(m runtime.MemStats) map[metric.GaugeMetric]float64 {
-					return map[metric.GaugeMetric]float64{
-						metric.Alloc:      float64(m.Alloc),
-						metric.TotalAlloc: float64(m.TotalAlloc),
+				mem: func() (*mem.VirtualMemoryStat, error) {
+					stat := &mem.VirtualMemoryStat{
+						Total: 100,
+						Free:  200,
 					}
+					return stat, nil
+				},
+				cpuPercent: func(interval time.Duration, percpu bool) ([]float64, error) {
+					return []float64{10, 20}, nil
 				},
 			},
 			want: []metric.Metrics{
 				{
-					ID:   "Alloc",
+					ID:   "TotalMemory",
 					Type: "gauge",
 					Value: func() *float64 {
 						v := 100.0
@@ -43,24 +44,31 @@ func TestRuntimeMetricCollector_GetStat(t *testing.T) {
 					}(),
 				},
 				{
-					ID:   "TotalAlloc",
+					ID:   "FreeMemory",
 					Type: "gauge",
 					Value: func() *float64 {
 						v := 200.0
 						return &v
 					}(),
 				},
+				{
+					ID:   "CPUutilization1",
+					Type: "gauge",
+					Value: func() *float64 {
+						v := 10.0
+						return &v
+					}(),
+				},
 			},
 		},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := &RuntimeMetricCollector{
-				readMem: tt.fields.readMem,
-				mapper:  tt.fields.mapper,
+			g := &GopsUtilCollector{
+				mem:        tt.fields.mem,
+				cpuPercent: tt.fields.cpuPercent,
 			}
-			got := c.GetStat()
+			got := g.GetStat()
 			sort.Slice(got, func(i, j int) bool { return got[i].ID < got[j].ID })
 			sort.Slice(tt.want, func(i, j int) bool { return tt.want[i].ID < tt.want[j].ID })
 

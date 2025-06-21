@@ -37,7 +37,7 @@ func (m *MockTransport) EXPECT() *MockTransportMockRecorder {
 // Send mocks base method.
 func (m *MockTransport) Send(arg0 metric.Metrics) ([]byte, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Send", arg0)
+	ret := m.ctrl.Call(m, "Push", arg0)
 	ret0, _ := ret[0].([]byte)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
@@ -46,7 +46,7 @@ func (m *MockTransport) Send(arg0 metric.Metrics) ([]byte, error) {
 // Send indicates an expected call of Send.
 func (mr *MockTransportMockRecorder) Send(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Send", reflect.TypeOf((*MockTransport)(nil).Send), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Push", reflect.TypeOf((*MockTransport)(nil).Send), arg0)
 }
 
 // SendBatch mocks base method.

@@ -71,14 +71,14 @@ func (m GaugeMetric) String() string {
 // Metrics структура для обновления метрик.
 type Metrics struct {
 	ID    string   `json:"id"`              // имя метрики
-	MType string   `json:"type"`            // параметр, принимающий значение gauge или counter
+	Type  string   `json:"type"`            // параметр, принимающий значение gauge или counter
 	Delta *int64   `json:"delta,omitempty"` // значение метрики в случае передачи counter
 	Value *float64 `json:"value,omitempty"` // значение метрики в случае передачи gauge
 }
 
 // ValueByType значение метрики в зависимости от типа.
 func (m *Metrics) ValueByType() any {
-	switch m.MType {
+	switch m.Type {
 	case string(TypeGauge):
 		if m.Value != nil {
 			return *m.Value
@@ -107,13 +107,13 @@ func (m *Metrics) GetValue() float64 {
 
 // Key ключ метрики.
 func (m *Metrics) Key() string {
-	return Key(m.MType, m.ID)
+	return Key(m.Type, m.ID)
 }
 
 // SetValueByType присваивает значение в зависимости от типа метрики.
 func (m *Metrics) SetValueByType(v any) error {
 	var err error
-	switch Type(m.MType) {
+	switch Type(m.Type) {
 	case TypeCounter:
 		var val int64
 		switch vt := v.(type) {

@@ -23,15 +23,16 @@ type MetricSender struct {
 }
 
 // SendMetrics отправляет метрики на сервер.
-func (mh *MetricSender) SendMetrics(metrics []metric.Metrics) error {
+func (mh *MetricSender) SendMetrics(metrics []metric.Metrics, resultCh chan<- error) {
 	if mh.batchEnabled {
-		return mh.sendBatch(metrics)
+		mh.sendBatch(metrics, resultCh)
+		return
 	}
 
-	return mh.send(metrics)
+	mh.send(metrics, resultCh)
 }
 
-func (mh *MetricSender) send(metrics []metric.Metrics) (err error) {
+func (mh *MetricSender) send(metrics []metric.Metrics, resultCh chan<- error) {
 	rateLimit := mh.rateLimit
 	if rateLimit <= 0 {
 		rateLimit = 1
@@ -39,11 +40,10 @@ func (mh *MetricSender) send(metrics []metric.Metrics) (err error) {
 
 	jobs := make(chan metric.Metrics, len(metrics))
 
-	errChan := make(chan error, rateLimit)
-	defer close(errChan)
+	errCh := make(chan error, rateLimit)
 
 	for i := 1; i <= rateLimit; i++ {
-		go mh.worker(i, jobs, errChan)
+		go mh.worker(i, jobs, errCh)
 	}
 
 	for _, m := range metrics {
@@ -51,19 +51,22 @@ func (mh *MetricSender) send(metrics []metric.Metrics) (err error) {
 	}
 	close(jobs)
 
-	for i := 0; i < rateLimit; i++ {
-		if e := <-errChan; e != nil {
-			err = e
-		}
-	}
+	go func() {
+		defer close(errCh)
+		defer close(resultCh)
 
-	return err
+		for i := 0; i < rateLimit; i++ {
+			resultCh <- <-errCh
+		}
+	}()
 }
 
-func (mh *MetricSender) sendBatch(metrics []metric.Metrics) error {
-	_, err := mh.transport.SendBatch(metrics)
-
-	return err
+func (mh *MetricSender) sendBatch(metrics []metric.Metrics, resultCh chan<- error) {
+	go func() {
+		defer close(resultCh)
+		_, err := mh.transport.SendBatch(metrics)
+		resultCh <- err
+	}()
 }
 
 func (mh *MetricSender) worker(thread int, jobs <-chan metric.Metrics, errChan chan<- error) {

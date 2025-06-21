@@ -4,16 +4,16 @@ import (
 	"math/rand/v2"
 	"sync"
 
-	"go.uber.org/zap"
-
 	"github.com/ktigay/metrics-collector/internal/metric"
+	"go.uber.org/zap"
 )
 
+// ClientMetrics метрики.
 type ClientMetrics map[string]*metric.Metrics
 
 // Storage репозиторий для хранения статистики.
 type Storage struct {
-	mu      sync.RWMutex
+	mu      sync.Mutex
 	metrics ClientMetrics
 	logger  *zap.SugaredLogger
 }
@@ -37,7 +37,7 @@ func (s *Storage) incCounter() {
 		delta := int64(0)
 		s.metrics[metric.PollCount] = &metric.Metrics{
 			ID:    metric.PollCount,
-			MType: string(metric.TypeCounter),
+			Type:  string(metric.TypeCounter),
 			Delta: &delta,
 		}
 		pc = s.metrics[metric.PollCount]
@@ -52,8 +52,8 @@ func (s *Storage) setRandomValue() {
 	rnd, ok := s.metrics[metric.RandomValue]
 	if !ok {
 		s.metrics[metric.RandomValue] = &metric.Metrics{
-			ID:    metric.RandomValue,
-			MType: string(metric.TypeGauge),
+			ID:   metric.RandomValue,
+			Type: string(metric.TypeGauge),
 		}
 		rnd = s.metrics[metric.RandomValue]
 	}
@@ -64,8 +64,8 @@ func (s *Storage) setRandomValue() {
 
 // GetStat возвращает собранную статистику.
 func (s *Storage) GetStat() []metric.Metrics {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	metrics := make([]metric.Metrics, 0, len(s.metrics))
 	for _, v := range s.metrics {

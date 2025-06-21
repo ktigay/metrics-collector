@@ -57,8 +57,8 @@ func (mh *MetricHandler) CollectHandler(w http.ResponseWriter, r *http.Request) 
 	vars := mux.Vars(r)
 
 	mt := metric.Metrics{
-		ID:    vars["name"],
-		MType: vars["type"],
+		ID:   vars["name"],
+		Type: vars["type"],
 	}
 	if err := mt.SetValueByType(vars["value"]); err != nil {
 		w.WriteHeader(statusFromError(err))
@@ -133,7 +133,7 @@ func (mh *MetricHandler) UpdateJSONHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if mm, err = mh.collector.Find(ctx, m.MType, m.ID); err != nil {
+	if mm, err = mh.collector.Find(ctx, m.Type, m.ID); err != nil {
 		w.WriteHeader(statusFromError(err))
 		return
 	}
@@ -189,7 +189,7 @@ func (mh *MetricHandler) GetJSONValueHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	mm, err = mh.collector.Find(r.Context(), m.MType, m.ID)
+	mm, err = mh.collector.Find(r.Context(), m.Type, m.ID)
 	if err != nil {
 		w.WriteHeader(statusFromError(err))
 		return

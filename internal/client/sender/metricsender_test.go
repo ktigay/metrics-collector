@@ -23,8 +23,8 @@ func TestMetricSender_sendGaugeMetrics(t *testing.T) {
 			args: args{
 				c: []metric.Metrics{
 					{
-						MType: "gauge",
-						ID:    "Alloc",
+						Type: "gauge",
+						ID:   "Alloc",
 						Value: func() *float64 {
 							x := 12.0
 							return &x
@@ -44,9 +44,14 @@ func TestMetricSender_sendGaugeMetrics(t *testing.T) {
 			transport.EXPECT().Send(gomock.Any()).Return(b, nil).Times(1)
 
 			c := NewMetricSender(transport, false, 1, zap.NewNop().Sugar())
-			err := c.send(tt.args.c)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("sendGaugeMetrics() error = %v, wantErr %v", err, tt.wantErr)
+
+			resultCh := make(chan error)
+			c.send(tt.args.c, resultCh)
+
+			for err := range resultCh {
+				if (err != nil) != tt.wantErr {
+					t.Errorf("sendGaugeMetrics() error = %v, wantErr %v", err, tt.wantErr)
+				}
 			}
 		})
 	}
@@ -69,24 +74,24 @@ func TestSender_sendBatch(t *testing.T) {
 			args: args{
 				c: []metric.Metrics{
 					{
-						MType: "counter",
-						ID:    "PollCount",
+						Type: "counter",
+						ID:   "PollCount",
 						Delta: func() *int64 {
 							x := int64(4)
 							return &x
 						}(),
 					},
 					{
-						MType: "gauge",
-						ID:    "Alloc",
+						Type: "gauge",
+						ID:   "Alloc",
 						Value: func() *float64 {
 							x := 12.0
 							return &x
 						}(),
 					},
 					{
-						MType: "gauge",
-						ID:    "BuckHashSys",
+						Type: "gauge",
+						ID:   "BuckHashSys",
 						Value: func() *float64 {
 							x := 22.0
 							return &x
@@ -106,9 +111,14 @@ func TestSender_sendBatch(t *testing.T) {
 			transport.EXPECT().SendBatch(gomock.Len(tt.wantLen)).Return(b, nil).Times(1)
 
 			c := NewMetricSender(transport, tt.batchEnabled, 1, zap.NewNop().Sugar())
-			err := c.sendBatch(tt.args.c)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("SendBatch() error = %v, wantErr %v", err, tt.wantErr)
+
+			resultCh := make(chan error)
+			c.sendBatch(tt.args.c, resultCh)
+
+			for err := range resultCh {
+				if (err != nil) != tt.wantErr {
+					t.Errorf("SendBatch() error = %v, wantErr %v", err, tt.wantErr)
+				}
 			}
 		})
 	}

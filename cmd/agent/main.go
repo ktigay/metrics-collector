@@ -17,8 +17,11 @@ import (
 	"github.com/ktigay/metrics-collector/internal/client/sender/transport"
 	"github.com/ktigay/metrics-collector/internal/client/service"
 	ilog "github.com/ktigay/metrics-collector/internal/log"
+	"github.com/ktigay/metrics-collector/internal/metric"
 	"go.uber.org/zap"
 )
+
+type Task func(context.Context)
 
 func main() {
 	var (
@@ -43,34 +46,54 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	storage := collector.NewStorage(logger)
-	cl := collector.NewRuntimeMetricCollector(storage)
+	cl := collector.NewRuntimeMetricCollector()
 	rnPoller := collector.NewIntervalPoller(cl, time.Duration(config.PollInterval)*time.Second, logger)
 
-	gp := collector.NewGopsUtilCollector(storage)
+	gp := collector.NewGopsUtilCollector()
 	gpPoller := collector.NewIntervalPoller(gp, time.Duration(config.PollInterval)*time.Second, logger)
+
+	storage := collector.NewStorage(logger)
+	statSaver := service.NewStatSaverService(storage, logger)
+
+	statPoller := collector.NewIntervalPoller(storage, time.Duration(config.ReportInterval)*time.Second, logger)
 
 	t := transport.NewHTTPClient(config.ServerProtocol+"://"+config.ServerHost, config.HashKey, logger)
 	sn := sender.NewMetricSender(t, config.BatchEnabled, config.RateLimit, logger)
+	statSender := service.NewStatSenderService(sn, logger)
 
-	statService := service.NewStatService(storage, sn, time.Duration(config.ReportInterval)*time.Second, logger)
+	pollChan := make(chan []metric.Metrics)
+	defer close(pollChan)
 
-	var wg sync.WaitGroup
-	tasks := []func(context.Context){
-		rnPoller.PollStat,
-		gpPoller.PollStat,
-		statService.SendStat,
+	sendChan := make(chan []metric.Metrics)
+	defer close(sendChan)
+
+	tasks := []Task{
+		func(ctx context.Context) {
+			rnPoller.PollStat(ctx, pollChan)
+		},
+		func(ctx context.Context) {
+			gpPoller.PollStat(ctx, pollChan)
+		},
+		func(ctx context.Context) {
+			statSaver.PushStat(ctx, pollChan)
+		},
+		func(ctx context.Context) {
+			statPoller.PollStat(ctx, sendChan)
+		},
+		func(ctx context.Context) {
+			statSender.SendStat(ctx, sendChan)
+		},
 	}
+	var wg sync.WaitGroup
+	wg.Add(len(tasks))
 
 	for _, task := range tasks {
-		wg.Add(1)
 		go func() {
 			task(ctx)
-			wg.Done()
+			defer wg.Done()
 		}()
 	}
 
 	wg.Wait()
-
 	logger.Debug("program exited")
 }

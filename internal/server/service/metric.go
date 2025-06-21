@@ -53,7 +53,7 @@ func (c *MetricCollector) Save(ctx context.Context, mt metric.Metrics) error {
 		err     error
 	)
 
-	if t, err = metric.ResolveType(mt.MType); err != nil {
+	if t, err = metric.ResolveType(mt.Type); err != nil {
 		return e.ErrWrongType
 	}
 
@@ -160,12 +160,12 @@ func (c *MetricCollector) SaveAll(ctx context.Context, mt []metric.Metrics) erro
 
 	for _, m := range mt {
 		var t metric.Type
-		if t, err = metric.ResolveType(m.MType); err != nil {
+		if t, err = metric.ResolveType(m.Type); err != nil {
 			return e.ErrWrongType
 		}
 
 		en := repository.MetricEntity{
-			Key:   metric.Key(m.MType, m.ID),
+			Key:   metric.Key(m.Type, m.ID),
 			Name:  m.ID,
 			Type:  t,
 			Delta: m.GetDelta(),

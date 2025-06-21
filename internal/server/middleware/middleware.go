@@ -157,6 +157,7 @@ func CompressHandler(logger *zap.SugaredLogger) mux.MiddlewareFunc {
 	}
 }
 
+// CheckSumRequestHandler проверка checksum.
 func CheckSumRequestHandler(logger *zap.SugaredLogger, hashKey string) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
