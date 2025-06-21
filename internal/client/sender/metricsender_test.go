@@ -4,51 +4,14 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/ktigay/metrics-collector/internal/client/collector"
 	"github.com/ktigay/metrics-collector/internal/client/sender/mocks"
 	"github.com/ktigay/metrics-collector/internal/metric"
+	"go.uber.org/zap"
 )
-
-func TestMetricSender_sendCounter(t *testing.T) {
-	type args struct {
-		c collector.MetricCollectDTO
-	}
-	tests := []struct {
-		name    string
-		args    args
-		wantErr bool
-	}{
-		{
-			name: "Positive_test",
-			args: args{
-				c: collector.MetricCollectDTO{
-					Counter: 15,
-				},
-			},
-			wantErr: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mockCtrl := gomock.NewController(t)
-			transport := mocks.NewMockTransport(mockCtrl)
-			var b []byte
-			transport.EXPECT().Send(gomock.Any()).Return(b, nil).Times(1)
-
-			c := NewMetricSender(transport, false)
-			err := c.sendCounter(tt.args.c)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("sendCounter() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-		})
-	}
-}
 
 func TestMetricSender_sendGaugeMetrics(t *testing.T) {
 	type args struct {
-		c collector.MetricCollectDTO
+		c []metric.Metrics
 	}
 	tests := []struct {
 		name    string
@@ -58,9 +21,14 @@ func TestMetricSender_sendGaugeMetrics(t *testing.T) {
 		{
 			name: "Positive_test_check_request",
 			args: args{
-				c: collector.MetricCollectDTO{
-					MemStats: map[metric.GaugeMetric]float64{
-						metric.Alloc: 12.345,
+				c: []metric.Metrics{
+					{
+						Type: "gauge",
+						ID:   "Alloc",
+						Value: func() *float64 {
+							x := 12.0
+							return &x
+						}(),
 					},
 				},
 			},
@@ -75,46 +43,15 @@ func TestMetricSender_sendGaugeMetrics(t *testing.T) {
 			var b []byte
 			transport.EXPECT().Send(gomock.Any()).Return(b, nil).Times(1)
 
-			c := NewMetricSender(transport, false)
-			err := c.sendGaugeMetrics(tt.args.c)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("sendGaugeMetrics() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
+			c := NewMetricSender(transport, false, 1, zap.NewNop().Sugar())
 
-func TestMetricSender_sendRand(t *testing.T) {
-	type args struct {
-		c collector.MetricCollectDTO
-	}
-	tests := []struct {
-		name    string
-		args    args
-		wantErr bool
-	}{
-		{
-			name: "Positive_test",
-			args: args{
-				c: collector.MetricCollectDTO{
-					Rand: 1222.222,
-				},
-			},
-			wantErr: false,
-		},
-	}
+			resultCh := make(chan error)
+			c.send(tt.args.c, resultCh)
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mockCtrl := gomock.NewController(t)
-			transport := mocks.NewMockTransport(mockCtrl)
-			var b []byte
-			transport.EXPECT().Send(gomock.Any()).Return(b, nil).Times(1)
-
-			c := NewMetricSender(transport, false)
-			err := c.sendRand(tt.args.c)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("sendRand() error = %v, wantErr %v", err, tt.wantErr)
+			for err := range resultCh {
+				if (err != nil) != tt.wantErr {
+					t.Errorf("sendGaugeMetrics() error = %v, wantErr %v", err, tt.wantErr)
+				}
 			}
 		})
 	}
@@ -122,7 +59,7 @@ func TestMetricSender_sendRand(t *testing.T) {
 
 func TestSender_sendBatch(t *testing.T) {
 	type args struct {
-		c collector.MetricCollectDTO
+		c []metric.Metrics
 	}
 	tests := []struct {
 		name         string
@@ -135,16 +72,34 @@ func TestSender_sendBatch(t *testing.T) {
 			name:         "Positive_test",
 			batchEnabled: true,
 			args: args{
-				c: collector.MetricCollectDTO{
-					MemStats: map[metric.GaugeMetric]float64{
-						metric.Alloc: 12.345,
-						metric.GCSys: 22.345,
+				c: []metric.Metrics{
+					{
+						Type: "counter",
+						ID:   "PollCount",
+						Delta: func() *int64 {
+							x := int64(4)
+							return &x
+						}(),
 					},
-					Counter: 15,
-					Rand:    1222.222,
+					{
+						Type: "gauge",
+						ID:   "Alloc",
+						Value: func() *float64 {
+							x := 12.0
+							return &x
+						}(),
+					},
+					{
+						Type: "gauge",
+						ID:   "BuckHashSys",
+						Value: func() *float64 {
+							x := 22.0
+							return &x
+						}(),
+					},
 				},
 			},
-			wantLen: 4,
+			wantLen: 3,
 			wantErr: false,
 		},
 	}
@@ -155,10 +110,15 @@ func TestSender_sendBatch(t *testing.T) {
 			var b []byte
 			transport.EXPECT().SendBatch(gomock.Len(tt.wantLen)).Return(b, nil).Times(1)
 
-			c := NewMetricSender(transport, tt.batchEnabled)
-			err := c.sendBatch(tt.args.c)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("SendBatch() error = %v, wantErr %v", err, tt.wantErr)
+			c := NewMetricSender(transport, tt.batchEnabled, 1, zap.NewNop().Sugar())
+
+			resultCh := make(chan error)
+			c.sendBatch(tt.args.c, resultCh)
+
+			for err := range resultCh {
+				if (err != nil) != tt.wantErr {
+					t.Errorf("SendBatch() error = %v, wantErr %v", err, tt.wantErr)
+				}
 			}
 		})
 	}

@@ -44,24 +44,24 @@ func TestMetricCollector_Save(t *testing.T) {
 			args: args{
 				m: []metric.Metrics{
 					{
-						MType: "counter",
-						ID:    "PollCount",
+						Type: "counter",
+						ID:   "PollCount",
 						Delta: func() *int64 {
 							x := int64(4)
 							return &x
 						}(),
 					},
 					{
-						MType: "gauge",
-						ID:    "Alloc",
+						Type: "gauge",
+						ID:   "Alloc",
 						Value: func() *float64 {
 							x := 12.0
 							return &x
 						}(),
 					},
 					{
-						MType: "gauge",
-						ID:    "BuckHashSys",
+						Type: "gauge",
+						ID:   "BuckHashSys",
 						Value: func() *float64 {
 							x := 22.0
 							return &x

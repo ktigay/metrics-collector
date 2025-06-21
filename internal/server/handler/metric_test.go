@@ -40,7 +40,7 @@ func TestServer_CollectHandler(t *testing.T) {
 				v := 122.1
 				st.EXPECT().Save(gomock.Any(), gomock.Eq(metric.Metrics{
 					ID:    "Alloc",
-					MType: "gauge",
+					Type:  "gauge",
 					Value: &v,
 				})).Return(nil).Times(1)
 				return st
@@ -59,7 +59,7 @@ func TestServer_CollectHandler(t *testing.T) {
 				v := int64(12345)
 				st.EXPECT().Save(gomock.Any(), gomock.Eq(metric.Metrics{
 					ID:    "PollCount",
-					MType: "counter",
+					Type:  "counter",
 					Delta: &v,
 				})).Return(nil).Times(1)
 				return st

@@ -83,7 +83,7 @@ func (mr *MockCollectorInterfaceMockRecorder) Remove(arg0, arg1, arg2 interface{
 // Save mocks base method.
 func (m *MockCollectorInterface) Save(arg0 context.Context, arg1 metric.Metrics) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Save", arg0, arg1)
+	ret := m.ctrl.Call(m, "Merge", arg0, arg1)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
@@ -91,7 +91,7 @@ func (m *MockCollectorInterface) Save(arg0 context.Context, arg1 metric.Metrics)
 // Save indicates an expected call of Save.
 func (mr *MockCollectorInterfaceMockRecorder) Save(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Save", reflect.TypeOf((*MockCollectorInterface)(nil).Save), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Merge", reflect.TypeOf((*MockCollectorInterface)(nil).Save), arg0, arg1)
 }
 
 // SaveAll mocks base method.

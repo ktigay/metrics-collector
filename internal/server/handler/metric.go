@@ -57,8 +57,8 @@ func (mh *MetricHandler) CollectHandler(w http.ResponseWriter, r *http.Request) 
 	vars := mux.Vars(r)
 
 	mt := metric.Metrics{
-		ID:    vars["name"],
-		MType: vars["type"],
+		ID:   vars["name"],
+		Type: vars["type"],
 	}
 	if err := mt.SetValueByType(vars["value"]); err != nil {
 		w.WriteHeader(statusFromError(err))
@@ -69,8 +69,6 @@ func (mh *MetricHandler) CollectHandler(w http.ResponseWriter, r *http.Request) 
 		w.WriteHeader(statusFromError(err))
 		return
 	}
-
-	w.WriteHeader(http.StatusOK)
 }
 
 // GetValueHandler обработчик для получения значения метрики.
@@ -87,8 +85,6 @@ func (mh *MetricHandler) GetValueHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-
 	if _, err = fmt.Fprintf(w, "%v", m.ValueByType()); err != nil {
 		mh.logger.Errorln("Failed to write response", zap.Error(err))
 	}
@@ -103,8 +99,6 @@ func (mh *MetricHandler) GetAllHandler(w http.ResponseWriter, r *http.Request) {
 	for _, m := range metrics {
 		names = append(names, m.Name)
 	}
-
-	w.WriteHeader(http.StatusOK)
 
 	if err := json.NewEncoder(w).Encode(names); err != nil {
 		mh.logger.Errorln("Failed to write response", zap.Error(err))
@@ -139,12 +133,10 @@ func (mh *MetricHandler) UpdateJSONHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if mm, err = mh.collector.Find(ctx, m.MType, m.ID); err != nil {
+	if mm, err = mh.collector.Find(ctx, m.Type, m.ID); err != nil {
 		w.WriteHeader(statusFromError(err))
 		return
 	}
-
-	w.WriteHeader(http.StatusOK)
 
 	if err = json.NewEncoder(w).Encode(mm); err != nil {
 		mh.logger.Errorln("Failed to write response", zap.Error(err))
@@ -175,8 +167,6 @@ func (mh *MetricHandler) UpdatesJSONHandler(w http.ResponseWriter, r *http.Reque
 		w.WriteHeader(statusFromError(err))
 		return
 	}
-
-	w.WriteHeader(http.StatusOK)
 }
 
 // GetJSONValueHandler возвращает структуру в виде json-строки.
@@ -199,13 +189,11 @@ func (mh *MetricHandler) GetJSONValueHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	mm, err = mh.collector.Find(r.Context(), m.MType, m.ID)
+	mm, err = mh.collector.Find(r.Context(), m.Type, m.ID)
 	if err != nil {
 		w.WriteHeader(statusFromError(err))
 		return
 	}
-
-	w.WriteHeader(http.StatusOK)
 
 	if err = json.NewEncoder(w).Encode(mm); err != nil {
 		mh.logger.Errorln("Failed to write response", zap.Error(err))
