@@ -42,25 +42,44 @@ func (s *StatSenderService) SendStat(ctx context.Context, ch <-chan []metric.Met
 			s.logger.Debug("saveStat done")
 			return
 		case <-ticker.C:
-			metrics := make([][]metric.Metrics, 0)
-		loop:
-			for {
-				select {
-				case m := <-ch:
-					metrics = append(metrics, m)
-				default:
-					break loop
-				}
-			}
+			var metrics []metric.Metrics
 
-			s.send(s.handler.Processing(metrics))
+			s.logger.Debug("readCh started")
+			if metrics = s.readCh(ch); metrics == nil {
+				continue
+			}
+			s.logger.Debug("readCh finished")
+
+			s.logger.Debug("send started")
+			s.send(ctx, metrics)
+			s.logger.Debug("send retry finished")
 		}
 	}
 }
 
-func (s *StatSenderService) send(metrics []metric.Metrics) {
-	s.logger.Debug("send started")
+func (s *StatSenderService) readCh(ch <-chan []metric.Metrics) []metric.Metrics {
+	metrics := make([][]metric.Metrics, 0)
+loop:
+	for {
+		select {
+		case m := <-ch:
+			if m == nil {
+				break loop
+			}
+			metrics = append(metrics, m)
+		default:
+			break loop
+		}
+	}
 
+	if len(metrics) == 0 {
+		return nil
+	}
+
+	return s.handler.Processing(metrics)
+}
+
+func (s *StatSenderService) send(ctx context.Context, metrics []metric.Metrics) {
 	retry.Ret(func(_ retry.Policy) bool {
 		var err error
 		start := time.Now()
@@ -68,10 +87,20 @@ func (s *StatSenderService) send(metrics []metric.Metrics) {
 		errChan := make(chan error)
 		s.sender.SendMetrics(metrics, errChan)
 
-		for e := range errChan {
-			if e != nil {
-				err = e
-				s.logger.Errorf("sendMetrics failed: %s", e)
+	loop:
+		for {
+			select {
+			case <-ctx.Done():
+				s.logger.Debug("send done")
+				break loop
+			case e, ok := <-errChan:
+				if !ok {
+					break loop
+				}
+				if e != nil {
+					err = e
+					s.logger.Errorf("sendMetrics failed: %s", e)
+				}
 			}
 		}
 
@@ -79,8 +108,6 @@ func (s *StatSenderService) send(metrics []metric.Metrics) {
 
 		return err == nil
 	})
-
-	s.logger.Debug("send retry finished")
 }
 
 // NewStatSenderService конструктор.

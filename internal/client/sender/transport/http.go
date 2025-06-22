@@ -9,6 +9,11 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	updatePath  = "/update/"
+	updatesPath = "/updates/"
+)
+
 // HTTPClient http транспорт отправки метрик.
 type HTTPClient struct {
 	url          string
@@ -29,12 +34,12 @@ func NewHTTPClient(url, hashKey string, logger *zap.SugaredLogger) *HTTPClient {
 
 // Send отправка одной метрики.
 func (h *HTTPClient) Send(body metric.Metrics) ([]byte, error) {
-	return h.send(h.url+"/update/", body)
+	return h.send(h.url+updatePath, body)
 }
 
 // SendBatch отправка батча.
 func (h *HTTPClient) SendBatch(body []metric.Metrics) ([]byte, error) {
-	return h.send(h.url+"/updates/", body)
+	return h.send(h.url+updatesPath, body)
 }
 
 func (h *HTTPClient) send(url string, body any) ([]byte, error) {

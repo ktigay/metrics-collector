@@ -60,7 +60,12 @@ func TestRuntimeMetricCollector_GetStat(t *testing.T) {
 				readMemFn: tt.fields.readMem,
 				mapperFn:  tt.fields.mapper,
 			}
-			got := c.GetStat()
+
+			got, err := c.GetStat()
+			if err != nil {
+				t.Fatal(err)
+			}
+
 			sort.Slice(got, func(i, j int) bool { return got[i].ID < got[j].ID })
 			sort.Slice(tt.want, func(i, j int) bool { return tt.want[i].ID < tt.want[j].ID })
 

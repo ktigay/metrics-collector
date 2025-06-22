@@ -20,8 +20,12 @@ type GopsUtilCollector struct {
 }
 
 // GetStat собирает метрики.
-func (g *GopsUtilCollector) GetStat() []metric.Metrics {
-	v, _ := g.memFn()
+func (g *GopsUtilCollector) GetStat() ([]metric.Metrics, error) {
+	v, err := g.memFn()
+	if err != nil {
+		return nil, err
+	}
+
 	typeGauge := string(metric.TypeGauge)
 
 	metrics := []metric.Metrics{
@@ -51,7 +55,7 @@ func (g *GopsUtilCollector) GetStat() []metric.Metrics {
 		},
 	}
 
-	return metrics
+	return metrics, nil
 }
 
 // NewGopsUtilCollector конструктор.

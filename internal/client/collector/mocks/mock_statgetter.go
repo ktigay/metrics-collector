@@ -35,11 +35,12 @@ func (m *MockStatGetter) EXPECT() *MockStatGetterMockRecorder {
 }
 
 // GetStat mocks base method.
-func (m *MockStatGetter) GetStat() []metric.Metrics {
+func (m *MockStatGetter) GetStat() ([]metric.Metrics, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetStat")
 	ret0, _ := ret[0].([]metric.Metrics)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // GetStat indicates an expected call of GetStat.

@@ -26,16 +26,16 @@ type Task func(context.Context)
 
 func main() {
 	var (
-		config *client.Config
+		cfg    *client.Config
 		logger *zap.SugaredLogger
 		err    error
 	)
 
-	if config, err = client.InitializeConfig(os.Args[1:]); err != nil {
+	if cfg, err = client.InitializeConfig(os.Args[1:]); err != nil {
 		os.Exit(1)
 	}
 
-	if logger, err = ilog.Initialize(config.LogLevel); err != nil {
+	if logger, err = ilog.Initialize(cfg.LogLevel); err != nil {
 		log.Fatalf("can't initialize zap logger: %v", err)
 	}
 	defer func() {
@@ -48,18 +48,18 @@ func main() {
 	defer stop()
 
 	cl := collector.NewRuntimeMetricCollector()
-	rnPoller := collector.NewIntervalPoller(cl, time.Duration(config.PollInterval)*time.Second, logger)
+	rnPoller := collector.NewIntervalPoller(cl, time.Duration(cfg.PollInterval)*time.Second, logger)
 
 	gp := collector.NewGopsUtilCollector()
-	gpPoller := collector.NewIntervalPoller(gp, time.Duration(config.PollInterval)*time.Second, logger)
+	gpPoller := collector.NewIntervalPoller(gp, time.Duration(cfg.PollInterval)*time.Second, logger)
 
-	t := transport.NewHTTPClient(config.ServerProtocol+"://"+config.ServerHost, config.HashKey, logger)
-	sn := sender.NewMetricSender(t, config.BatchEnabled, config.RateLimit, logger)
+	t := transport.NewHTTPClient(cfg.ServerProtocol+"://"+cfg.ServerHost, cfg.HashKey, logger)
+	sn := sender.NewMetricSender(t, cfg.BatchEnabled, cfg.RateLimit, logger)
 	handler := collector.NewMetricsHandler()
-	statSender := service.NewStatSenderService(sn, handler, time.Duration(config.ReportInterval)*time.Second, logger)
+	statSender := service.NewStatSenderService(sn, handler, time.Duration(cfg.ReportInterval)*time.Second, logger)
 
 	// размер канала такой, чтобы не блокировать сборку статистики.
-	chSize := int64(math.Ceil(float64(config.ReportInterval)/float64(config.PollInterval))) * 2
+	chSize := int64(math.Ceil(float64(cfg.ReportInterval)/float64(cfg.PollInterval))) * 2
 	pollChan := make(chan []metric.Metrics, chSize)
 	defer close(pollChan)
 

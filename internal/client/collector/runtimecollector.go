@@ -20,7 +20,7 @@ type RuntimeMetricCollector struct {
 }
 
 // GetStat собирает метрики.
-func (c *RuntimeMetricCollector) GetStat() []metric.Metrics {
+func (c *RuntimeMetricCollector) GetStat() ([]metric.Metrics, error) {
 	var m runtime.MemStats
 	c.readMemFn(&m)
 
@@ -35,7 +35,7 @@ func (c *RuntimeMetricCollector) GetStat() []metric.Metrics {
 		})
 	}
 
-	return metrics
+	return metrics, nil
 }
 
 // NewRuntimeMetricCollector конструктор.

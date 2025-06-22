@@ -18,6 +18,7 @@ import (
 
 var acceptTypes = []string{"text/html", "application/json", "*/*"}
 
+// WithBufferedWriter буферизованный Writer.
 func WithBufferedWriter(hashKey string) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -32,6 +33,7 @@ func WithBufferedWriter(hashKey string) mux.MiddlewareFunc {
 	}
 }
 
+// FlushBufferedWriter очищает буфер.
 func FlushBufferedWriter(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		next.ServeHTTP(w, r)

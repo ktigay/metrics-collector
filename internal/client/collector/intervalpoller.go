@@ -12,7 +12,7 @@ import (
 //
 //go:generate mockgen -destination=./mocks/mock_statgetter.go -package=mocks github.com/ktigay/metrics-collector/internal/client/collector StatGetter
 type StatGetter interface {
-	GetStat() []metric.Metrics
+	GetStat() ([]metric.Metrics, error)
 }
 
 // IntervalPoller собирает статистику.
@@ -31,7 +31,13 @@ func (m *IntervalPoller) PollStat(ctx context.Context, ch chan<- []metric.Metric
 		select {
 		case <-ticker.C:
 			m.logger.Debug("pollStat collect")
-			ch <- m.source.GetStat()
+
+			metrics, err := m.source.GetStat()
+			if err != nil {
+				m.logger.Warnw("failed to get stat", "error", err)
+				continue
+			}
+			ch <- metrics
 		case <-ctx.Done():
 			m.logger.Debug("pollStat done")
 			return

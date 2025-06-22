@@ -13,7 +13,7 @@ import (
 
 func TestStatSenderService_SendStat(t *testing.T) {
 	const (
-		timeout = 1 * time.Second
+		timeout = 100 * time.Millisecond
 	)
 
 	tests := []struct {
@@ -28,10 +28,16 @@ func TestStatSenderService_SendStat(t *testing.T) {
 			mockCtrl := gomock.NewController(t)
 
 			sender := mocks.NewMockStatSender(mockCtrl)
-			sender.EXPECT().SendMetrics(gomock.All(), gomock.Any()).Times(1)
+			sender.
+				EXPECT().
+				SendMetrics(gomock.All(), gomock.Any()).
+				Do(func(_ []metric.Metrics, errChan chan<- error) {
+					close(errChan)
+				}).
+				Times(1)
 
 			handler := mocks.NewMockMetricsHandler(mockCtrl)
-			handler.EXPECT().Processing(gomock.Any()).Times(1)
+			handler.EXPECT().Processing(gomock.Any()).Times(1).Return([]metric.Metrics{})
 
 			s := &StatSenderService{
 				sender:   sender,
@@ -43,11 +49,11 @@ func TestStatSenderService_SendStat(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), timeout)
 			defer cancel()
 
-			ch := make(chan []metric.Metrics)
+			ch := make(chan []metric.Metrics, 1)
 			defer close(ch)
 
-			go s.SendStat(ctx, ch)
 			ch <- []metric.Metrics{}
+			s.SendStat(ctx, ch)
 		})
 	}
 }

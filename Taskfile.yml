@@ -21,6 +21,8 @@ env:
   SRV_ADDR: server:8080
   # dsn к postgres
   DATABASE_DSN: postgres://postgres:postgres@192.168.1.46:5430/praktikum?sslmode=disable
+  # уровень логирования
+  LOG_LEVEL: debug
 
 vars:
   PROJECT_NAME:
