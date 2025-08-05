@@ -8,6 +8,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"sync"
@@ -139,6 +140,7 @@ func regMetricRoutes(router *mux.Router, mh *handler.MetricHandler) {
 	router.HandleFunc("/value/", mh.GetJSONValueHandler).Methods(http.MethodPost)
 	router.HandleFunc("/", mh.GetAllHandler).Methods(http.MethodGet)
 	router.HandleFunc("/updates/", mh.UpdatesJSONHandler).Methods(http.MethodPost)
+	router.PathPrefix("/debug/pprof/").Handler(http.DefaultServeMux)
 }
 
 func regPingRoutes(router *mux.Router, ph *handler.PingHandler) {
