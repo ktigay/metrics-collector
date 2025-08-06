@@ -16,6 +16,8 @@ import (
 
 	"github.com/gorilla/mux"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"go.uber.org/zap"
+
 	ilog "github.com/ktigay/metrics-collector/internal/log"
 	"github.com/ktigay/metrics-collector/internal/server"
 	"github.com/ktigay/metrics-collector/internal/server/db"
@@ -24,7 +26,6 @@ import (
 	"github.com/ktigay/metrics-collector/internal/server/repository"
 	"github.com/ktigay/metrics-collector/internal/server/service"
 	"github.com/ktigay/metrics-collector/internal/server/snapshot"
-	"go.uber.org/zap"
 )
 
 func main() {

@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"net/http"
 
-	h "github.com/ktigay/metrics-collector/internal/http"
 	"go.uber.org/zap/buffer"
+
+	h "github.com/ktigay/metrics-collector/internal/http"
 )
 
 type Options struct {

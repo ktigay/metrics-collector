@@ -8,10 +8,11 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"go.uber.org/zap"
+
 	"github.com/ktigay/metrics-collector/internal/metric"
 	"github.com/ktigay/metrics-collector/internal/server/errors"
 	"github.com/ktigay/metrics-collector/internal/server/repository"
-	"go.uber.org/zap"
 )
 
 var errStatusMap = map[error]int{

@@ -129,6 +129,7 @@ tasks:
     run: once
     desc: Форматирование стиля
     cmds:
+      - goimports -local github.com/ktigay/metrics-collector -w ./
       - task: docker-run:gofumpt -w -extra internal/ cmd/
 
   run-test-a:
