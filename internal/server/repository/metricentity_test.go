@@ -31,7 +31,7 @@ func TestEntity_ToMetrics(t *testing.T) {
 			},
 			want: metric.Metrics{
 				ID:    "Mallocs",
-				MType: "gauge",
+				Type:  "gauge",
 				Delta: nil,
 				Value: func() *float64 {
 					v := 12.33345
@@ -49,8 +49,8 @@ func TestEntity_ToMetrics(t *testing.T) {
 				Value: .0,
 			},
 			want: metric.Metrics{
-				ID:    "PollCount",
-				MType: "counter",
+				ID:   "PollCount",
+				Type: "counter",
 				Delta: func() *int64 {
 					v := int64(120)
 					return &v

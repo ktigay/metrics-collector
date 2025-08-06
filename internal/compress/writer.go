@@ -4,7 +4,6 @@ import (
 	"compress/gzip"
 	"compress/zlib"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -60,21 +59,50 @@ func (c *HTTPWriter) Close() error {
 	return c.compressor.Close()
 }
 
-// JSON сжатие json структуры.
-func JSON(t Type, w io.Writer, i any, logger Logger) error {
-	var (
-		cmp io.WriteCloser
-		err error
-	)
-	if cmp, err = compressor(t, w); err != nil {
-		return err
+// WriteCloser обертка над потоком сжатия данных.
+type WriteCloser struct {
+	body []byte
+	comp io.WriteCloser
+}
+
+// Write записывает данные в поток.
+func (b *WriteCloser) Write(p []byte) (n int, err error) {
+	b.body = append(b.body, p...)
+	return b.comp.Write(p)
+}
+
+// Close закрывает поток.
+func (b *WriteCloser) Close() error {
+	return b.comp.Close()
+}
+
+// RawBody оригинальное тело запроса.
+func (b *WriteCloser) RawBody() []byte {
+	return b.body
+}
+
+// NewWriteCloser конструктор.
+func NewWriteCloser(t Type, w io.Writer) (*WriteCloser, error) {
+	comp, err := compressor(t, w)
+	if err != nil {
+		return nil, err
 	}
+
+	return &WriteCloser{
+		comp: comp,
+	}, nil
+}
+
+// JSON json структуры.
+func JSON(w io.WriteCloser, i any, logger Logger) error {
+	var err error
+
 	defer func() {
-		if e := cmp.Close(); e != nil && !errors.Is(e, io.ErrClosedPipe) {
+		if e := w.Close(); e != nil {
 			logger.Errorf("JSON compressor close error: %v", e)
 		}
 	}()
-	if err = json.NewEncoder(cmp).Encode(i); err != nil {
+	if err = json.NewEncoder(w).Encode(i); err != nil {
 		return err
 	}
 	return nil

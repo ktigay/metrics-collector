@@ -1,18 +1,19 @@
 package collector
 
 import (
-	"runtime"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/ktigay/metrics-collector/internal/metric"
+	"github.com/shirou/gopsutil/v4/mem"
 )
 
-func TestRuntimeMetricCollector_GetStat(t *testing.T) {
+func TestGopsUtilCollector_GetStat(t *testing.T) {
 	type fields struct {
-		readMem readMemStatsFn
-		mapper  mapperFn
+		memFn        virtualMemoryFn
+		cpuPercentFn cpuPercentFn
 	}
 	tests := []struct {
 		name   string
@@ -22,20 +23,20 @@ func TestRuntimeMetricCollector_GetStat(t *testing.T) {
 		{
 			name: "Positive_test_GetStat",
 			fields: fields{
-				readMem: func(stats *runtime.MemStats) {
-					stats.Alloc = 100
-					stats.TotalAlloc = 200
-				},
-				mapper: func(m runtime.MemStats) map[metric.GaugeMetric]float64 {
-					return map[metric.GaugeMetric]float64{
-						metric.Alloc:      float64(m.Alloc),
-						metric.TotalAlloc: float64(m.TotalAlloc),
+				memFn: func() (*mem.VirtualMemoryStat, error) {
+					stat := &mem.VirtualMemoryStat{
+						Total: 100,
+						Free:  200,
 					}
+					return stat, nil
+				},
+				cpuPercentFn: func(interval time.Duration, percpu bool) ([]float64, error) {
+					return []float64{10, 20}, nil
 				},
 			},
 			want: []metric.Metrics{
 				{
-					ID:   "Alloc",
+					ID:   "TotalMemory",
 					Type: "gauge",
 					Value: func() *float64 {
 						v := 100.0
@@ -43,25 +44,32 @@ func TestRuntimeMetricCollector_GetStat(t *testing.T) {
 					}(),
 				},
 				{
-					ID:   "TotalAlloc",
+					ID:   "FreeMemory",
 					Type: "gauge",
 					Value: func() *float64 {
 						v := 200.0
 						return &v
 					}(),
 				},
+				{
+					ID:   "CPUutilization1",
+					Type: "gauge",
+					Value: func() *float64 {
+						v := 10.0
+						return &v
+					}(),
+				},
 			},
 		},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := &RuntimeMetricCollector{
-				readMemFn: tt.fields.readMem,
-				mapperFn:  tt.fields.mapper,
+			g := &GopsUtilCollector{
+				memFn:        tt.fields.memFn,
+				cpuPercentFn: tt.fields.cpuPercentFn,
 			}
 
-			got, err := c.GetStat()
+			got, err := g.GetStat()
 			if err != nil {
 				t.Fatal(err)
 			}

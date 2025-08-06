@@ -21,6 +21,8 @@ env:
   SRV_ADDR: server:8080
   # dsn к postgres
   DATABASE_DSN: postgres://postgres:postgres@192.168.1.46:5430/praktikum?sslmode=disable
+  # уровень логирования
+  LOG_LEVEL: debug
 
 vars:
   PROJECT_NAME:
@@ -29,9 +31,10 @@ vars:
   SERVER_PATH: ./cmd/server/server
   TEMP_FILE: /tmp/metric_storage.txt
   TEST_SERVER_PORT: \$(random unused-port)
+  TEST_TEMP_FILE: \$(random tempfile)
   DATABASE_DSN:
     ref: .DATABASE_DSN
-  AUTOTESTS_LIST: [1, "2[AB]", "3[AB]", 4, 5, 6, 7, 8, 9, "10[AB]", 11, 12, 13]
+  AUTOTESTS_LIST: [1, "2[AB]", "3[AB]", 4, 5, 6, 7, 8, 9, "10[AB]", 11, 12, 13, 14]
 
 tasks:
   default:
@@ -144,7 +147,11 @@ tasks:
       - go-build-server
       - go-build-agent
     cmds:
-      - task: docker-run:sh -c "metricstest -test.v -test.run=^TestIteration{{index .MATCH 0}}$ -source-path=. -agent-binary-path={{.AGENT_PATH}} -binary-path={{.SERVER_PATH}} -server-port={{.TEST_SERVER_PORT}} -file-storage-path={{.TEMP_FILE}} -database-dsn='{{.DATABASE_DSN}}'"
+      - task: >-
+          docker-run:sh -c "metricstest -test.v -test.run=^TestIteration{{index .MATCH 0}}$
+          -source-path=. -agent-binary-path={{.AGENT_PATH}} -binary-path={{.SERVER_PATH}}
+          -server-port={{.TEST_SERVER_PORT}} -file-storage-path={{.TEMP_FILE}}
+          -database-dsn='{{.DATABASE_DSN}}' -key={{.TEST_TEMP_FILE}}"
 
   compose:*:
     dir: ./docker

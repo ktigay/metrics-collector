@@ -8,6 +8,7 @@ AGENT_PATH=./cmd/agent/agent
 SERVER_PATH=./cmd/server/server
 TEMP_FILE=/tmp/metric_storage.txt
 TEST_SERVER_PORT=\$$(random unused-port)
+TEST_TEMP_FILE=\$$(random tempfile)
 
 # локальный, внешний порт.
 LOCAL_PORT=4001
@@ -76,6 +77,7 @@ run-test-a: \
 	run-test-a11 \
 	run-test-a12 \
 	run-test-a13 \
+	run-test-a14 \
 
 define test_cmd
 	$(DOCKER_RUN)  sh -c "metricstest -test.v -test.run=^TestIteration$(1)$$ -source-path=. -agent-binary-path=$(AGENT_PATH) -binary-path=$(SERVER_PATH)$(2)"
@@ -107,6 +109,8 @@ run-test-a12:
 	$(call test_cmd,12, -server-port=$(TEST_SERVER_PORT) -file-storage-path=$(TEMP_FILE) -database-dsn='$(DATABASE_DSN)')
 run-test-a13:
 	$(call test_cmd,13, -server-port=$(TEST_SERVER_PORT) -file-storage-path=$(TEMP_FILE) -database-dsn='$(DATABASE_DSN)')
+run-test-a14:
+	$(call test_cmd,14, -server-port=$(TEST_SERVER_PORT) -file-storage-path=$(TEMP_FILE) -database-dsn='$(DATABASE_DSN)' -key=$(TEST_TEMP_FILE))
 
 up: \
 	up-db \

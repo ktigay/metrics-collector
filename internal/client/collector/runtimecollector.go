@@ -2,46 +2,46 @@
 package collector
 
 import (
-	"context"
-	"math/rand/v2"
 	"runtime"
 
+	_ "github.com/golang/mock/mockgen/model"
 	"github.com/ktigay/metrics-collector/internal/metric"
+)
+
+type (
+	readMemStatsFn func(*runtime.MemStats)
+	mapperFn       func(m runtime.MemStats) map[metric.GaugeMetric]float64
 )
 
 // RuntimeMetricCollector сборщик метрик.
 type RuntimeMetricCollector struct {
-	counter int64
-	stat    MetricCollectDTO
+	readMemFn readMemStatsFn
+	mapperFn  mapperFn
 }
 
-// MetricCollectDTO DTO.
-type MetricCollectDTO struct {
-	MemStats map[metric.GaugeMetric]float64
-	Counter  int64
-	Rand     float64
+// GetStat собирает метрики.
+func (c *RuntimeMetricCollector) GetStat() ([]metric.Metrics, error) {
+	var m runtime.MemStats
+	c.readMemFn(&m)
+
+	gaugeMap := c.mapperFn(m)
+	metrics := make([]metric.Metrics, 0, len(gaugeMap))
+	typeGauge := string(metric.TypeGauge)
+	for k, v := range gaugeMap {
+		metrics = append(metrics, metric.Metrics{
+			ID:    string(k),
+			Type:  typeGauge,
+			Value: &v,
+		})
+	}
+
+	return metrics, nil
 }
 
 // NewRuntimeMetricCollector конструктор.
 func NewRuntimeMetricCollector() *RuntimeMetricCollector {
-	return &RuntimeMetricCollector{}
-}
-
-// PollStat собирает метрики.
-func (c *RuntimeMetricCollector) PollStat(_ context.Context) {
-	var m runtime.MemStats
-	runtime.ReadMemStats(&m)
-
-	c.counter++
-
-	c.stat = MetricCollectDTO{
-		MemStats: metric.MapGaugeFromMemStats(m),
-		Counter:  c.counter,
-		Rand:     rand.Float64(),
+	return &RuntimeMetricCollector{
+		readMemFn: runtime.ReadMemStats,
+		mapperFn:  metric.MapGaugeFromMemStats,
 	}
-}
-
-// GetStat возвращает метрики.
-func (c *RuntimeMetricCollector) GetStat() MetricCollectDTO {
-	return c.stat
 }

@@ -8,39 +8,6 @@ import (
 	e "github.com/ktigay/metrics-collector/internal/compress/errors"
 )
 
-// NewJSONRequest запрос.
-func NewJSONRequest(method, url string, t Type, body any, logger Logger) (*http.Request, error) {
-	var (
-		err error
-		req *http.Request
-	)
-
-	r, w := io.Pipe()
-
-	go func() {
-		jsonErr := JSON(t, w, body, logger)
-		if ec := w.CloseWithError(jsonErr); ec != nil {
-			logger.Errorf("w.CloseWithError error: %v", ec)
-		}
-	}()
-
-	if req, err = http.NewRequest(method, url, r); err != nil {
-		return nil, err
-	}
-
-	contentType := []string{"application/json"}
-	enc := []string{fmt.Sprint(t)}
-
-	req.Header = http.Header{
-		"Content-Type":     contentType,
-		"Accept":           contentType,
-		"Content-Encoding": enc,
-		"Accept-Encoding":  enc,
-	}
-
-	return req, nil
-}
-
 // Client клиент для отправки сжатых запросов.
 type Client struct {
 	http.Client

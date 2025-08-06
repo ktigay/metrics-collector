@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"math"
 	"os"
 	"os/signal"
 	"sync"
@@ -17,21 +18,24 @@ import (
 	"github.com/ktigay/metrics-collector/internal/client/sender/transport"
 	"github.com/ktigay/metrics-collector/internal/client/service"
 	ilog "github.com/ktigay/metrics-collector/internal/log"
+	"github.com/ktigay/metrics-collector/internal/metric"
 	"go.uber.org/zap"
 )
 
+type Task func(context.Context)
+
 func main() {
 	var (
-		config *client.Config
+		cfg    *client.Config
 		logger *zap.SugaredLogger
 		err    error
 	)
 
-	if config, err = client.InitializeConfig(os.Args[1:]); err != nil {
+	if cfg, err = client.InitializeConfig(os.Args[1:]); err != nil {
 		os.Exit(1)
 	}
 
-	if logger, err = ilog.Initialize(config.LogLevel); err != nil {
+	if logger, err = ilog.Initialize(cfg.LogLevel); err != nil {
 		log.Fatalf("can't initialize zap logger: %v", err)
 	}
 	defer func() {
@@ -44,28 +48,42 @@ func main() {
 	defer stop()
 
 	cl := collector.NewRuntimeMetricCollector()
-	clPoller := collector.NewIntervalPoller(cl, time.Duration(config.PollInterval)*time.Second, logger)
+	rnPoller := collector.NewIntervalPoller(cl, time.Duration(cfg.PollInterval)*time.Second, logger)
 
-	t := transport.NewHTTPClient(config.ServerProtocol+"://"+config.ServerHost, logger)
-	sn := sender.NewMetricSender(t, config.BatchEnabled)
+	gp := collector.NewGopsUtilCollector()
+	gpPoller := collector.NewIntervalPoller(gp, time.Duration(cfg.PollInterval)*time.Second, logger)
 
-	statService := service.NewStatService(cl, sn, time.Duration(config.ReportInterval)*time.Second, logger)
+	t := transport.NewHTTPClient(cfg.ServerProtocol+"://"+cfg.ServerHost, cfg.HashKey, logger)
+	sn := sender.NewMetricSender(t, cfg.BatchEnabled, cfg.RateLimit, logger)
+	handler := collector.NewMetricsHandler()
+	statSender := service.NewStatSenderService(sn, handler, time.Duration(cfg.ReportInterval)*time.Second, logger)
 
+	// размер канала такой, чтобы не блокировать сборку статистики.
+	chSize := int64(math.Ceil(float64(cfg.ReportInterval)/float64(cfg.PollInterval))) * 2
+	pollChan := make(chan []metric.Metrics, chSize)
+	defer close(pollChan)
+
+	tasks := []Task{
+		func(ctx context.Context) {
+			rnPoller.PollStat(ctx, pollChan)
+		},
+		func(ctx context.Context) {
+			gpPoller.PollStat(ctx, pollChan)
+		},
+		func(ctx context.Context) {
+			statSender.SendStat(ctx, pollChan)
+		},
+	}
 	var wg sync.WaitGroup
+	wg.Add(len(tasks))
 
-	wg.Add(1)
-	go func() {
-		clPoller.PollStat(ctx)
-		wg.Done()
-	}()
-
-	wg.Add(1)
-	go func() {
-		statService.SendStat(ctx)
-		wg.Done()
-	}()
+	for _, task := range tasks {
+		go func() {
+			task(ctx)
+			defer wg.Done()
+		}()
+	}
 
 	wg.Wait()
-
 	logger.Debug("program exited")
 }

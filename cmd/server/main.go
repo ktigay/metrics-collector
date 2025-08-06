@@ -32,16 +32,16 @@ func main() {
 	defer stop()
 
 	var (
-		config *server.Config
+		cfg    *server.Config
 		logger *zap.SugaredLogger
 		err    error
 	)
 
-	if config, err = server.InitializeConfig(os.Args[1:]); err != nil {
+	if cfg, err = server.InitializeConfig(os.Args[1:]); err != nil {
 		log.Fatalf("can't parse flags: %v", err)
 	}
 
-	if logger, err = ilog.Initialize(config.LogLevel); err != nil {
+	if logger, err = ilog.Initialize(cfg.LogLevel); err != nil {
 		log.Fatalf("can't initialize zap logger: %v", err)
 	}
 	defer func() {
@@ -50,12 +50,12 @@ func main() {
 		}
 	}()
 
-	logger.Infof("config: %+v", config)
+	logger.Infof("cfg: %+v", cfg)
 
 	var dbPool *sql.DB
-	if config.IsUseSQLDB() {
+	if cfg.IsUseSQLDB() {
 		var callback func()
-		dbPool, callback = initDBConnection(mainCtx, config.DatabaseDriver, config.DatabaseDSN, logger)
+		dbPool, callback = initDBConnection(mainCtx, cfg.DatabaseDriver, cfg.DatabaseDSN, logger)
 		defer callback()
 	}
 
@@ -65,7 +65,7 @@ func main() {
 		wg        sync.WaitGroup
 	)
 
-	if collector, err = initMetricCollector(mainCtx, config, dbPool, logger); err != nil {
+	if collector, err = initMetricCollector(mainCtx, cfg, dbPool, logger); err != nil {
 		log.Fatalf("can't initialize collector: %v", err)
 	}
 
@@ -73,13 +73,13 @@ func main() {
 	ph := handler.NewPingHandler(dbPool, logger)
 	router = mux.NewRouter()
 
-	regMiddleware(router, logger)
+	regMiddleware(router, logger, cfg.HashKey)
 
 	regMetricRoutes(router, mh)
 	regPingRoutes(router, ph)
 
 	httpServer := &http.Server{
-		Addr:    config.ServerHost,
+		Addr:    cfg.ServerHost,
 		Handler: router,
 		BaseContext: func(net.Listener) context.Context {
 			return mainCtx
@@ -101,7 +101,7 @@ func main() {
 
 	wg.Add(1)
 	go func() {
-		if err = collector.Backup(mainCtx, exitCtx, config.StoreInterval); err != nil {
+		if err = collector.Backup(mainCtx, exitCtx, cfg.StoreInterval); err != nil {
 			logger.Errorf("can't save statistics snapshot: %v", err)
 		}
 		wg.Done()
@@ -121,11 +121,14 @@ func main() {
 	logger.Debug("program exited")
 }
 
-func regMiddleware(router *mux.Router, logger *zap.SugaredLogger) {
+func regMiddleware(router *mux.Router, logger *zap.SugaredLogger, hashKey string) {
 	router.Use(
+		middleware.WithBufferedWriter(hashKey),
 		middleware.WithContentType,
 		middleware.CompressHandler(logger),
+		middleware.CheckSumRequestHandler(logger, hashKey),
 		middleware.WithLogging(logger),
+		middleware.FlushBufferedWriter,
 	)
 }
 
@@ -142,7 +145,7 @@ func regPingRoutes(router *mux.Router, ph *handler.PingHandler) {
 	router.HandleFunc("/ping", ph.Ping).Methods(http.MethodGet)
 }
 
-func initMetricCollector(ctx context.Context, config *server.Config, dbPool *sql.DB, logger *zap.SugaredLogger) (*service.MetricCollector, error) {
+func initMetricCollector(ctx context.Context, cfg *server.Config, dbPool *sql.DB, logger *zap.SugaredLogger) (*service.MetricCollector, error) {
 	var (
 		err       error
 		ms        service.MetricRepository
@@ -150,17 +153,17 @@ func initMetricCollector(ctx context.Context, config *server.Config, dbPool *sql
 		collector *service.MetricCollector
 	)
 
-	if config.Restore {
-		sn = snapshot.NewFileMetricSnapshot(config.FileStoragePath, logger)
+	if cfg.Restore {
+		sn = snapshot.NewFileMetricSnapshot(cfg.FileStoragePath, logger)
 	}
 
-	if ms, err = initMetricRepository(sn, dbPool, config.IsUseSQLDB(), logger); err != nil {
+	if ms, err = initMetricRepository(sn, dbPool, cfg.IsUseSQLDB(), logger); err != nil {
 		return nil, err
 	}
 
 	collector = service.NewMetricCollector(ms, logger)
 
-	if config.Restore {
+	if cfg.Restore {
 		if err = collector.Restore(ctx); err != nil {
 			return nil, err
 		}

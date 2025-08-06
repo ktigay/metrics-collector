@@ -18,7 +18,7 @@ type MetricSnapshot interface {
 
 // MemMetricRepository in-memory хранилище.
 type MemMetricRepository struct {
-	sm       sync.RWMutex
+	sm       sync.Mutex
 	Metrics  map[string]MetricEntity
 	snapshot MetricSnapshot
 	logger   *zap.SugaredLogger
@@ -53,8 +53,8 @@ func (s *MemMetricRepository) Upsert(_ context.Context, m MetricEntity) error {
 
 // Find поиск по ключу.
 func (s *MemMetricRepository) Find(_ context.Context, t, n string) (*MetricEntity, error) {
-	s.sm.RLock()
-	defer s.sm.RUnlock()
+	s.sm.Lock()
+	defer s.sm.Unlock()
 
 	key := metric.Key(t, n)
 	entity, ok := s.Metrics[key]
@@ -67,8 +67,8 @@ func (s *MemMetricRepository) Find(_ context.Context, t, n string) (*MetricEntit
 
 // All вернуть все метрики.
 func (s *MemMetricRepository) All(_ context.Context) ([]MetricEntity, error) {
-	s.sm.RLock()
-	defer s.sm.RUnlock()
+	s.sm.Lock()
+	defer s.sm.Unlock()
 
 	all := make([]MetricEntity, 0, len(s.Metrics))
 	for _, v := range s.Metrics {
@@ -93,8 +93,8 @@ func (s *MemMetricRepository) Backup(_ context.Context) error {
 		return nil
 	}
 
-	s.sm.RLock()
-	defer s.sm.RUnlock()
+	s.sm.Lock()
+	defer s.sm.Unlock()
 
 	return s.snapshot.Write(
 		slices.Collect(maps.Values(s.Metrics)),

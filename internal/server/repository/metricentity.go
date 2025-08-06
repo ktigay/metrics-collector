@@ -27,8 +27,8 @@ func (e *MetricEntity) ValueByType() any {
 // ToMetrics мап сущности в дто.
 func (e *MetricEntity) ToMetrics() metric.Metrics {
 	m := metric.Metrics{
-		ID:    e.Name,
-		MType: string(e.Type),
+		ID:   e.Name,
+		Type: string(e.Type),
 	}
 
 	switch e.Type {
