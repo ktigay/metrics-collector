@@ -6,8 +6,9 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/ktigay/metrics-collector/internal/metric"
 	"github.com/shirou/gopsutil/v4/mem"
+
+	"github.com/ktigay/metrics-collector/internal/metric"
 )
 
 func TestGopsUtilCollector_GetStat(t *testing.T) {

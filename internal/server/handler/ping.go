@@ -6,8 +6,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/ktigay/metrics-collector/internal/retry"
 	"go.uber.org/zap"
+
+	"github.com/ktigay/metrics-collector/internal/retry"
 )
 
 const (

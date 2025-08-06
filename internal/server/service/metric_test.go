@@ -4,10 +4,11 @@ import (
 	"context"
 	"testing"
 
-	"github.com/ktigay/metrics-collector/internal/metric"
-	"github.com/ktigay/metrics-collector/internal/server/repository"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
+
+	"github.com/ktigay/metrics-collector/internal/metric"
+	"github.com/ktigay/metrics-collector/internal/server/repository"
 )
 
 func TestMetricCollector_Save(t *testing.T) {

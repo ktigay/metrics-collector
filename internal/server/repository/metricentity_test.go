@@ -3,8 +3,9 @@ package repository
 import (
 	"testing"
 
-	"github.com/ktigay/metrics-collector/internal/metric"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/ktigay/metrics-collector/internal/metric"
 )
 
 func TestEntity_ToMetrics(t *testing.T) {
