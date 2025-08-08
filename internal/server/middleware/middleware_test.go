@@ -8,9 +8,10 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/gorilla/mux"
-	h "github.com/ktigay/metrics-collector/internal/http"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
+
+	h "github.com/ktigay/metrics-collector/internal/http"
 )
 
 func TestCheckSumRequestHandler(t *testing.T) {

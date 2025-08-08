@@ -3,9 +3,10 @@ package collector
 import (
 	"time"
 
-	"github.com/ktigay/metrics-collector/internal/metric"
 	"github.com/shirou/gopsutil/v4/cpu"
 	"github.com/shirou/gopsutil/v4/mem"
+
+	"github.com/ktigay/metrics-collector/internal/metric"
 )
 
 type (

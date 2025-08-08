@@ -5,6 +5,7 @@ import (
 	"runtime"
 
 	_ "github.com/golang/mock/mockgen/model"
+
 	"github.com/ktigay/metrics-collector/internal/metric"
 )
 

@@ -9,10 +9,10 @@ import (
 
 const (
 	defaultServerHost      = ":8080"
-	defaultLogLevel        = "info"
+	defaultLogLevel        = "debug"
 	defaultStoreInterval   = 300
 	defaultFileStoragePath = "/tmp/metrics-db.json"
-	defaultRestoreFlag     = true
+	defaultRestoreFlag     = false
 	defaultDatabaseDSN     = ""
 	defaultDatabaseDriver  = "pgx"
 	defaultHashKey         = ""

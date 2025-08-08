@@ -7,8 +7,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/ktigay/metrics-collector/internal/server/repository"
 	"go.uber.org/zap"
+
+	"github.com/ktigay/metrics-collector/internal/server/repository"
 )
 
 // FileMetricSnapshot структура для сохранения снапшота в файле.

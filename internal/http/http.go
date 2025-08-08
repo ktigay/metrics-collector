@@ -8,6 +8,7 @@ import (
 )
 
 const (
+	// HashSHA256Header имя хедера HashSHA256.
 	HashSHA256Header = "HashSHA256"
 )
 

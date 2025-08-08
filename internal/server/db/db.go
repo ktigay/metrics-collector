@@ -8,8 +8,9 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/ktigay/metrics-collector/internal/retry"
 	"go.uber.org/zap"
+
+	"github.com/ktigay/metrics-collector/internal/retry"
 )
 
 const connTimeout = 100 * time.Millisecond

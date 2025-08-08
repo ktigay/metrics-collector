@@ -4,9 +4,10 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	"go.uber.org/zap"
+
 	"github.com/ktigay/metrics-collector/internal/client/sender/mocks"
 	"github.com/ktigay/metrics-collector/internal/metric"
-	"go.uber.org/zap"
 )
 
 func TestMetricSender_sendGaugeMetrics(t *testing.T) {

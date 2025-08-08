@@ -8,6 +8,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"sync"
@@ -15,6 +16,8 @@ import (
 
 	"github.com/gorilla/mux"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"go.uber.org/zap"
+
 	ilog "github.com/ktigay/metrics-collector/internal/log"
 	"github.com/ktigay/metrics-collector/internal/server"
 	"github.com/ktigay/metrics-collector/internal/server/db"
@@ -23,7 +26,6 @@ import (
 	"github.com/ktigay/metrics-collector/internal/server/repository"
 	"github.com/ktigay/metrics-collector/internal/server/service"
 	"github.com/ktigay/metrics-collector/internal/server/snapshot"
-	"go.uber.org/zap"
 )
 
 func main() {
@@ -139,6 +141,7 @@ func regMetricRoutes(router *mux.Router, mh *handler.MetricHandler) {
 	router.HandleFunc("/value/", mh.GetJSONValueHandler).Methods(http.MethodPost)
 	router.HandleFunc("/", mh.GetAllHandler).Methods(http.MethodGet)
 	router.HandleFunc("/updates/", mh.UpdatesJSONHandler).Methods(http.MethodPost)
+	router.PathPrefix("/debug/pprof/").Handler(http.DefaultServeMux)
 }
 
 func regPingRoutes(router *mux.Router, ph *handler.PingHandler) {

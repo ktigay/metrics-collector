@@ -10,7 +10,7 @@ import (
 
 const (
 	defaultServerHost     = "localhost:8080"
-	defaultLogLevel       = "info"
+	defaultLogLevel       = "debug"
 	defaultReportInterval = 10
 	defaultPollInterval   = 2
 	defaultServerProtocol = "http"

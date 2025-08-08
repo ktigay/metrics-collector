@@ -11,9 +11,10 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"go.uber.org/zap"
+
 	"github.com/ktigay/metrics-collector/internal/compress"
 	serverhttp "github.com/ktigay/metrics-collector/internal/http"
-	"go.uber.org/zap"
 )
 
 var acceptTypes = []string{"text/html", "application/json", "*/*"}

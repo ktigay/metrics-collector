@@ -6,9 +6,10 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
+	"go.uber.org/zap"
+
 	"github.com/ktigay/metrics-collector/internal/client/collector/mocks"
 	"github.com/ktigay/metrics-collector/internal/metric"
-	"go.uber.org/zap"
 )
 
 func TestIntervalPoller_PollStat(t *testing.T) {
