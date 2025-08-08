@@ -124,6 +124,7 @@ tasks:
     desc: Линтеры
     cmds:
       - task: docker-run:golangci-lint run
+      - godoclint -config .godoc-lint.yaml ./...
 
   cs-fix:
     run: once

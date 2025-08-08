@@ -1,4 +1,4 @@
-// Package client агент.
+// Package sender агент.
 package sender
 
 import (

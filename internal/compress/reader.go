@@ -80,6 +80,7 @@ type brotliDecorator struct {
 	*brotli.Reader
 }
 
+// Close заглушка для brotliDecorator.
 func (br brotliDecorator) Close() error {
 	return nil
 }

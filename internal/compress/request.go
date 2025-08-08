@@ -11,11 +11,13 @@ import (
 	h "github.com/ktigay/metrics-collector/internal/http"
 )
 
+// Options опции реквеста.
 type Options struct {
 	hashKey string
 	logger  Logger
 }
 
+// NewOptions конструктор.
 func NewOptions(opt []Option) *Options {
 	opts := &Options{}
 	for _, o := range opt {
@@ -24,14 +26,17 @@ func NewOptions(opt []Option) *Options {
 	return opts
 }
 
+// Option функция для установки параметров опций.
 type Option func(*Options)
 
+// WithHashKey реквест с hashKey.
 func WithHashKey(hashKey string) Option {
 	return func(opt *Options) {
 		opt.hashKey = hashKey
 	}
 }
 
+// WithLogger реквест с логгером.
 func WithLogger(logger Logger) Option {
 	return func(opt *Options) {
 		opt.logger = logger

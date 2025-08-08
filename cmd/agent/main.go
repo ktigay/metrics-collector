@@ -23,6 +23,7 @@ import (
 	"github.com/ktigay/metrics-collector/internal/metric"
 )
 
+// Task задача для запуска в горутинах.
 type Task func(context.Context)
 
 func main() {
