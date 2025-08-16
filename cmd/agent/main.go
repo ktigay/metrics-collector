@@ -12,6 +12,8 @@ import (
 	"syscall"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/ktigay/metrics-collector/internal/client"
 	"github.com/ktigay/metrics-collector/internal/client/collector"
 	"github.com/ktigay/metrics-collector/internal/client/sender"
@@ -19,9 +21,9 @@ import (
 	"github.com/ktigay/metrics-collector/internal/client/service"
 	ilog "github.com/ktigay/metrics-collector/internal/log"
 	"github.com/ktigay/metrics-collector/internal/metric"
-	"go.uber.org/zap"
 )
 
+// Task задача для запуска в горутинах.
 type Task func(context.Context)
 
 func main() {

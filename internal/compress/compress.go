@@ -29,12 +29,12 @@ func TypeFromString(str string) Type {
 	a := strings.Split(str, ",")
 	for _, v := range a {
 		v = strings.TrimSpace(v)
-		switch v {
-		case string(Gzip):
+		switch Type(v) {
+		case Gzip:
 			return Gzip
-		case string(Br):
+		case Br:
 			return Br
-		case string(Deflate):
+		case Deflate:
 			return Deflate
 		}
 	}

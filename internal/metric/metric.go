@@ -12,6 +12,7 @@ import (
 // Type тип метрики.
 type Type string
 
+// String тип в строку.
 func (t Type) String() string {
 	return string(t)
 }
@@ -91,6 +92,7 @@ func (m *Metrics) ValueByType() any {
 	return nil
 }
 
+// GetDelta возвращает Delta или 0, если Delta == nil.
 func (m *Metrics) GetDelta() int64 {
 	if m.Delta == nil {
 		return 0
@@ -98,6 +100,7 @@ func (m *Metrics) GetDelta() int64 {
 	return *m.Delta
 }
 
+// GetValue возвращает Value или 0.0, если Value == nil.
 func (m *Metrics) GetValue() float64 {
 	if m.Value == nil {
 		return 0

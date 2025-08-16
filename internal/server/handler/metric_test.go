@@ -9,12 +9,13 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/gorilla/mux"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
+
 	"github.com/ktigay/metrics-collector/internal/metric"
 	"github.com/ktigay/metrics-collector/internal/server/handler/mocks"
 	"github.com/ktigay/metrics-collector/internal/server/repository"
 	"github.com/ktigay/metrics-collector/internal/server/service"
-	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
 )
 
 func TestServer_CollectHandler(t *testing.T) {

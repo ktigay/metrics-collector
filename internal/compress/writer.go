@@ -9,6 +9,7 @@ import (
 	"net/http"
 
 	"github.com/andybalholm/brotli"
+
 	cerr "github.com/ktigay/metrics-collector/internal/compress/errors"
 )
 

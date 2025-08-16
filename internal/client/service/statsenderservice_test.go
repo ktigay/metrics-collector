@@ -6,9 +6,10 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
+	"go.uber.org/zap"
+
 	"github.com/ktigay/metrics-collector/internal/client/service/mocks"
 	"github.com/ktigay/metrics-collector/internal/metric"
-	"go.uber.org/zap"
 )
 
 func TestStatSenderService_SendStat(t *testing.T) {

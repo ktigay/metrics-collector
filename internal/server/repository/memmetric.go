@@ -6,8 +6,9 @@ import (
 	"slices"
 	"sync"
 
-	"github.com/ktigay/metrics-collector/internal/metric"
 	"go.uber.org/zap"
+
+	"github.com/ktigay/metrics-collector/internal/metric"
 )
 
 // MetricSnapshot интерфейс для чтения/сохранения снимка данных.

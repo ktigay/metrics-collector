@@ -1,9 +1,10 @@
-// Package client агент.
+// Package sender агент.
 package sender
 
 import (
-	"github.com/ktigay/metrics-collector/internal/metric"
 	"go.uber.org/zap"
+
+	"github.com/ktigay/metrics-collector/internal/metric"
 )
 
 // Transport транспорт.

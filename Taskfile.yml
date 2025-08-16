@@ -124,11 +124,13 @@ tasks:
     desc: Линтеры
     cmds:
       - task: docker-run:golangci-lint run
+      - godoclint -config .godoc-lint.yaml ./...
 
   cs-fix:
     run: once
     desc: Форматирование стиля
     cmds:
+      - goimports -local github.com/ktigay/metrics-collector -w ./
       - task: docker-run:gofumpt -w -extra internal/ cmd/
 
   run-test-a:
@@ -193,6 +195,18 @@ tasks:
     desc: Останавливает сервис
     cmds:
       - task: compose:down {{index .MATCH 0}}
+
+  pprof:*:*:
+    cmds:
+      - curl -v "http://localhost:{{index .MATCH 0}}/debug/pprof/heap?seconds=300" > profiles/{{index .MATCH 1}}.pprof
+
+  pprof-diff:*:*:
+    cmds:
+      - go tool pprof -top -diff_base=profiles/{{index .MATCH 0}}.pprof profiles/{{index .MATCH 1}}.pprof
+
+  pprof-view:*:
+    cmds:
+      - go tool pprof -http=":8092" profiles/{{index .MATCH 0}}.pprof
 
   update-tpl:
     # git remote add -m main template https://github.com/Yandex-Practicum/go-musthave-metrics-tpl.git
