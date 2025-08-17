@@ -44,7 +44,7 @@ tasks:
     desc: Билд образов docker
     dir: ./docker
     cmds:
-      - docker compose -f docker-compose.build.yml build app
+      - docker compose -f docker-compose.build.yml build --no-cache app
 
   docker-run:*:
     desc: Запускает команду под докером
@@ -217,4 +217,4 @@ tasks:
     run: once
     desc: Линтер
     cmds:
-      - task: docker-run:sh -c "multichecker ./..."
+      - task: docker-run:sh -c "go vet -vettool=$(which multichecker) ./..."

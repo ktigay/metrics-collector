@@ -34,7 +34,8 @@ func main() {
 	)
 
 	if cfg, err = client.InitializeConfig(os.Args[1:]); err != nil {
-		os.Exit(1)
+		handleExit(1)
+		return
 	}
 
 	if logger, err = ilog.Initialize(cfg.LogLevel); err != nil {
@@ -88,4 +89,8 @@ func main() {
 
 	wg.Wait()
 	logger.Debug("program exited")
+}
+
+func handleExit(code int) {
+	os.Exit(code)
 }
