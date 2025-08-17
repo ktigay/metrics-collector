@@ -14,8 +14,8 @@ import (
 
 // FileMetricSnapshot структура для сохранения снапшота в файле.
 type FileMetricSnapshot struct {
-	filePath string
 	logger   *zap.SugaredLogger
+	filePath string
 }
 
 // NewFileMetricSnapshot конструктор.

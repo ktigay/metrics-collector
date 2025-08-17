@@ -212,3 +212,9 @@ tasks:
     # git remote add -m main template https://github.com/Yandex-Practicum/go-musthave-metrics-tpl.git
     cmds:
       - git fetch template && git checkout template/main .github
+
+  multichecker:
+    run: once
+    desc: Линтер
+    cmds:
+      - task: docker-run:sh -c "multichecker ./..."

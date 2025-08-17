@@ -2,8 +2,8 @@ package errors
 
 // StatusCodeError ошибочный http код.
 type StatusCodeError struct {
-	StatusCode int
 	Message    string
+	StatusCode int
 }
 
 // Error ошибка.
