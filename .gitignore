@@ -27,3 +27,5 @@ vendor/
 /cache/
 /pgdata/
 .task
+
+./bin/staticlint

@@ -1,0 +1,1 @@
+Run `task go-build-staticlint` from root to produce staticlint.

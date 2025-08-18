@@ -15,8 +15,8 @@ type DelayHandler func(p Policy) bool
 
 // Policy политика ретраев.
 type Policy struct {
-	maxRetries int
 	delays     []time.Duration
+	maxRetries int
 	retries    int
 }
 

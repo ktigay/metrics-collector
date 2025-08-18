@@ -80,7 +80,9 @@ func TestCheckSumRequestHandler(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer req.Body.Close()
+			defer func() {
+				_ = req.Body.Close()
+			}()
 
 			if tt.args.checksum != "" {
 				req.Header[h.HashSHA256Header] = []string{tt.args.checksum}
@@ -90,7 +92,9 @@ func TestCheckSumRequestHandler(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer resp.Body.Close()
+			defer func() {
+				_ = resp.Body.Close()
+			}()
 
 			assert.Equal(t, tt.wantStatus, resp.StatusCode)
 		})

@@ -24,11 +24,11 @@ func TestServer_CollectHandler(t *testing.T) {
 		contentType string
 	}
 	tests := []struct {
-		name            string
-		args            args
 		collector       func(controller *gomock.Controller) CollectorInterface
-		wantStatus      int
+		args            args
+		name            string
 		wantContentType string
+		wantStatus      int
 	}{
 		{
 			name: "Positive_test_gauge",
@@ -150,13 +150,13 @@ func TestServer_UpdateJSONHandler(t *testing.T) {
 		collector CollectorInterface
 	}
 	type args struct {
-		request     []byte
 		contentType string
+		request     []byte
 	}
 	type want struct {
-		statusCode  int
 		contentType string
 		response    string
+		statusCode  int
 		wantErr     bool
 	}
 	tests := []struct {
@@ -177,7 +177,7 @@ func TestServer_UpdateJSONHandler(t *testing.T) {
 			want: want{
 				statusCode:  http.StatusOK,
 				contentType: "application/json",
-				response:    "{\"id\":\"TestSet90\",\"type\":\"gauge\",\"value\":10}\n",
+				response:    "{\"value\":10,\"id\":\"TestSet90\",\"type\":\"gauge\"}\n",
 				wantErr:     false,
 			},
 		},
@@ -205,7 +205,7 @@ func TestServer_UpdateJSONHandler(t *testing.T) {
 			want: want{
 				statusCode:  http.StatusOK,
 				contentType: "application/json",
-				response:    "{\"id\":\"TestSet91\",\"type\":\"counter\",\"delta\":25}\n",
+				response:    "{\"delta\":25,\"id\":\"TestSet91\",\"type\":\"counter\"}\n",
 				wantErr:     false,
 			},
 		},
@@ -299,13 +299,13 @@ func TestServer_GetJSONValueHandler(t *testing.T) {
 		collector CollectorInterface
 	}
 	type args struct {
-		request     []byte
 		contentType string
+		request     []byte
 	}
 	type want struct {
-		statusCode  int
 		contentType string
 		response    string
+		statusCode  int
 		wantErr     bool
 	}
 	tests := []struct {
@@ -338,7 +338,7 @@ func TestServer_GetJSONValueHandler(t *testing.T) {
 			want: want{
 				statusCode:  http.StatusOK,
 				contentType: "application/json",
-				response:    "{\"id\":\"TestSet90\",\"type\":\"gauge\",\"value\":15.444}\n",
+				response:    "{\"value\":15.444,\"id\":\"TestSet90\",\"type\":\"gauge\"}\n",
 				wantErr:     false,
 			},
 		},
@@ -366,7 +366,7 @@ func TestServer_GetJSONValueHandler(t *testing.T) {
 			want: want{
 				statusCode:  http.StatusOK,
 				contentType: "application/json",
-				response:    "{\"id\":\"TestSet91\",\"type\":\"counter\",\"delta\":10}\n",
+				response:    "{\"delta\":10,\"id\":\"TestSet91\",\"type\":\"counter\"}\n",
 				wantErr:     false,
 			},
 		},
@@ -475,18 +475,18 @@ func TestMetricHandler_UpdatesJSONHandler(t *testing.T) {
 		collector CollectorInterface
 	}
 	type args struct {
-		request     []byte
 		contentType string
+		request     []byte
 	}
 	type want struct {
-		statusCode  int
 		contentType string
+		statusCode  int
 		wantErr     bool
 	}
 	tests := []struct {
+		args   args
 		name   string
 		fields fields
-		args   args
 		want   want
 	}{
 		{

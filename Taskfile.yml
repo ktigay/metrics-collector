@@ -44,7 +44,7 @@ tasks:
     desc: Билд образов docker
     dir: ./docker
     cmds:
-      - docker compose -f docker-compose.build.yml build app
+      - docker compose -f docker-compose.build.yml build --no-cache app
 
   docker-run:*:
     desc: Запускает команду под докером
@@ -75,6 +75,18 @@ tasks:
     generates:
       - ./cmd/server/server{{exeExt}}
       - ./cmd/agent/agent{{exeExt}}
+
+  go-build-staticlint:
+    desc: Локальный билд staticlint
+    run: when_changed
+    cmds:
+      - go build -gcflags "all=-N -l" -o ./bin/staticlint ./cmd/staticlint/*.go
+    sources:
+      - ./cmd/staticlint/*.go
+      - ./internal/staticlint/*.go
+      - ./internal/staticlint/**/*.go
+    generates:
+      - ./bin/staticlint{{exeExt}}
 
   gen:
     desc: Генерит моки из докера
@@ -212,3 +224,11 @@ tasks:
     # git remote add -m main template https://github.com/Yandex-Practicum/go-musthave-metrics-tpl.git
     cmds:
       - git fetch template && git checkout template/main .github
+
+  staticlint:
+    run: once
+    desc: Линтер
+    deps:
+      - go-build-staticlint
+    cmds:
+      - task: docker-run:sh -c "go vet -vettool=./bin/staticlint ./..."

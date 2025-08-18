@@ -13,8 +13,8 @@ import (
 
 // Options опции реквеста.
 type Options struct {
-	hashKey string
 	logger  Logger
+	hashKey string
 }
 
 // NewOptions конструктор.
