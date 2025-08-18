@@ -76,6 +76,18 @@ tasks:
       - ./cmd/server/server{{exeExt}}
       - ./cmd/agent/agent{{exeExt}}
 
+  go-build-staticlint:
+    desc: Локальный билд staticlint
+    run: when_changed
+    cmds:
+      - go build -gcflags "all=-N -l" -o ./bin/staticlint ./cmd/staticlint/*.go
+    sources:
+      - ./cmd/staticlint/*.go
+      - ./internal/staticlint/*.go
+      - ./internal/staticlint/**/*.go
+    generates:
+      - ./bin/staticlint{{exeExt}}
+
   gen:
     desc: Генерит моки из докера
     run: once
@@ -213,8 +225,10 @@ tasks:
     cmds:
       - git fetch template && git checkout template/main .github
 
-  multichecker:
+  staticlint:
     run: once
     desc: Линтер
+    deps:
+      - go-build-staticlint
     cmds:
-      - task: docker-run:sh -c "go vet -vettool=$(which multichecker) ./..."
+      - task: docker-run:sh -c "go vet -vettool=./bin/staticlint ./..."
