@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -27,6 +28,22 @@ import (
 	"github.com/ktigay/metrics-collector/internal/server/service"
 	"github.com/ktigay/metrics-collector/internal/server/snapshot"
 )
+
+var (
+	buildVersion = "N/A"
+	buildDate    = "N/A"
+	buildCommit  = "N/A"
+)
+
+func init() {
+	_, err := fmt.Fprintf(os.Stdout, `Build version: %s
+Build date: %s
+Build commit: %s
+`, buildVersion, buildDate, buildCommit)
+	if err != nil {
+		log.Printf("cannot print build info: %s", err)
+	}
+}
 
 func main() {
 	mainCtx := context.TODO()

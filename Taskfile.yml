@@ -64,8 +64,8 @@ tasks:
       - gen-local
     run: when_changed
     cmds:
-      - go build -gcflags "all=-N -l" -o {{.SERVER_PATH}} ./cmd/server/*.go
-      - go build -gcflags "all=-N -l" -o {{.AGENT_PATH}} ./cmd/agent/*.go
+      - go build -gcflags "all=-N -l" -ldflags "-X main.buildVersion=v1.0.0" -o {{.SERVER_PATH}} ./cmd/server/*.go
+      - go build -gcflags "all=-N -l" -ldflags "-X main.buildVersion=v1.0.0" -o {{.AGENT_PATH}} ./cmd/agent/*.go
     sources:
       - ./**/*.go
       - ./internal/**/*.go
@@ -142,7 +142,7 @@ tasks:
     run: once
     desc: Форматирование стиля
     cmds:
-      - goimports -local github.com/ktigay/metrics-collector -w ./
+      - goimports -local github.com/ktigay/metrics-collector -w $(find ./{internal,cmd} -not -iname "mock*" -name "*.go")
       - task: docker-run:gofumpt -w -extra internal/ cmd/
 
   run-test-a:
