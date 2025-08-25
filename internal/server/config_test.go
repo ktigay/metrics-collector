@@ -10,8 +10,8 @@ import (
 
 func TestConfig_IsUseSQLDB(t *testing.T) {
 	type args struct {
-		args []string
 		envs map[string]string
+		args []string
 	}
 	tests := []struct {
 		name    string
@@ -69,13 +69,13 @@ func TestConfig_IsUseSQLDB(t *testing.T) {
 
 func TestInitializeConfig(t *testing.T) {
 	type args struct {
-		args []string
 		envs map[string]string
+		args []string
 	}
 	tests := []struct {
 		name    string
-		args    args
 		want    *Config
+		args    args
 		wantErr bool
 	}{
 		{

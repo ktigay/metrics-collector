@@ -15,10 +15,10 @@ const (
 type (
 	// ResponseData статистика по ответу.
 	ResponseData struct {
+		Err    error
+		Body   []byte
 		Status int
 		Size   int
-		Body   []byte
-		Err    error
 	}
 
 	// Writer структура для вывода данных.

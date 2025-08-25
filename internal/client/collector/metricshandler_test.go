@@ -12,8 +12,8 @@ import (
 
 func TestMetricsHandler_Processing(t *testing.T) {
 	type fields struct {
-		counter     int64
 		randFloatFn func() float64
+		counter     int64
 	}
 	type args struct {
 		metrics [][]metric.Metrics
