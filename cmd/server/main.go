@@ -35,16 +35,6 @@ var (
 	buildCommit  = "N/A"
 )
 
-func init() {
-	_, err := fmt.Fprintf(os.Stdout, `Build version: %s
-Build date: %s
-Build commit: %s
-`, buildVersion, buildDate, buildCommit)
-	if err != nil {
-		log.Printf("cannot print build info: %s", err)
-	}
-}
-
 func main() {
 	mainCtx := context.TODO()
 	exitCtx, stop := signal.NotifyContext(mainCtx, os.Interrupt, syscall.SIGTERM)
@@ -55,6 +45,10 @@ func main() {
 		logger *zap.SugaredLogger
 		err    error
 	)
+
+	if err = buildInfo(); err != nil {
+		log.Printf("cannot print build info: %s", err)
+	}
 
 	if cfg, err = server.InitializeConfig(os.Args[1:]); err != nil {
 		log.Fatalf("can't parse flags: %v", err)
@@ -223,4 +217,12 @@ func initDBConnection(ctx context.Context, driver, dsn string, logger *zap.Sugar
 		}
 		logger.Debug("close master db successfully")
 	}
+}
+
+func buildInfo() error {
+	_, err := fmt.Fprintf(os.Stdout, `Build version: %s
+Build date: %s
+Build commit: %s
+`, buildVersion, buildDate, buildCommit)
+	return err
 }
