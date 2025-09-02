@@ -62,8 +62,8 @@ func (c *HTTPWriter) Close() error {
 
 // WriteCloser обертка над потоком сжатия данных.
 type WriteCloser struct {
-	body []byte
 	comp io.WriteCloser
+	body []byte
 }
 
 // Write записывает данные в поток.

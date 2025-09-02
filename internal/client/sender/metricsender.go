@@ -18,9 +18,9 @@ type Transport interface {
 // MetricSender хендлер.
 type MetricSender struct {
 	transport    Transport
+	logger       *zap.SugaredLogger
 	batchEnabled bool
 	rateLimit    int
-	logger       *zap.SugaredLogger
 }
 
 // SendMetrics отправляет метрики на сервер.

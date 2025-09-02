@@ -22,12 +22,12 @@ const (
 type Config struct {
 	ServerHost      string `env:"ADDRESS"`
 	LogLevel        string `env:"LOG_LEVEL"`
-	StoreInterval   int    `env:"STORE_INTERVAL"`
 	FileStoragePath string `env:"FILE_STORAGE_PATH"`
-	Restore         bool   `env:"RESTORE"`
 	DatabaseDSN     string `env:"DATABASE_DSN"`
 	DatabaseDriver  string `env:"DATABASE_DRIVER"`
 	HashKey         string `env:"KEY"`
+	StoreInterval   int    `env:"STORE_INTERVAL"`
+	Restore         bool   `env:"RESTORE"`
 }
 
 // IsUseSQLDB использовать БД SQL.

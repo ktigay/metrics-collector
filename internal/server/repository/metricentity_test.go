@@ -17,9 +17,9 @@ func TestEntity_ToMetrics(t *testing.T) {
 		Value float64
 	}
 	tests := []struct {
+		want   metric.Metrics
 		name   string
 		fields fields
-		want   metric.Metrics
 	}{
 		{
 			name: "TestEntity_ToMetrics_gauge",
@@ -83,9 +83,9 @@ func TestEntity_ValueByType(t *testing.T) {
 		Value float64
 	}
 	tests := []struct {
+		want   any
 		name   string
 		fields fields
-		want   any
 	}{
 		{
 			name: "TestEntity_ValueByType_gauge",

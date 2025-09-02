@@ -33,3 +33,7 @@ git fetch template && git checkout template/main .github
 
 ## Linter
 curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.1.5
+
+## Multichecker
+
+[Линтер для инкремента 19](https://github.com/ktigay/multichecker)

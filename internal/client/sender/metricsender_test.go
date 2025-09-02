@@ -64,9 +64,9 @@ func TestSender_sendBatch(t *testing.T) {
 	}
 	tests := []struct {
 		name         string
-		batchEnabled bool
 		args         args
 		wantLen      int
+		batchEnabled bool
 		wantErr      bool
 	}{
 		{

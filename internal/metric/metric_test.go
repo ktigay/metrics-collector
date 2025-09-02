@@ -51,9 +51,9 @@ func TestMapGaugeFromMemStats(t *testing.T) {
 		m runtime.MemStats
 	}
 	tests := []struct {
+		want map[GaugeMetric]float64
 		name string
 		args args
-		want map[GaugeMetric]float64
 	}{
 		{
 			name: "Positive_test",

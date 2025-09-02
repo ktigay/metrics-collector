@@ -18,10 +18,10 @@ type Encoder interface {
 // AtomicFileWriter структура для атомарной записи в файл.
 type AtomicFileWriter struct {
 	tmpFile  *os.File
-	filePath string
 	writer   *bufio.Writer
-	encoder  Encoder
 	logger   *zap.SugaredLogger
+	encoder  Encoder
+	filePath string
 }
 
 // NewAtomicFileWriter конструктор.

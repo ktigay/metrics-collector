@@ -19,10 +19,10 @@ type MetricSnapshot interface {
 
 // MemMetricRepository in-memory хранилище.
 type MemMetricRepository struct {
-	sm       sync.Mutex
 	Metrics  map[string]MetricEntity
 	snapshot MetricSnapshot
 	logger   *zap.SugaredLogger
+	sm       sync.Mutex
 }
 
 // NewMemRepository конструктор.

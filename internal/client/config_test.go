@@ -13,8 +13,8 @@ func Test_parseFlags(t *testing.T) {
 	}
 	tests := []struct {
 		name    string
-		args    args
 		want    *Config
+		args    args
 		wantErr bool
 	}{
 		{

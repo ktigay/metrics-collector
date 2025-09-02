@@ -4,6 +4,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"math"
 	"os"
@@ -23,6 +24,12 @@ import (
 	"github.com/ktigay/metrics-collector/internal/metric"
 )
 
+var (
+	buildVersion = "N/A"
+	buildDate    = "N/A"
+	buildCommit  = "N/A"
+)
+
 // Task задача для запуска в горутинах.
 type Task func(context.Context)
 
@@ -33,8 +40,13 @@ func main() {
 		err    error
 	)
 
+	if err = buildInfo(); err != nil {
+		log.Printf("cannot print build info: %s", err)
+	}
+
 	if cfg, err = client.InitializeConfig(os.Args[1:]); err != nil {
-		os.Exit(1)
+		handleExit(1)
+		return
 	}
 
 	if logger, err = ilog.Initialize(cfg.LogLevel); err != nil {
@@ -88,4 +100,16 @@ func main() {
 
 	wg.Wait()
 	logger.Debug("program exited")
+}
+
+func handleExit(code int) {
+	os.Exit(code)
+}
+
+func buildInfo() error {
+	_, err := fmt.Fprintf(os.Stdout, `Build version: %s
+Build date: %s
+Build commit: %s
+`, buildVersion, buildDate, buildCommit)
+	return err
 }

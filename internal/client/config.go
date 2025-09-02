@@ -23,11 +23,11 @@ const (
 type Config struct {
 	ServerProtocol string
 	ServerHost     string `env:"ADDRESS"`
+	LogLevel       string `env:"LOG_LEVEL"`
+	HashKey        string `env:"KEY"`
+	BatchEnabled   bool   `env:"BATCH_ENABLED"`
 	ReportInterval int    `env:"REPORT_INTERVAL"`
 	PollInterval   int    `env:"POLL_INTERVAL"`
-	LogLevel       string `env:"LOG_LEVEL"`
-	BatchEnabled   bool   `env:"BATCH_ENABLED"`
-	HashKey        string `env:"KEY"`
 	RateLimit      int    `env:"RATE_LIMIT"`
 }
 

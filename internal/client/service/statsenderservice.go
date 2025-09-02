@@ -28,8 +28,8 @@ type StatSender interface {
 type StatSenderService struct {
 	sender   StatSender
 	handler  MetricsHandler
-	interval time.Duration
 	logger   *zap.SugaredLogger
+	interval time.Duration
 }
 
 // SendStat отправляет статистику.

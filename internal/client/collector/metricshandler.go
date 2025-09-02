@@ -11,8 +11,8 @@ import (
 
 // MetricsHandler обработчик собранных метрик.
 type MetricsHandler struct {
-	counter     atomic.Int64
 	randFloatFn func() float64
+	counter     atomic.Int64
 }
 
 // Processing обрабатывает метрики.

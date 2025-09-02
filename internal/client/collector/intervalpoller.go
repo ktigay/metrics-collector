@@ -19,8 +19,8 @@ type StatGetter interface {
 // IntervalPoller собирает статистику.
 type IntervalPoller struct {
 	source   StatGetter
-	interval time.Duration
 	logger   *zap.SugaredLogger
+	interval time.Duration
 }
 
 // PollStat сбор статистики.
