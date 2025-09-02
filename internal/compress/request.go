@@ -2,19 +2,24 @@ package compress
 
 import (
 	"bytes"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha256"
 	"fmt"
 	"net/http"
 
 	"go.uber.org/zap/buffer"
 
+	"github.com/ktigay/metrics-collector/internal/crypto"
+
 	h "github.com/ktigay/metrics-collector/internal/http"
 )
 
 // Options опции реквеста.
 type Options struct {
-	logger  Logger
-	hashKey string
+	encryptKey *crypto.PublicKey
+	logger     Logger
+	hashKey    string
 }
 
 // NewOptions конструктор.
@@ -43,12 +48,20 @@ func WithLogger(logger Logger) Option {
 	}
 }
 
+// WithEncryptKey ключ шифрования.
+func WithEncryptKey(encryptKey *crypto.PublicKey) Option {
+	return func(opt *Options) {
+		opt.encryptKey = encryptKey
+	}
+}
+
 // NewJSONRequest запрос.
 func NewJSONRequest(method, url string, t Type, body any, opt ...Option) (*http.Request, error) {
 	var (
 		comp *WriteCloser
 		err  error
 		req  *http.Request
+		b    []byte
 	)
 
 	opts := NewOptions(opt)
@@ -62,7 +75,15 @@ func NewJSONRequest(method, url string, t Type, body any, opt ...Option) (*http.
 		return nil, err
 	}
 
-	if req, err = http.NewRequest(method, url, bytes.NewReader(w.Bytes())); err != nil {
+	b = w.Bytes()
+	if opts.encryptKey != nil {
+		b, err = rsa.EncryptPKCS1v15(rand.Reader, opts.encryptKey.Key, b)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if req, err = http.NewRequest(method, url, bytes.NewReader(b)); err != nil {
 		return nil, err
 	}
 

@@ -7,6 +7,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/ktigay/metrics-collector/internal/compress"
+	"github.com/ktigay/metrics-collector/internal/crypto"
 	"github.com/ktigay/metrics-collector/internal/metric"
 )
 
@@ -17,6 +18,7 @@ const (
 
 // HTTPClient http транспорт отправки метрик.
 type HTTPClient struct {
+	encryptKey   *crypto.PublicKey
 	url          string
 	compressType compress.Type
 	logger       *zap.SugaredLogger
@@ -24,11 +26,12 @@ type HTTPClient struct {
 }
 
 // NewHTTPClient конструктор.
-func NewHTTPClient(url, hashKey string, logger *zap.SugaredLogger) *HTTPClient {
+func NewHTTPClient(url, hashKey string, encryptKey *crypto.PublicKey, logger *zap.SugaredLogger) *HTTPClient {
 	return &HTTPClient{
 		url:          url,
 		compressType: compress.Gzip,
 		hashKey:      hashKey,
+		encryptKey:   encryptKey,
 		logger:       logger,
 	}
 }
@@ -57,6 +60,7 @@ func (h *HTTPClient) send(url string, body any) ([]byte, error) {
 		body,
 		compress.WithHashKey(h.hashKey),
 		compress.WithLogger(h.logger),
+		compress.WithEncryptKey(h.encryptKey),
 	); err != nil {
 		return nil, err
 	}

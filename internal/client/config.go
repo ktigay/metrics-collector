@@ -17,6 +17,7 @@ const (
 	defaultBatchEnabled   = false
 	defaultHashKey        = ""
 	defaultRateLimit      = 1
+	defaultCryptoKey      = "./certs/public.pem"
 )
 
 // Config конфигурация клиента.
@@ -25,6 +26,7 @@ type Config struct {
 	ServerHost     string `env:"ADDRESS"`
 	LogLevel       string `env:"LOG_LEVEL"`
 	HashKey        string `env:"KEY"`
+	CryptoKey      string `env:"CRYPTO_KEY"`
 	BatchEnabled   bool   `env:"BATCH_ENABLED"`
 	ReportInterval int    `env:"REPORT_INTERVAL"`
 	PollInterval   int    `env:"POLL_INTERVAL"`
@@ -46,6 +48,7 @@ func InitializeConfig(args []string) (*Config, error) {
 	flags.BoolVar(&config.BatchEnabled, "b", defaultBatchEnabled, "enable batchEnabled request")
 	flags.StringVar(&config.HashKey, "k", defaultHashKey, "SHA256 hash key")
 	flags.IntVar(&config.RateLimit, "l", defaultRateLimit, "requests rate limit")
+	flags.StringVar(&config.CryptoKey, "crypto-key", defaultCryptoKey, "Public key path")
 
 	if err := flags.Parse(args); err != nil {
 		return nil, err

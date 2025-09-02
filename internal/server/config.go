@@ -16,6 +16,7 @@ const (
 	defaultDatabaseDSN     = ""
 	defaultDatabaseDriver  = "pgx"
 	defaultHashKey         = ""
+	defaultCryptoKey       = "./certs/private.pem"
 )
 
 // Config конфигурация сервера.
@@ -26,6 +27,7 @@ type Config struct {
 	DatabaseDSN     string `env:"DATABASE_DSN"`
 	DatabaseDriver  string `env:"DATABASE_DRIVER"`
 	HashKey         string `env:"KEY"`
+	CryptoKey       string `env:"CRYPTO_KEY"`
 	StoreInterval   int    `env:"STORE_INTERVAL"`
 	Restore         bool   `env:"RESTORE"`
 }
@@ -52,6 +54,7 @@ func InitializeConfig(args []string) (*Config, error) {
 	flags.BoolVar(&config.Restore, "r", defaultRestoreFlag, "restore data from storage")
 	flags.StringVar(&config.DatabaseDSN, "d", defaultDatabaseDSN, "database DSN")
 	flags.StringVar(&config.HashKey, "k", defaultHashKey, "SHA256 hash key")
+	flags.StringVar(&config.CryptoKey, "crypto-key", defaultCryptoKey, "Private key path")
 
 	if err = flags.Parse(args); err != nil {
 		return nil, err

@@ -23,7 +23,10 @@ env:
   DATABASE_DSN: postgres://postgres:postgres@192.168.1.46:5430/praktikum?sslmode=disable
   # уровень логирования
   LOG_LEVEL: debug
-
+  # путь к приватному ключу шифрования
+  PRIVATE_KEY_PATH: ./certs/private.pem
+  # путь к публичному ключу шифрования
+  PUBLIC_KEY_PATH: ./certs/public.pem
 vars:
   PROJECT_NAME:
     ref: .PROJECT_NAME
@@ -232,3 +235,7 @@ tasks:
       - go-build-staticlint
     cmds:
       - task: docker-run:sh -c "go vet -vettool=./bin/staticlint ./..."
+
+  gen-crt:
+    cmds:
+      - go run ./cmd/cert/main.go

@@ -2,6 +2,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -20,6 +21,7 @@ import (
 	"github.com/ktigay/metrics-collector/internal/client/sender"
 	"github.com/ktigay/metrics-collector/internal/client/sender/transport"
 	"github.com/ktigay/metrics-collector/internal/client/service"
+	c "github.com/ktigay/metrics-collector/internal/crypto"
 	ilog "github.com/ktigay/metrics-collector/internal/log"
 	"github.com/ktigay/metrics-collector/internal/metric"
 )
@@ -58,6 +60,15 @@ func main() {
 		}
 	}()
 
+	logger.Infof("cfg: %+v", cfg)
+
+	var cryptoKey *c.PublicKey
+	if cfg.CryptoKey != "" {
+		if cryptoKey, err = initPublicKey(cfg.CryptoKey); err != nil {
+			log.Fatalf("can't initialize crypto key: %v", err)
+		}
+	}
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
@@ -67,7 +78,7 @@ func main() {
 	gp := collector.NewGopsUtilCollector()
 	gpPoller := collector.NewIntervalPoller(gp, time.Duration(cfg.PollInterval)*time.Second, logger)
 
-	t := transport.NewHTTPClient(cfg.ServerProtocol+"://"+cfg.ServerHost, cfg.HashKey, logger)
+	t := transport.NewHTTPClient(cfg.ServerProtocol+"://"+cfg.ServerHost, cfg.HashKey, cryptoKey, logger)
 	sn := sender.NewMetricSender(t, cfg.BatchEnabled, cfg.RateLimit, logger)
 	handler := collector.NewMetricsHandler()
 	statSender := service.NewStatSenderService(sn, handler, time.Duration(cfg.ReportInterval)*time.Second, logger)
@@ -100,6 +111,14 @@ func main() {
 
 	wg.Wait()
 	logger.Debug("program exited")
+}
+
+func initPublicKey(cryptoKey string) (*c.PublicKey, error) {
+	file, err := os.Open(cryptoKey)
+	if err != nil {
+		return nil, err
+	}
+	return c.NewPublicKey(bufio.NewReader(file))
 }
 
 func handleExit(code int) {
