@@ -8,8 +8,10 @@ import (
 
 func Test_parseFlags(t *testing.T) {
 	type args struct {
-		envs  map[string]string
-		flags []string
+		filePath     string
+		fileContents string
+		envs         map[string]string
+		flags        []string
 	}
 	tests := []struct {
 		name    string
@@ -180,9 +182,107 @@ func Test_parseFlags(t *testing.T) {
 			want:    nil,
 			wantErr: true,
 		},
+		{
+			name: "Positive_test_Envs_Flags_JSON",
+			args: args{
+				envs: map[string]string{
+					"REPORT_INTERVAL": "111",
+				},
+				flags:    []string{"-r=120", "-c=/tmp/agent.json"},
+				filePath: "/tmp/agent.json",
+				fileContents: `{
+				  "address": "localhost:8088",
+				  "report_interval": "1s",
+				  "poll_interval": "1s",
+				  "crypto_key": "./certs/crypto.pem"
+				}`,
+			},
+			want: &Config{
+				ServerProtocol: defaultServerProtocol,
+				ServerHost:     "localhost:8088",
+				ConfigFile:     "/tmp/agent.json",
+				ReportInterval: 111,
+				PollInterval:   1,
+				LogLevel:       defaultLogLevel,
+				CryptoKey:      "./certs/crypto.pem",
+				RateLimit:      defaultRateLimit,
+			},
+			wantErr: false,
+		},
+		{
+			name: "Positive_test_Envs_Flags_JSON_From_Args_With_Space",
+			args: args{
+				envs: map[string]string{
+					"REPORT_INTERVAL": "111",
+				},
+				flags:    []string{"-r=120", "-c", "/tmp/agent.json", "-p=11"},
+				filePath: "/tmp/agent.json",
+				fileContents: `{
+				  "address": "localhost:8088",
+				  "report_interval": "1s",
+				  "poll_interval": "1s",
+				  "crypto_key": "./certs/crypto.pem"
+				}`,
+			},
+			want: &Config{
+				ServerProtocol: defaultServerProtocol,
+				ServerHost:     "localhost:8088",
+				ConfigFile:     "/tmp/agent.json",
+				ReportInterval: 111,
+				PollInterval:   11,
+				LogLevel:       defaultLogLevel,
+				CryptoKey:      "./certs/crypto.pem",
+				RateLimit:      defaultRateLimit,
+			},
+			wantErr: false,
+		},
+		{
+			name: "Positive_test_Envs_Flags_JSON_From_Env",
+			args: args{
+				envs: map[string]string{
+					"REPORT_INTERVAL": "111",
+					"CONFIG":          "/tmp/agent.json",
+				},
+				flags:    []string{"-r=120"},
+				filePath: "/tmp/agent.json",
+				fileContents: `{
+				  "address": "localhost:8088",
+				  "report_interval": "1s",
+				  "poll_interval": "1s",
+				  "crypto_key": "./certs/crypto.pem"
+				}`,
+			},
+			want: &Config{
+				ServerProtocol: defaultServerProtocol,
+				ServerHost:     "localhost:8088",
+				ConfigFile:     "/tmp/agent.json",
+				ReportInterval: 111,
+				PollInterval:   1,
+				LogLevel:       defaultLogLevel,
+				CryptoKey:      "./certs/crypto.pem",
+				RateLimit:      defaultRateLimit,
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			os.Clearenv()
+
+			if tt.args.filePath != "" && tt.args.fileContents != "" {
+				f, err := os.OpenFile(tt.args.filePath, os.O_WRONLY|os.O_CREATE, 0o644)
+				if err != nil {
+					panic(err)
+				}
+				defer func() {
+					_ = f.Close()
+					_ = os.Remove(tt.args.filePath)
+				}()
+
+				if _, err = f.WriteString(tt.args.fileContents); err != nil {
+					panic(err)
+				}
+			}
 			if tt.args.envs != nil {
 				for k, v := range tt.args.envs {
 					if err := os.Setenv(k, v); err != nil {
