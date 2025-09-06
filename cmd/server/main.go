@@ -39,7 +39,7 @@ var (
 
 func main() {
 	mainCtx := context.TODO()
-	exitCtx, stop := signal.NotifyContext(mainCtx, os.Interrupt, syscall.SIGTERM)
+	exitCtx, stop := signal.NotifyContext(mainCtx, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
 	defer stop()
 
 	var (
