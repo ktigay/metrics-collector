@@ -24,7 +24,7 @@ func InitializeConfig(args []string) (*Config, error) {
 		PublicKeyPath:  defaultPublicKeyPath,
 	}
 
-	flags := flag.NewFlagSet("agent flags", flag.ContinueOnError)
+	flags := flag.NewFlagSet("crypto flags", flag.ContinueOnError)
 
 	flags.StringVar(&config.PrivateKeyPath, "k", defaultPrivateKeyPath, "private key path")
 	flags.StringVar(&config.PublicKeyPath, "s", defaultPublicKeyPath, "certificate path")

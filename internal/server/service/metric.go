@@ -9,6 +9,7 @@ import (
 
 	"github.com/ktigay/metrics-collector/internal/metric"
 	"github.com/ktigay/metrics-collector/internal/retry"
+	"github.com/ktigay/metrics-collector/internal/server"
 	e "github.com/ktigay/metrics-collector/internal/server/errors"
 	"github.com/ktigay/metrics-collector/internal/server/repository"
 )
@@ -104,7 +105,7 @@ func (c *MetricCollector) Remove(ctx context.Context, t, n string) error {
 }
 
 // Backup бэкап данных.
-func (c *MetricCollector) Backup(mainCtx, exitCtx context.Context, storeInterval int) error {
+func (c *MetricCollector) Backup(mainCtx, exitCtx context.Context, storeInterval server.ConfigInterval) error {
 	var repo BackupRepository
 	switch t := c.repo.(type) {
 	case BackupRepository:
