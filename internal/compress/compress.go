@@ -13,6 +13,8 @@ const (
 	Deflate Type = "deflate"
 	// Br brotli.
 	Br Type = "br"
+	// Default по умолчанию.
+	Default = Gzip
 )
 
 // String тип в виде строки.

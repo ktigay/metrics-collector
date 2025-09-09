@@ -13,8 +13,8 @@ type Config struct {
 }
 
 const (
-	defaultPrivateKeyPath = "./certs/private.key"
-	defaultPublicKeyPath  = "./certs/certificate.pem"
+	defaultPrivateKeyPath = "./certs/private.pem"
+	defaultPublicKeyPath  = "./certs/public.pem"
 )
 
 // InitializeConfig инициализирует конфиг клиента.
@@ -26,7 +26,7 @@ func InitializeConfig(args []string) (*Config, error) {
 
 	flags := flag.NewFlagSet("crypto flags", flag.ContinueOnError)
 
-	flags.StringVar(&config.PrivateKeyPath, "k", defaultPrivateKeyPath, "private key path")
+	flags.StringVar(&config.PrivateKeyPath, "k", defaultPrivateKeyPath, "private Key path")
 	flags.StringVar(&config.PublicKeyPath, "s", defaultPublicKeyPath, "certificate path")
 
 	if err := flags.Parse(args); err != nil {

@@ -3,7 +3,6 @@ package compress
 import (
 	"compress/gzip"
 	"compress/zlib"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -92,21 +91,6 @@ func NewWriteCloser(t Type, w io.Writer) (*WriteCloser, error) {
 	return &WriteCloser{
 		comp: comp,
 	}, nil
-}
-
-// JSON json структуры.
-func JSON(w io.WriteCloser, i any, logger Logger) error {
-	var err error
-
-	defer func() {
-		if e := w.Close(); e != nil {
-			logger.Errorf("JSON compressor close error: %v", e)
-		}
-	}()
-	if err = json.NewEncoder(w).Encode(i); err != nil {
-		return err
-	}
-	return nil
 }
 
 func compressor(t Type, w io.Writer) (io.WriteCloser, error) {

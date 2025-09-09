@@ -4,6 +4,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"crypto"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -148,7 +149,12 @@ func regMiddleware(router *mux.Router, logger *zap.SugaredLogger, cryptoKey *c.P
 	router.Use(
 		middleware.WithBufferedWriter(hashKey),
 		middleware.WithContentType,
-		middleware.DecryptRequestHandler(logger, cryptoKey),
+		middleware.DecryptRequestHandler(logger, func() crypto.Decrypter {
+			if cryptoKey == nil {
+				return nil
+			}
+			return cryptoKey.Key
+		}()),
 		middleware.CompressHandler(logger),
 		middleware.CheckSumRequestHandler(logger, hashKey),
 		middleware.WithLogging(logger),

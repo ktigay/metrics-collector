@@ -3,8 +3,8 @@ package middleware
 
 import (
 	"bytes"
+	"crypto"
 	"crypto/rand"
-	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/hex"
 	"io"
@@ -14,8 +14,6 @@ import (
 
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
-
-	"github.com/ktigay/metrics-collector/internal/crypto"
 
 	"github.com/ktigay/metrics-collector/internal/compress"
 	serverhttp "github.com/ktigay/metrics-collector/internal/http"
@@ -165,10 +163,10 @@ func CompressHandler(logger *zap.SugaredLogger) mux.MiddlewareFunc {
 }
 
 // DecryptRequestHandler декодирование ключом.
-func DecryptRequestHandler(logger *zap.SugaredLogger, k *crypto.PrivateKey) mux.MiddlewareFunc {
+func DecryptRequestHandler(logger *zap.SugaredLogger, decrypter crypto.Decrypter) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if k == nil {
+			if decrypter == nil {
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -179,11 +177,9 @@ func DecryptRequestHandler(logger *zap.SugaredLogger, k *crypto.PrivateKey) mux.
 
 			if buff, err = io.ReadAll(r.Body); err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
-				logger.Errorf("middleware.DecryptRequestHandler error: %s", err)
 				return
 			}
-
-			if buff, err = rsa.DecryptPKCS1v15(rand.Reader, k.Key, buff); err != nil {
+			if buff, err = decrypter.Decrypt(rand.Reader, buff, nil); err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				logger.Errorf("middleware.DecryptRequestHandler error: %s", err)
 				return

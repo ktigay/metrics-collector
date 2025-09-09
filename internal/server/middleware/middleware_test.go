@@ -218,7 +218,7 @@ oTdBbK732TjFe2lO4y+wJ1cCAwEAAQ==
 			defer mockCtrl.Finish()
 
 			router := mux.NewRouter()
-			router.Use(DecryptRequestHandler(zap.NewNop().Sugar(), tt.args.k))
+			router.Use(DecryptRequestHandler(zap.NewNop().Sugar(), tt.args.k.Key))
 			router.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
 				b, err := io.ReadAll(request.Body)
 				if err != nil {
