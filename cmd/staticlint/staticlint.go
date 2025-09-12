@@ -77,7 +77,7 @@ import (
 	"github.com/ktigay/metrics-collector/internal/staticlint/osexit"
 )
 
-// Анализаторы
+// main Анализаторы
 func main() {
 	sch := []*analysis.Analyzer{
 		// анализаторы из пакета passes.

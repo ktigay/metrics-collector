@@ -1,0 +1,15 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="server" type="GoApplicationRunConfiguration" factoryName="Go Application">
+    <module name="metrics-collector" />
+    <working_directory value="$PROJECT_DIR$" />
+    <envs>
+      <env name="DATABASE_DSN" value="postgres://postgres:postgres@192.168.1.46:5430/praktikum?sslmode=disable" />
+      <env name="ADDRESS" value=":8091" />
+    </envs>
+    <kind value="PACKAGE" />
+    <package value="github.com/ktigay/metrics-collector/cmd/server" />
+    <directory value="$PROJECT_DIR$" />
+    <filePath value="$PROJECT_DIR$" />
+    <method v="2" />
+  </configuration>
+</component>

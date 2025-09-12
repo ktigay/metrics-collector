@@ -69,8 +69,10 @@ func TestConfig_IsUseSQLDB(t *testing.T) {
 
 func TestInitializeConfig(t *testing.T) {
 	type args struct {
-		envs map[string]string
-		args []string
+		filePath     string
+		fileContents string
+		envs         map[string]string
+		args         []string
 	}
 	tests := []struct {
 		name    string
@@ -96,6 +98,7 @@ func TestInitializeConfig(t *testing.T) {
 				StoreInterval:   123,
 				FileStoragePath: "/tmp/restore-args.txt",
 				Restore:         false,
+				CryptoKey:       "./certs/private.pem",
 				DatabaseDSN:     "postgres://postgres:postgres@localhost:1001/postgres?sslmode=disable",
 				DatabaseDriver:  "pgx",
 			},
@@ -127,6 +130,7 @@ func TestInitializeConfig(t *testing.T) {
 				StoreInterval:   200,
 				FileStoragePath: "/tmp/restore-env.txt",
 				Restore:         true,
+				CryptoKey:       "./certs/private.pem",
 				DatabaseDSN:     "postgres://postgres:postgres@localhost:2002/postgres?sslmode=disable",
 				DatabaseDriver:  "mysql",
 			},
@@ -151,6 +155,114 @@ func TestInitializeConfig(t *testing.T) {
 				StoreInterval:   200,
 				FileStoragePath: "/tmp/restore-env.txt",
 				Restore:         true,
+				CryptoKey:       "./certs/private.pem",
+				DatabaseDSN:     "postgres://postgres:postgres@localhost:2002/postgres?sslmode=disable",
+				DatabaseDriver:  "mysql",
+			},
+		},
+		{
+			name: "TestInitializeConfig_with_args_envs_and_json_file_from_args",
+			args: args{
+				args: []string{
+					"-lvl=info",
+					"-f=/tmp/restore-args.txt",
+					"-r=0",
+					"-d=postgres://postgres:postgres@localhost:1001/postgres?sslmode=disable",
+					"-c=/tmp/config.json",
+				},
+				envs: map[string]string{
+					"LOG_LEVEL":         "error",
+					"FILE_STORAGE_PATH": "/tmp/restore-env.txt",
+					"RESTORE":           "1",
+					"DATABASE_DSN":      "postgres://postgres:postgres@localhost:2002/postgres?sslmode=disable",
+					"DATABASE_DRIVER":   "mysql",
+				},
+				filePath: "/tmp/config.json",
+				fileContents: `{
+				  "address": ":80100",
+				  "store_interval": "160s"
+				}`,
+			},
+			want: &Config{
+				ServerHost:      ":80100",
+				LogLevel:        "error",
+				ConfigFile:      "/tmp/config.json",
+				StoreInterval:   160,
+				FileStoragePath: "/tmp/restore-env.txt",
+				Restore:         true,
+				CryptoKey:       "./certs/private.pem",
+				DatabaseDSN:     "postgres://postgres:postgres@localhost:2002/postgres?sslmode=disable",
+				DatabaseDriver:  "mysql",
+			},
+		},
+		{
+			name: "TestInitializeConfig_with_args_envs_and_json_file_from_args_with_space_delimiter",
+			args: args{
+				args: []string{
+					"-lvl=info",
+					"-f=/tmp/restore-args.txt",
+					"-r=0",
+					"-c",
+					"/tmp/config.json",
+					"-d=postgres://postgres:postgres@localhost:1001/postgres?sslmode=disable",
+				},
+				envs: map[string]string{
+					"LOG_LEVEL":         "error",
+					"FILE_STORAGE_PATH": "/tmp/restore-env.txt",
+					"RESTORE":           "1",
+					"DATABASE_DSN":      "postgres://postgres:postgres@localhost:2002/postgres?sslmode=disable",
+					"DATABASE_DRIVER":   "mysql",
+				},
+				filePath: "/tmp/config.json",
+				fileContents: `{
+				  "address": ":80100",
+				  "store_interval": "160s"
+				}`,
+			},
+			want: &Config{
+				ServerHost:      ":80100",
+				LogLevel:        "error",
+				ConfigFile:      "/tmp/config.json",
+				StoreInterval:   160,
+				FileStoragePath: "/tmp/restore-env.txt",
+				Restore:         true,
+				CryptoKey:       "./certs/private.pem",
+				DatabaseDSN:     "postgres://postgres:postgres@localhost:2002/postgres?sslmode=disable",
+				DatabaseDriver:  "mysql",
+			},
+		},
+		{
+			name: "TestInitializeConfig_with_args_envs_and_json_file_from_env",
+			args: args{
+				args: []string{
+					"-lvl=info",
+					"-f=/tmp/restore-args.txt",
+					"-r=0",
+					"-d=postgres://postgres:postgres@localhost:1001/postgres?sslmode=disable",
+				},
+				envs: map[string]string{
+					"LOG_LEVEL":         "error",
+					"FILE_STORAGE_PATH": "/tmp/restore-env.txt",
+					"RESTORE":           "1",
+					"DATABASE_DSN":      "postgres://postgres:postgres@localhost:2002/postgres?sslmode=disable",
+					"DATABASE_DRIVER":   "mysql",
+					"CONFIG":            "/tmp/config.json",
+				},
+				filePath: "/tmp/config.json",
+				fileContents: `{
+				  "address": ":80100",
+				  "restore": false,
+				  "store_interval": "160s"
+				}`,
+			},
+			want: &Config{
+				ServerHost:      ":80100",
+				LogLevel:        "error",
+				ConfigFile:      "/tmp/config.json",
+				StoreInterval:   160,
+				FileStoragePath: "/tmp/restore-env.txt",
+				Restore:         true,
+				CryptoKey:       "./certs/private.pem",
 				DatabaseDSN:     "postgres://postgres:postgres@localhost:2002/postgres?sslmode=disable",
 				DatabaseDriver:  "mysql",
 			},
@@ -159,6 +271,20 @@ func TestInitializeConfig(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			os.Clearenv()
+			if tt.args.filePath != "" && tt.args.fileContents != "" {
+				f, err := os.OpenFile(tt.args.filePath, os.O_WRONLY|os.O_CREATE, 0o644)
+				if err != nil {
+					panic(err)
+				}
+				defer func() {
+					_ = f.Close()
+					_ = os.Remove(tt.args.filePath)
+				}()
+
+				if _, err = f.WriteString(tt.args.fileContents); err != nil {
+					panic(err)
+				}
+			}
 			for k, v := range tt.args.envs {
 				_ = os.Setenv(k, v)
 			}

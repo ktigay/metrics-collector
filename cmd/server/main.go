@@ -2,7 +2,9 @@
 package main
 
 import (
+	"bufio"
 	"context"
+	"crypto"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -19,6 +21,7 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"go.uber.org/zap"
 
+	c "github.com/ktigay/metrics-collector/internal/crypto"
 	ilog "github.com/ktigay/metrics-collector/internal/log"
 	"github.com/ktigay/metrics-collector/internal/server"
 	"github.com/ktigay/metrics-collector/internal/server/db"
@@ -37,7 +40,7 @@ var (
 
 func main() {
 	mainCtx := context.TODO()
-	exitCtx, stop := signal.NotifyContext(mainCtx, os.Interrupt, syscall.SIGTERM)
+	exitCtx, stop := signal.NotifyContext(mainCtx, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
 	defer stop()
 
 	var (
@@ -72,6 +75,13 @@ func main() {
 		defer callback()
 	}
 
+	var cryptoKey *c.PrivateKey
+	if cfg.CryptoKey != "" {
+		if cryptoKey, err = initPrivateKey(cfg.CryptoKey); err != nil {
+			log.Fatalf("can't initialize crypto key: %v", err)
+		}
+	}
+
 	var (
 		collector *service.MetricCollector
 		router    *mux.Router
@@ -86,7 +96,7 @@ func main() {
 	ph := handler.NewPingHandler(dbPool, logger)
 	router = mux.NewRouter()
 
-	regMiddleware(router, logger, cfg.HashKey)
+	regMiddleware(router, logger, cryptoKey, cfg.HashKey)
 
 	regMetricRoutes(router, mh)
 	regPingRoutes(router, ph)
@@ -98,6 +108,7 @@ func main() {
 			return mainCtx
 		},
 	}
+
 	wg.Add(1)
 	go func() {
 		logger.Debug("http server started")
@@ -134,10 +145,16 @@ func main() {
 	logger.Debug("program exited")
 }
 
-func regMiddleware(router *mux.Router, logger *zap.SugaredLogger, hashKey string) {
+func regMiddleware(router *mux.Router, logger *zap.SugaredLogger, cryptoKey *c.PrivateKey, hashKey string) {
 	router.Use(
 		middleware.WithBufferedWriter(hashKey),
 		middleware.WithContentType,
+		middleware.DecryptRequestHandler(logger, func() crypto.Decrypter {
+			if cryptoKey == nil {
+				return nil
+			}
+			return cryptoKey.Key
+		}()),
 		middleware.CompressHandler(logger),
 		middleware.CheckSumRequestHandler(logger, hashKey),
 		middleware.WithLogging(logger),
@@ -217,6 +234,14 @@ func initDBConnection(ctx context.Context, driver, dsn string, logger *zap.Sugar
 		}
 		logger.Debug("close master db successfully")
 	}
+}
+
+func initPrivateKey(path string) (*c.PrivateKey, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	return c.NewPrivateKey(bufio.NewReader(file))
 }
 
 func buildInfo() error {

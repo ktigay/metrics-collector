@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"fmt"
+	"io"
 	"net/http"
 
 	"go.uber.org/zap/buffer"
@@ -13,8 +14,10 @@ import (
 
 // Options опции реквеста.
 type Options struct {
-	logger  Logger
-	hashKey string
+	compressType Type
+	hashKey      string
+	contentType  string
+	writers      []func(w io.Writer) io.Writer
 }
 
 // NewOptions конструктор.
@@ -29,6 +32,13 @@ func NewOptions(opt []Option) *Options {
 // Option функция для установки параметров опций.
 type Option func(*Options)
 
+// WithCompressType реквест с [Type].
+func WithCompressType(compressType Type) Option {
+	return func(opt *Options) {
+		opt.compressType = compressType
+	}
+}
+
 // WithHashKey реквест с hashKey.
 func WithHashKey(hashKey string) Option {
 	return func(opt *Options) {
@@ -36,29 +46,57 @@ func WithHashKey(hashKey string) Option {
 	}
 }
 
-// WithLogger реквест с логгером.
-func WithLogger(logger Logger) Option {
+// WithContentType реквест с ContentType.
+func WithContentType(contentType string) Option {
 	return func(opt *Options) {
-		opt.logger = logger
+		opt.contentType = contentType
 	}
 }
 
-// NewJSONRequest запрос.
-func NewJSONRequest(method, url string, t Type, body any, opt ...Option) (*http.Request, error) {
+// WithWriters реквест с [io.Writer] для пост-обработки тела запроса.
+func WithWriters(wf ...func(w io.Writer) io.Writer) Option {
+	return func(opt *Options) {
+		opt.writers = wf
+	}
+}
+
+// NewRequest запрос.
+func NewRequest(method, url string, requestBody []byte, opt ...Option) (*http.Request, error) {
 	var (
 		comp *WriteCloser
 		err  error
 		req  *http.Request
+		t    Type
 	)
 
 	opts := NewOptions(opt)
 
+	if opts.compressType == "" {
+		t = Default
+	} else {
+		t = opts.compressType
+	}
+
 	w := buffer.Buffer{}
+
 	if comp, err = NewWriteCloser(t, &w); err != nil {
 		return nil, err
 	}
 
-	if err = JSON(comp, body, opts.logger); err != nil {
+	if _, err = comp.Write(requestBody); err != nil {
+		return nil, err
+	}
+	if err = comp.Close(); err != nil {
+		return nil, err
+	}
+
+	b := w.Bytes()
+	w.Reset()
+	wr := io.Writer(&w)
+	for _, wf := range opts.writers {
+		wr = wf(wr)
+	}
+	if _, err = wr.Write(b); err != nil {
 		return nil, err
 	}
 
@@ -66,7 +104,7 @@ func NewJSONRequest(method, url string, t Type, body any, opt ...Option) (*http.
 		return nil, err
 	}
 
-	contentType := []string{"application/json"}
+	contentType := []string{opts.contentType}
 	enc := []string{fmt.Sprint(t)}
 
 	req.Header = http.Header{

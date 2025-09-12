@@ -3,6 +3,8 @@ package middleware
 
 import (
 	"bytes"
+	"crypto"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"io"
@@ -156,6 +158,35 @@ func CompressHandler(logger *zap.SugaredLogger) mux.MiddlewareFunc {
 					logger.Error("middleware.CompressHandler error", zap.Error(err))
 				}
 			}()
+		})
+	}
+}
+
+// DecryptRequestHandler декодирование ключом.
+func DecryptRequestHandler(logger *zap.SugaredLogger, decrypter crypto.Decrypter) mux.MiddlewareFunc {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if decrypter == nil {
+				next.ServeHTTP(w, r)
+				return
+			}
+			var (
+				err  error
+				buff []byte
+			)
+
+			if buff, err = io.ReadAll(r.Body); err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			if buff, err = decrypter.Decrypt(rand.Reader, buff, nil); err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				logger.Errorf("middleware.DecryptRequestHandler error: %s", err)
+				return
+			}
+
+			r.Body = io.NopCloser(bytes.NewBuffer(buff))
+			next.ServeHTTP(w, r)
 		})
 	}
 }
