@@ -96,7 +96,7 @@ func main() {
 	ph := handler.NewPingHandler(dbPool, logger)
 	router = mux.NewRouter()
 
-	regMiddleware(router, logger, cryptoKey, cfg.HashKey)
+	regMiddleware(router, logger, cryptoKey, cfg.HashKey, cfg.TrustedSubnet)
 
 	regMetricRoutes(router, mh)
 	regPingRoutes(router, ph)
@@ -145,8 +145,18 @@ func main() {
 	logger.Debug("program exited")
 }
 
-func regMiddleware(router *mux.Router, logger *zap.SugaredLogger, cryptoKey *c.PrivateKey, hashKey string) {
+func regMiddleware(router *mux.Router, logger *zap.SugaredLogger, cryptoKey *c.PrivateKey, hashKey, trustedSubnet string) {
 	router.Use(
+		middleware.CheckIPAddr(func() *net.IPNet {
+			if trustedSubnet == "" {
+				return nil
+			}
+			_, netIP, err := parseIPNet(trustedSubnet)
+			if err != nil {
+				logger.Fatalf("can't parse trusted subnet: %v", err)
+			}
+			return netIP
+		}()),
 		middleware.WithBufferedWriter(hashKey),
 		middleware.WithContentType,
 		middleware.DecryptRequestHandler(logger, func() crypto.Decrypter {
@@ -242,6 +252,10 @@ func initPrivateKey(path string) (*c.PrivateKey, error) {
 		return nil, err
 	}
 	return c.NewPrivateKey(bufio.NewReader(file))
+}
+
+func parseIPNet(cidr string) (net.IP, *net.IPNet, error) {
+	return net.ParseCIDR(cidr)
 }
 
 func buildInfo() error {

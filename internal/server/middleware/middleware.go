@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"io"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -20,6 +21,32 @@ import (
 )
 
 var acceptTypes = []string{"text/html", "application/json", "*/*"}
+
+// CheckIPAddr проверяет заголовок X-Real-IP.
+func CheckIPAddr(ipNet *net.IPNet) mux.MiddlewareFunc {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if ipNet == nil {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			ipStr := r.Header.Get("X-Real-IP")
+			if ipStr == "" {
+				w.WriteHeader(http.StatusForbidden)
+				return
+			}
+
+			ip := net.ParseIP(ipStr)
+			if !ipNet.Contains(ip) {
+				w.WriteHeader(http.StatusForbidden)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
+}
 
 // WithBufferedWriter буферизованный Writer.
 func WithBufferedWriter(hashKey string) mux.MiddlewareFunc {

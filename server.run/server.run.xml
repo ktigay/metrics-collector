@@ -2,6 +2,7 @@
   <configuration default="false" name="server" type="GoApplicationRunConfiguration" factoryName="Go Application">
     <module name="metrics-collector" />
     <working_directory value="$PROJECT_DIR$" />
+    <parameters value="-c ./server.json" />
     <envs>
       <env name="DATABASE_DSN" value="postgres://postgres:postgres@192.168.1.46:5430/praktikum?sslmode=disable" />
       <env name="ADDRESS" value=":8091" />

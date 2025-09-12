@@ -79,7 +79,7 @@ func main() {
 	gp := collector.NewGopsUtilCollector()
 	gpPoller := collector.NewIntervalPoller(gp, time.Duration(cfg.PollInterval)*time.Second, logger)
 
-	t := getHTTPTransport(cfg.ServerProtocol+"://"+cfg.ServerHost, cfg.HashKey, cryptoKey, logger)
+	t := getHTTPTransport(cfg.ServerProtocol+"://"+cfg.ServerHost, cfg.HashKey, cfg.IPAddr, cryptoKey, logger)
 	sn := sender.NewMetricSender(t, cfg.BatchEnabled, cfg.RateLimit, logger)
 	handler := collector.NewMetricsHandler()
 	statSender := service.NewStatSenderService(sn, handler, time.Duration(cfg.ReportInterval)*time.Second, logger)
@@ -136,10 +136,11 @@ Build commit: %s
 
 func getHTTPTransport(
 	url,
-	hashKey string,
+	hashKey,
+	ipAddr string,
 	encryptKey *crypto.PublicKey,
 	logger *zap.SugaredLogger,
 ) sender.Transport {
-	factory := transport.NewRequestFactory(http.MethodPost, url, hashKey, encryptKey)
+	factory := transport.NewRequestFactory(http.MethodPost, url, hashKey, ipAddr, encryptKey)
 	return transport.NewHTTPClient(factory, logger)
 }

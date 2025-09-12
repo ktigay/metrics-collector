@@ -21,7 +21,7 @@ const (
 	defaultDatabaseDSN     = ""
 	defaultDatabaseDriver  = "pgx"
 	defaultHashKey         = ""
-	defaultCryptoKey       = "./certs/private.pem"
+	defaultCryptoKey       = ""
 )
 
 // ConfigInterval интервал в секундах.
@@ -47,6 +47,7 @@ type Config struct {
 	HashKey         string         `env:"KEY" json:"hash_key"`
 	CryptoKey       string         `env:"CRYPTO_KEY" json:"crypto_key"`
 	ConfigFile      string         `env:"CONFIG"`
+	TrustedSubnet   string         `env:"TRUSTED_SUBNET" json:"trusted_subnet"`
 	StoreInterval   ConfigInterval `env:"STORE_INTERVAL" json:"store_interval"`
 	Restore         bool           `env:"RESTORE" json:"restore"`
 }
@@ -111,6 +112,7 @@ func (c *Config) parseFromArgs(args []string) error {
 	flags.StringVar(&c.DatabaseDSN, "d", c.DatabaseDSN, "database DSN")
 	flags.StringVar(&c.HashKey, "k", c.HashKey, "SHA256 hash key")
 	flags.StringVar(&c.CryptoKey, "crypto-key", c.CryptoKey, "Private key path")
+	flags.StringVar(&c.TrustedSubnet, "t", c.TrustedSubnet, "Trusted subnet")
 
 	flags.StringVar(&c.ConfigFile, "c", c.ConfigFile, "JSON config file path")
 

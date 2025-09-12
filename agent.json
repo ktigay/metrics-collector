@@ -2,5 +2,6 @@
   "address": "localhost:8080",
   "report_interval": "1s",
   "poll_interval": "1s",
-  "crypto_key": "./certs/public.pem"
+  "crypto_key": "./certs/public.pem",
+  "ip_addr": "192.168.1.1"
 }
