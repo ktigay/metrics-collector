@@ -23,7 +23,7 @@ import (
 
 	c "github.com/ktigay/metrics-collector/internal/crypto"
 	ilog "github.com/ktigay/metrics-collector/internal/log"
-	"github.com/ktigay/metrics-collector/internal/server"
+	"github.com/ktigay/metrics-collector/internal/server/config"
 	"github.com/ktigay/metrics-collector/internal/server/db"
 	"github.com/ktigay/metrics-collector/internal/server/handler"
 	"github.com/ktigay/metrics-collector/internal/server/middleware"
@@ -44,7 +44,7 @@ func main() {
 	defer stop()
 
 	var (
-		cfg    *server.Config
+		cfg    *config.Config
 		logger *zap.SugaredLogger
 		err    error
 	)
@@ -53,7 +53,7 @@ func main() {
 		log.Printf("cannot print build info: %s", err)
 	}
 
-	if cfg, err = server.InitializeConfig(os.Args[1:]); err != nil {
+	if cfg, err = config.NewConfig(os.Args[1:]); err != nil {
 		log.Fatalf("can't parse flags: %v", err)
 	}
 
@@ -186,7 +186,7 @@ func regPingRoutes(router *mux.Router, ph *handler.PingHandler) {
 	router.HandleFunc("/ping", ph.Ping).Methods(http.MethodGet)
 }
 
-func initMetricCollector(ctx context.Context, cfg *server.Config, dbPool *sql.DB, logger *zap.SugaredLogger) (*service.MetricCollector, error) {
+func initMetricCollector(ctx context.Context, cfg *config.Config, dbPool *sql.DB, logger *zap.SugaredLogger) (*service.MetricCollector, error) {
 	var (
 		err       error
 		ms        service.MetricRepository
