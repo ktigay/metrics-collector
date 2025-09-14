@@ -1,4 +1,4 @@
-package server
+package config
 
 import (
 	"os"
@@ -57,7 +57,7 @@ func TestConfig_IsUseSQLDB(t *testing.T) {
 			for k, v := range tt.args.envs {
 				_ = os.Setenv(k, v)
 			}
-			got, err := InitializeConfig(tt.args.args)
+			got, err := NewConfig(tt.args.args)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("InitializeConfig() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -67,7 +67,7 @@ func TestConfig_IsUseSQLDB(t *testing.T) {
 	}
 }
 
-func TestInitializeConfig(t *testing.T) {
+func TestNewConfig(t *testing.T) {
 	type args struct {
 		filePath     string
 		fileContents string
@@ -98,7 +98,7 @@ func TestInitializeConfig(t *testing.T) {
 				StoreInterval:   123,
 				FileStoragePath: "/tmp/restore-args.txt",
 				Restore:         false,
-				CryptoKey:       "./certs/private.pem",
+				CryptoKey:       "",
 				DatabaseDSN:     "postgres://postgres:postgres@localhost:1001/postgres?sslmode=disable",
 				DatabaseDriver:  "pgx",
 			},
@@ -130,7 +130,7 @@ func TestInitializeConfig(t *testing.T) {
 				StoreInterval:   200,
 				FileStoragePath: "/tmp/restore-env.txt",
 				Restore:         true,
-				CryptoKey:       "./certs/private.pem",
+				CryptoKey:       "",
 				DatabaseDSN:     "postgres://postgres:postgres@localhost:2002/postgres?sslmode=disable",
 				DatabaseDriver:  "mysql",
 			},
@@ -155,7 +155,7 @@ func TestInitializeConfig(t *testing.T) {
 				StoreInterval:   200,
 				FileStoragePath: "/tmp/restore-env.txt",
 				Restore:         true,
-				CryptoKey:       "./certs/private.pem",
+				CryptoKey:       "",
 				DatabaseDSN:     "postgres://postgres:postgres@localhost:2002/postgres?sslmode=disable",
 				DatabaseDriver:  "mysql",
 			},
@@ -190,7 +190,7 @@ func TestInitializeConfig(t *testing.T) {
 				StoreInterval:   160,
 				FileStoragePath: "/tmp/restore-env.txt",
 				Restore:         true,
-				CryptoKey:       "./certs/private.pem",
+				CryptoKey:       "",
 				DatabaseDSN:     "postgres://postgres:postgres@localhost:2002/postgres?sslmode=disable",
 				DatabaseDriver:  "mysql",
 			},
@@ -226,7 +226,7 @@ func TestInitializeConfig(t *testing.T) {
 				StoreInterval:   160,
 				FileStoragePath: "/tmp/restore-env.txt",
 				Restore:         true,
-				CryptoKey:       "./certs/private.pem",
+				CryptoKey:       "",
 				DatabaseDSN:     "postgres://postgres:postgres@localhost:2002/postgres?sslmode=disable",
 				DatabaseDriver:  "mysql",
 			},
@@ -262,7 +262,7 @@ func TestInitializeConfig(t *testing.T) {
 				StoreInterval:   160,
 				FileStoragePath: "/tmp/restore-env.txt",
 				Restore:         true,
-				CryptoKey:       "./certs/private.pem",
+				CryptoKey:       "",
 				DatabaseDSN:     "postgres://postgres:postgres@localhost:2002/postgres?sslmode=disable",
 				DatabaseDriver:  "mysql",
 			},
@@ -288,7 +288,7 @@ func TestInitializeConfig(t *testing.T) {
 			for k, v := range tt.args.envs {
 				_ = os.Setenv(k, v)
 			}
-			got, err := InitializeConfig(tt.args.args)
+			got, err := NewConfig(tt.args.args)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("InitializeConfig() error = %v, wantErr %v", err, tt.wantErr)
 				return

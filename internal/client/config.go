@@ -21,7 +21,7 @@ const (
 	defaultBatchEnabled   = false
 	defaultHashKey        = ""
 	defaultRateLimit      = 1
-	defaultCryptoKey      = "./certs/public.pem"
+	defaultCryptoKey      = ""
 )
 
 // ConfigInterval интервал в секундах.
@@ -45,6 +45,7 @@ type Config struct {
 	HashKey        string         `env:"KEY"`
 	CryptoKey      string         `env:"CRYPTO_KEY" json:"crypto_key"`
 	ConfigFile     string         `env:"CONFIG"`
+	IPAddr         string         `json:"ip_addr"`
 	BatchEnabled   bool           `env:"BATCH_ENABLED"`
 	ReportInterval ConfigInterval `env:"REPORT_INTERVAL" json:"report_interval"`
 	PollInterval   ConfigInterval `env:"POLL_INTERVAL" json:"poll_interval"`

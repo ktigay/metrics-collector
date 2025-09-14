@@ -75,15 +75,17 @@ type RequestFactory struct {
 	method     string
 	url        string
 	hashKey    string
+	ipAddr     string
 }
 
 // NewRequestFactory конструктор.
-func NewRequestFactory(method, url, hashKey string, encryptKey *crypto.PublicKey) *RequestFactory {
+func NewRequestFactory(method, url, hashKey, ipAddr string, encryptKey *crypto.PublicKey) *RequestFactory {
 	return &RequestFactory{
 		method:     method,
 		url:        url,
 		hashKey:    hashKey,
 		encryptKey: encryptKey,
+		ipAddr:     ipAddr,
 	}
 }
 
@@ -102,6 +104,7 @@ func (r *RequestFactory) NewRequest(path string, requestBody any) (*http.Request
 	opts := []compress.Option{
 		compress.WithHashKey(r.hashKey),
 		compress.WithContentType(contentType),
+		compress.WithXRealIP(r.ipAddr),
 	}
 	if r.encryptKey != nil {
 		opts = append(opts, compress.WithWriters(func(w io.Writer) io.Writer {
