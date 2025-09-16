@@ -101,6 +101,7 @@ func TestNewConfig(t *testing.T) {
 				CryptoKey:       "",
 				DatabaseDSN:     "postgres://postgres:postgres@localhost:1001/postgres?sslmode=disable",
 				DatabaseDriver:  "pgx",
+				ServerGRPCHost:  ":3000",
 			},
 		},
 		{
@@ -133,6 +134,7 @@ func TestNewConfig(t *testing.T) {
 				CryptoKey:       "",
 				DatabaseDSN:     "postgres://postgres:postgres@localhost:2002/postgres?sslmode=disable",
 				DatabaseDriver:  "mysql",
+				ServerGRPCHost:  ":3000",
 			},
 		},
 		{
@@ -158,6 +160,7 @@ func TestNewConfig(t *testing.T) {
 				CryptoKey:       "",
 				DatabaseDSN:     "postgres://postgres:postgres@localhost:2002/postgres?sslmode=disable",
 				DatabaseDriver:  "mysql",
+				ServerGRPCHost:  ":3000",
 			},
 		},
 		{
@@ -193,6 +196,7 @@ func TestNewConfig(t *testing.T) {
 				CryptoKey:       "",
 				DatabaseDSN:     "postgres://postgres:postgres@localhost:2002/postgres?sslmode=disable",
 				DatabaseDriver:  "mysql",
+				ServerGRPCHost:  ":3000",
 			},
 		},
 		{
@@ -229,6 +233,7 @@ func TestNewConfig(t *testing.T) {
 				CryptoKey:       "",
 				DatabaseDSN:     "postgres://postgres:postgres@localhost:2002/postgres?sslmode=disable",
 				DatabaseDriver:  "mysql",
+				ServerGRPCHost:  ":3000",
 			},
 		},
 		{
@@ -265,6 +270,7 @@ func TestNewConfig(t *testing.T) {
 				CryptoKey:       "",
 				DatabaseDSN:     "postgres://postgres:postgres@localhost:2002/postgres?sslmode=disable",
 				DatabaseDriver:  "mysql",
+				ServerGRPCHost:  ":3000",
 			},
 		},
 	}

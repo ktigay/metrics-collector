@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
+	"fmt"
 	"os"
 	"strings"
 	"time"
@@ -12,16 +13,17 @@ import (
 )
 
 const (
-	defaultServerHost      = ":8080"
-	defaultLogLevel        = "debug"
-	defaultStoreInterval   = 300
-	defaultFileStoragePath = "/tmp/metrics-db.json"
-	defaultRestoreFlag     = false
-	defaultDatabaseDSN     = ""
-	defaultDatabaseDriver  = "pgx"
-	defaultHashKey         = ""
-	defaultCryptoKey       = ""
-	defaultGRPCHost        = ":3000"
+	defaultServerHost     = "localhost:8080"
+	defaultLogLevel       = "debug"
+	defaultReportInterval = 10
+	defaultPollInterval   = 2
+	defaultServerProtocol = "http"
+	defaultBatchEnabled   = false
+	defaultHashKey        = ""
+	defaultRateLimit      = 1
+	defaultCryptoKey      = ""
+	defaultGRPCHost       = ":3000"
+	defaultTransport      = "grpc"
 )
 
 // Interval интервал в секундах.
@@ -37,25 +39,30 @@ func (i *Interval) UnmarshalJSON(bytes []byte) error {
 	return nil
 }
 
-// Config конфигурация сервера.
-type Config struct {
-	ServerHost      string   `env:"ADDRESS" json:"address"`
-	LogLevel        string   `env:"LOG_LEVEL" json:"log_level"`
-	FileStoragePath string   `env:"FILE_STORAGE_PATH" json:"store_file"`
-	DatabaseDSN     string   `env:"DATABASE_DSN" json:"database_dsn"`
-	DatabaseDriver  string   `env:"DATABASE_DRIVER" json:"database_driver"`
-	HashKey         string   `env:"KEY" json:"hash_key"`
-	CryptoKey       string   `env:"CRYPTO_KEY" json:"crypto_key"`
-	ConfigFile      string   `env:"CONFIG"`
-	TrustedSubnet   string   `env:"TRUSTED_SUBNET" json:"trusted_subnet"`
-	ServerGRPCHost  string   `env:"GRPC_ADDRESS" json:"grpc_address"`
-	StoreInterval   Interval `env:"STORE_INTERVAL" json:"store_interval"`
-	Restore         bool     `env:"RESTORE" json:"restore"`
-}
+// TransportProtocol тип протокола отправки сообщений.
+type TransportProtocol string
 
-// IsUseSQLDB использовать БД SQL.
-func (c *Config) IsUseSQLDB() bool {
-	return c.DatabaseDSN != "" && c.DatabaseDriver != ""
+// Типы протоколов.
+var (
+	TransportHTTP TransportProtocol = "http"
+	TransportGRPC TransportProtocol = "grpc"
+)
+
+// Config конфигурация клиента.
+type Config struct {
+	ServerProtocol string
+	ServerHost     string `env:"ADDRESS" json:"address"`
+	LogLevel       string `env:"LOG_LEVEL"`
+	HashKey        string `env:"KEY"`
+	CryptoKey      string `env:"CRYPTO_KEY" json:"crypto_key"`
+	ConfigFile     string `env:"CONFIG"`
+	IPAddr         string `json:"ip_addr"`
+	ServerGRPCHost string `env:"GRPC_ADDRESS" json:"grpc_address"`
+	Transport      TransportProtocol
+	BatchEnabled   bool     `env:"BATCH_ENABLED"`
+	ReportInterval Interval `env:"REPORT_INTERVAL" json:"report_interval"`
+	PollInterval   Interval `env:"POLL_INTERVAL" json:"poll_interval"`
+	RateLimit      int      `env:"RATE_LIMIT"`
 }
 
 // NewConfig конструктор.
@@ -67,7 +74,9 @@ func NewConfig(arguments []string) (*Config, error) {
 			arguments: arguments,
 			next: &ArgumentsHandler{
 				arguments: arguments,
-				next:      &EnvHandler{},
+				next: &EnvHandler{
+					next: &ValidateHandler{},
+				},
 			},
 		},
 	}
@@ -87,16 +96,17 @@ type DefaultHandler struct {
 
 // Handle обработчик.
 func (d *DefaultHandler) Handle(c *Config) (*Config, error) {
-	c.DatabaseDriver = defaultDatabaseDriver
+	c.ServerProtocol = defaultServerProtocol
 	c.ServerHost = defaultServerHost
 	c.LogLevel = defaultLogLevel
-	c.StoreInterval = defaultStoreInterval
-	c.FileStoragePath = defaultFileStoragePath
-	c.Restore = defaultRestoreFlag
-	c.DatabaseDSN = defaultDatabaseDSN
+	c.BatchEnabled = defaultBatchEnabled
 	c.HashKey = defaultHashKey
+	c.RateLimit = defaultRateLimit
 	c.CryptoKey = defaultCryptoKey
+	c.ReportInterval = defaultReportInterval
+	c.PollInterval = defaultPollInterval
 	c.ServerGRPCHost = defaultGRPCHost
+	c.Transport = defaultTransport
 
 	return d.next.Handle(c)
 }
@@ -155,39 +165,63 @@ type ArgumentsHandler struct {
 
 // Handle обработчик.
 func (a *ArgumentsHandler) Handle(c *Config) (*Config, error) {
-	flags := flag.NewFlagSet("server flags", flag.ContinueOnError)
+	flags := flag.NewFlagSet("agent flags", flag.ContinueOnError)
 
-	flags.StringVar(&c.ServerHost, "a", c.ServerHost, "address and port to run server")
+	flags.StringVar(&c.ServerHost, "a", c.ServerHost, "address and port of server")
 	flags.StringVar(&c.LogLevel, "lvl", c.LogLevel, "log level")
-	flags.StringVar(&c.FileStoragePath, "f", c.FileStoragePath, "file storage path")
-	flags.BoolVar(&c.Restore, "r", c.Restore, "restore data from storage")
-	flags.StringVar(&c.DatabaseDSN, "d", c.DatabaseDSN, "database DSN")
+	flags.BoolVar(&c.BatchEnabled, "b", c.BatchEnabled, "enable batchEnabled request")
 	flags.StringVar(&c.HashKey, "k", c.HashKey, "SHA256 hash key")
-	flags.StringVar(&c.CryptoKey, "crypto-key", c.CryptoKey, "Private key path")
-	flags.StringVar(&c.TrustedSubnet, "t", c.TrustedSubnet, "Trusted subnet")
-	flags.StringVar(&c.ServerGRPCHost, "g", c.ServerGRPCHost, "address and port to run grpc server")
+	flags.IntVar(&c.RateLimit, "l", c.RateLimit, "requests rate limit")
+	flags.StringVar(&c.CryptoKey, "crypto-key", c.CryptoKey, "Public key path")
+	flags.StringVar(&c.ServerGRPCHost, "g", c.ServerGRPCHost, "address and port of grpc server")
 
 	flags.StringVar(&c.ConfigFile, "c", c.ConfigFile, "JSON config file path")
 
-	var storeInterval int64
-	flags.Int64Var(&storeInterval, "i", int64(c.StoreInterval), "storage interval in seconds")
+	var reportInterval, pollInterval int64
+	flags.Int64Var(&reportInterval, "r", int64(c.ReportInterval), "interval between reports")
+
+	flags.Int64Var(&pollInterval, "p", int64(c.PollInterval), "interval between polls")
 
 	if err := flags.Parse(a.arguments); err != nil {
 		return nil, err
 	}
 
-	c.StoreInterval = Interval(storeInterval)
+	c.ReportInterval = Interval(reportInterval)
+	c.PollInterval = Interval(pollInterval)
 
 	return a.next.Handle(c)
 }
 
 // EnvHandler конфиг из переменных среды.
-type EnvHandler struct{}
+type EnvHandler struct {
+	next Handler
+}
 
 // Handle обработчик.
 func (e *EnvHandler) Handle(c *Config) (*Config, error) {
 	if err := env.Parse(c); err != nil {
 		return nil, err
 	}
+
+	return e.next.Handle(c)
+}
+
+// ValidateHandler валидация.
+type ValidateHandler struct{}
+
+// Handle обработчик.
+func (e *ValidateHandler) Handle(c *Config) (*Config, error) {
+	c.ServerHost = strings.TrimSpace(c.ServerHost)
+
+	if c.ServerHost == "" {
+		return nil, fmt.Errorf("host flag is required")
+	}
+	if c.ReportInterval < 1 {
+		return nil, fmt.Errorf("report interval flag is required")
+	}
+	if c.PollInterval < 1 {
+		return nil, fmt.Errorf("poll interval flag is required")
+	}
+
 	return c, nil
 }

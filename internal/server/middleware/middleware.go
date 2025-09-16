@@ -20,6 +20,10 @@ import (
 	serverhttp "github.com/ktigay/metrics-collector/internal/http"
 )
 
+const (
+	xRealIPHeader = "X-Real-IP"
+)
+
 var acceptTypes = []string{"text/html", "application/json", "*/*"}
 
 // CheckIPAddr проверяет заголовок X-Real-IP.
@@ -31,7 +35,7 @@ func CheckIPAddr(ipNet *net.IPNet) mux.MiddlewareFunc {
 				return
 			}
 
-			ipStr := r.Header.Get("X-Real-IP")
+			ipStr := r.Header.Get(xRealIPHeader)
 			if ipStr == "" {
 				w.WriteHeader(http.StatusForbidden)
 				return

@@ -12,6 +12,7 @@ import (
 	h "github.com/ktigay/metrics-collector/internal/http"
 )
 
+// Header тип заголовок.
 type Header string
 
 const (
@@ -24,9 +25,7 @@ const (
 type Options struct {
 	compressType Type
 	hashKey      string
-	contentType  string
 	headers      map[string]string
-	xRealIP      string
 	writers      []func(w io.Writer) io.Writer
 }
 

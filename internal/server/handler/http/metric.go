@@ -1,5 +1,5 @@
-// Package handler сервер.
-package handler
+// Package http сервер.
+package http
 
 import (
 	"context"
@@ -12,7 +12,6 @@ import (
 
 	"github.com/ktigay/metrics-collector/internal/metric"
 	"github.com/ktigay/metrics-collector/internal/server/errors"
-	"github.com/ktigay/metrics-collector/internal/server/repository"
 )
 
 var errStatusMap = map[error]int{
@@ -28,12 +27,12 @@ func statusFromError(err error) int {
 	return http.StatusInternalServerError
 }
 
-// CollectorInterface Интерфейс сборщика статистики.
+// Collector Интерфейс сборщика статистики.
 //
-//go:generate mockgen -destination=./mocks/mock_collector.go -package=mocks github.com/ktigay/metrics-collector/internal/server/handler CollectorInterface
-type CollectorInterface interface {
-	Save(ctx context.Context, mt metric.Metrics) error
-	All(ctx context.Context) ([]repository.MetricEntity, error)
+//go:generate mockgen -destination=./mocks/mock_collector.go -package=mocks github.com/ktigay/metrics-collector/internal/server/handler/http Collector
+type Collector interface {
+	Save(ctx context.Context, mt metric.Metrics) (*metric.Metrics, error)
+	All(ctx context.Context) (*[]metric.Metrics, error)
 	Find(ctx context.Context, t, n string) (*metric.Metrics, error)
 	Remove(ctx context.Context, t, n string) error
 	SaveAll(ctx context.Context, mt []metric.Metrics) error
@@ -41,12 +40,12 @@ type CollectorInterface interface {
 
 // MetricHandler структура с обработчиками запросов.
 type MetricHandler struct {
-	collector CollectorInterface
+	collector Collector
 	logger    *zap.SugaredLogger
 }
 
 // NewMetricHandler конструктор.
-func NewMetricHandler(collector CollectorInterface, logger *zap.SugaredLogger) *MetricHandler {
+func NewMetricHandler(collector Collector, logger *zap.SugaredLogger) *MetricHandler {
 	return &MetricHandler{
 		collector: collector,
 		logger:    logger,
@@ -66,7 +65,7 @@ func (mh *MetricHandler) CollectHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	if err := mh.collector.Save(r.Context(), mt); err != nil {
+	if _, err := mh.collector.Save(r.Context(), mt); err != nil {
 		w.WriteHeader(statusFromError(err))
 		return
 	}
@@ -96,12 +95,7 @@ func (mh *MetricHandler) GetAllHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("content-type", "text/html; charset=utf-8")
 	metrics, _ := mh.collector.All(r.Context())
 
-	names := make([]string, 0, len(metrics))
-	for _, m := range metrics {
-		names = append(names, m.Name)
-	}
-
-	if err := json.NewEncoder(w).Encode(names); err != nil {
+	if err := json.NewEncoder(w).Encode(metrics); err != nil {
 		mh.logger.Errorln("Failed to write response", zap.Error(err))
 	}
 }
@@ -129,12 +123,7 @@ func (mh *MetricHandler) UpdateJSONHandler(w http.ResponseWriter, r *http.Reques
 
 	ctx := r.Context()
 
-	if err = mh.collector.Save(ctx, m); err != nil {
-		w.WriteHeader(statusFromError(err))
-		return
-	}
-
-	if mm, err = mh.collector.Find(ctx, m.Type, m.ID); err != nil {
+	if mm, err = mh.collector.Save(ctx, m); err != nil {
 		w.WriteHeader(statusFromError(err))
 		return
 	}

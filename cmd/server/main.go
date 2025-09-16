@@ -20,12 +20,17 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
 
+	"github.com/ktigay/metrics-collector/internal/server/interceptor"
+
+	"github.com/ktigay/metrics-collector/internal/contracts"
 	c "github.com/ktigay/metrics-collector/internal/crypto"
 	ilog "github.com/ktigay/metrics-collector/internal/log"
 	"github.com/ktigay/metrics-collector/internal/server/config"
 	"github.com/ktigay/metrics-collector/internal/server/db"
-	"github.com/ktigay/metrics-collector/internal/server/handler"
+	g "github.com/ktigay/metrics-collector/internal/server/handler/grpc"
+	h "github.com/ktigay/metrics-collector/internal/server/handler/http"
 	"github.com/ktigay/metrics-collector/internal/server/middleware"
 	"github.com/ktigay/metrics-collector/internal/server/repository"
 	"github.com/ktigay/metrics-collector/internal/server/service"
@@ -83,17 +88,19 @@ func main() {
 	}
 
 	var (
-		collector *service.MetricCollector
-		router    *mux.Router
-		wg        sync.WaitGroup
+		collector  *service.MetricCollector
+		router     *mux.Router
+		wg         sync.WaitGroup
+		httpServer *http.Server
+		grpcServer *grpc.Server
 	)
 
 	if collector, err = initMetricCollector(mainCtx, cfg, dbPool, logger); err != nil {
 		log.Fatalf("can't initialize collector: %v", err)
 	}
 
-	mh := handler.NewMetricHandler(collector, logger)
-	ph := handler.NewPingHandler(dbPool, logger)
+	mh := h.NewMetricHandler(collector, logger)
+	ph := h.NewPingHandler(dbPool, logger)
 	router = mux.NewRouter()
 
 	regMiddleware(router, logger, cryptoKey, cfg.HashKey, cfg.TrustedSubnet)
@@ -101,7 +108,7 @@ func main() {
 	regMetricRoutes(router, mh)
 	regPingRoutes(router, ph)
 
-	httpServer := &http.Server{
+	httpServer = &http.Server{
 		Addr:    cfg.ServerHost,
 		Handler: router,
 		BaseContext: func(net.Listener) context.Context {
@@ -125,6 +132,28 @@ func main() {
 
 	wg.Add(1)
 	go func() {
+		var listen net.Listener
+		listen, err = net.Listen("tcp", cfg.ServerGRPCHost)
+		if err != nil {
+			log.Fatalf("can't listen: %v", err)
+		}
+
+		grpcServer = grpc.NewServer(
+			grpc.ChainUnaryInterceptor(interceptor.WithLogging(logger)),
+		)
+
+		contracts.RegisterMetricsServiceServer(grpcServer, g.NewMetricGrpcHandler(collector, logger))
+
+		logger.Debugf("grpc server listening on %s", listen.Addr().String())
+
+		if err = grpcServer.Serve(listen); err != nil {
+			log.Fatalf("can't start grpc server: %v", err)
+		}
+		wg.Done()
+	}()
+
+	wg.Add(1)
+	go func() {
 		if err = collector.Backup(mainCtx, exitCtx, cfg.StoreInterval); err != nil {
 			logger.Errorf("can't save statistics snapshot: %v", err)
 		}
@@ -137,6 +166,10 @@ func main() {
 		logger.Debug("http server shutting down")
 		if err = httpServer.Shutdown(context.Background()); err != nil {
 			logger.Errorf("can't shutdown http server: %v", err)
+		}
+		if grpcServer != nil {
+			grpcServer.GracefulStop()
+			logger.Debug("grpc server gracefully stopped")
 		}
 	}()
 
@@ -172,7 +205,7 @@ func regMiddleware(router *mux.Router, logger *zap.SugaredLogger, cryptoKey *c.P
 	)
 }
 
-func regMetricRoutes(router *mux.Router, mh *handler.MetricHandler) {
+func regMetricRoutes(router *mux.Router, mh *h.MetricHandler) {
 	router.HandleFunc("/update/{type}/{name}/{value}", mh.CollectHandler).Methods(http.MethodPost)
 	router.HandleFunc("/update/", mh.UpdateJSONHandler).Methods(http.MethodPost)
 	router.HandleFunc("/value/{type}/{name}", mh.GetValueHandler).Methods(http.MethodGet)
@@ -182,7 +215,7 @@ func regMetricRoutes(router *mux.Router, mh *handler.MetricHandler) {
 	router.PathPrefix("/debug/pprof/").Handler(http.DefaultServeMux)
 }
 
-func regPingRoutes(router *mux.Router, ph *handler.PingHandler) {
+func regPingRoutes(router *mux.Router, ph *h.PingHandler) {
 	router.HandleFunc("/ping", ph.Ping).Methods(http.MethodGet)
 }
 

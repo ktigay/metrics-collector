@@ -16,12 +16,15 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
-	"github.com/ktigay/metrics-collector/internal/client"
 	"github.com/ktigay/metrics-collector/internal/client/collector"
+	"github.com/ktigay/metrics-collector/internal/client/config"
 	"github.com/ktigay/metrics-collector/internal/client/sender"
 	"github.com/ktigay/metrics-collector/internal/client/sender/transport"
 	"github.com/ktigay/metrics-collector/internal/client/service"
+	"github.com/ktigay/metrics-collector/internal/contracts"
 	"github.com/ktigay/metrics-collector/internal/crypto"
 	ilog "github.com/ktigay/metrics-collector/internal/log"
 	"github.com/ktigay/metrics-collector/internal/metric"
@@ -38,7 +41,7 @@ type Task func(context.Context)
 
 func main() {
 	var (
-		cfg    *client.Config
+		cfg    *config.Config
 		logger *zap.SugaredLogger
 		err    error
 	)
@@ -47,7 +50,7 @@ func main() {
 		log.Printf("cannot print build info: %s", err)
 	}
 
-	if cfg, err = client.InitializeConfig(os.Args[1:]); err != nil {
+	if cfg, err = config.NewConfig(os.Args[1:]); err != nil {
 		handleExit(1)
 		return
 	}
@@ -63,13 +66,6 @@ func main() {
 
 	logger.Infof("cfg: %+v", cfg)
 
-	var cryptoKey *crypto.PublicKey
-	if cfg.CryptoKey != "" {
-		if cryptoKey, err = initPublicKey(cfg.CryptoKey); err != nil {
-			log.Fatalf("can't initialize crypto key: %v", err)
-		}
-	}
-
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
 	defer stop()
 
@@ -79,7 +75,8 @@ func main() {
 	gp := collector.NewGopsUtilCollector()
 	gpPoller := collector.NewIntervalPoller(gp, time.Duration(cfg.PollInterval)*time.Second, logger)
 
-	t := getHTTPTransport(cfg.ServerProtocol+"://"+cfg.ServerHost, cfg.HashKey, cfg.IPAddr, cryptoKey, logger)
+	t := initTransport(cfg, logger)
+
 	sn := sender.NewMetricSender(t, cfg.BatchEnabled, cfg.RateLimit, logger)
 	handler := collector.NewMetricsHandler()
 	statSender := service.NewStatSenderService(sn, handler, time.Duration(cfg.ReportInterval)*time.Second, logger)
@@ -134,13 +131,38 @@ Build commit: %s
 	return err
 }
 
+func initTransport(cfg *config.Config, logger *zap.SugaredLogger) sender.Transport {
+	switch cfg.Transport {
+	case config.TransportGRPC:
+		return getGRPCTransport(cfg, logger)
+	default:
+		return getHTTPTransport(cfg, logger)
+	}
+}
+
 func getHTTPTransport(
-	url,
-	hashKey,
-	ipAddr string,
-	encryptKey *crypto.PublicKey,
+	cfg *config.Config,
 	logger *zap.SugaredLogger,
 ) sender.Transport {
-	factory := transport.NewRequestFactory(http.MethodPost, url, hashKey, ipAddr, encryptKey)
+	var (
+		cryptoKey *crypto.PublicKey
+		err       error
+	)
+	if cfg.CryptoKey != "" {
+		if cryptoKey, err = initPublicKey(cfg.CryptoKey); err != nil {
+			log.Fatalf("can't initialize crypto key: %v", err)
+		}
+	}
+
+	factory := transport.NewRequestFactory(http.MethodPost, cfg.ServerProtocol+"://"+cfg.ServerHost, cfg.HashKey, cfg.IPAddr, cryptoKey)
 	return transport.NewHTTPClient(factory, logger)
+}
+
+func getGRPCTransport(cfg *config.Config, logger *zap.SugaredLogger) sender.Transport {
+	conn, err := grpc.NewClient(cfg.ServerGRPCHost, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatalf("can't create gRPC transport: %v", err)
+	}
+
+	return transport.NewGRPCClient(contracts.NewMetricsServiceClient(conn), logger)
 }

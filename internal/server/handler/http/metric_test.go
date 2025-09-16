@@ -1,4 +1,4 @@
-package handler
+package http
 
 import (
 	"bytes"
@@ -13,7 +13,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/ktigay/metrics-collector/internal/metric"
-	"github.com/ktigay/metrics-collector/internal/server/handler/mocks"
+	"github.com/ktigay/metrics-collector/internal/server/handler/http/mocks"
 	"github.com/ktigay/metrics-collector/internal/server/repository"
 	"github.com/ktigay/metrics-collector/internal/server/service"
 )
@@ -24,7 +24,7 @@ func TestServer_CollectHandler(t *testing.T) {
 		contentType string
 	}
 	tests := []struct {
-		collector       func(controller *gomock.Controller) CollectorInterface
+		collector       func(controller *gomock.Controller) Collector
 		args            args
 		name            string
 		wantContentType string
@@ -36,14 +36,14 @@ func TestServer_CollectHandler(t *testing.T) {
 				request:     "/update/gauge/Alloc/122.1",
 				contentType: "text/plain",
 			},
-			collector: func(mockCtrl *gomock.Controller) CollectorInterface {
-				st := mocks.NewMockCollectorInterface(mockCtrl)
+			collector: func(mockCtrl *gomock.Controller) Collector {
+				st := mocks.NewMockCollector(mockCtrl)
 				v := 122.1
 				st.EXPECT().Save(gomock.Any(), gomock.Eq(metric.Metrics{
 					ID:    "Alloc",
 					Type:  "gauge",
 					Value: &v,
-				})).Return(nil).Times(1)
+				})).Return(nil, nil).Times(1)
 				return st
 			},
 			wantStatus:      http.StatusOK,
@@ -55,14 +55,14 @@ func TestServer_CollectHandler(t *testing.T) {
 				request:     "/update/counter/PollCount/12345",
 				contentType: "text/plain",
 			},
-			collector: func(mockCtrl *gomock.Controller) CollectorInterface {
-				st := mocks.NewMockCollectorInterface(mockCtrl)
+			collector: func(mockCtrl *gomock.Controller) Collector {
+				st := mocks.NewMockCollector(mockCtrl)
 				v := int64(12345)
 				st.EXPECT().Save(gomock.Any(), gomock.Eq(metric.Metrics{
 					ID:    "PollCount",
 					Type:  "counter",
 					Delta: &v,
-				})).Return(nil).Times(1)
+				})).Return(nil, nil).Times(1)
 				return st
 			},
 			wantStatus:      http.StatusOK,
@@ -74,9 +74,9 @@ func TestServer_CollectHandler(t *testing.T) {
 				request:     "/update/gauge/",
 				contentType: "text/plain",
 			},
-			collector: func(mockCtrl *gomock.Controller) CollectorInterface {
-				st := mocks.NewMockCollectorInterface(mockCtrl)
-				st.EXPECT().Save(gomock.Any(), gomock.Any()).Return(nil).Times(0)
+			collector: func(mockCtrl *gomock.Controller) Collector {
+				st := mocks.NewMockCollector(mockCtrl)
+				st.EXPECT().Save(gomock.Any(), gomock.Any()).Return(nil, nil).Times(0)
 				return st
 			},
 			wantStatus:      http.StatusNotFound,
@@ -88,9 +88,9 @@ func TestServer_CollectHandler(t *testing.T) {
 				request:     "/update/gauge/222.33",
 				contentType: "text/plain",
 			},
-			collector: func(mockCtrl *gomock.Controller) CollectorInterface {
-				st := mocks.NewMockCollectorInterface(mockCtrl)
-				st.EXPECT().Save(gomock.Any(), gomock.Any()).Return(nil).Times(0)
+			collector: func(mockCtrl *gomock.Controller) Collector {
+				st := mocks.NewMockCollector(mockCtrl)
+				st.EXPECT().Save(gomock.Any(), gomock.Any()).Return(nil, nil).Times(0)
 				return st
 			},
 			wantStatus:      http.StatusNotFound,
@@ -102,9 +102,9 @@ func TestServer_CollectHandler(t *testing.T) {
 				request:     "/update/gauge/Alloc/222.33/111",
 				contentType: "text/plain",
 			},
-			collector: func(mockCtrl *gomock.Controller) CollectorInterface {
-				st := mocks.NewMockCollectorInterface(mockCtrl)
-				st.EXPECT().Save(gomock.Any(), gomock.Any()).Return(nil).Times(0)
+			collector: func(mockCtrl *gomock.Controller) Collector {
+				st := mocks.NewMockCollector(mockCtrl)
+				st.EXPECT().Save(gomock.Any(), gomock.Any()).Return(nil, nil).Times(0)
 				return st
 			},
 			wantStatus:      http.StatusNotFound,
@@ -147,7 +147,7 @@ func TestServer_UpdateJSONHandler(t *testing.T) {
 	}
 
 	type fields struct {
-		collector CollectorInterface
+		collector Collector
 	}
 	type args struct {
 		contentType string
@@ -296,7 +296,7 @@ func TestServer_GetJSONValueHandler(t *testing.T) {
 	}
 
 	type fields struct {
-		collector CollectorInterface
+		collector Collector
 	}
 	type args struct {
 		contentType string
@@ -472,7 +472,7 @@ func TestMetricHandler_UpdatesJSONHandler(t *testing.T) {
 		return service.NewMetricCollector(st, logger)
 	}
 	type fields struct {
-		collector CollectorInterface
+		collector Collector
 	}
 	type args struct {
 		contentType string
