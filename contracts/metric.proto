@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package metric;
+
+option go_package = "internal/contracts";
+
+import "google/protobuf/empty.proto";
+
+message Metrics {
+  int64 delta = 1;
+  double value = 2;
+  string id = 3;
+  string type = 4;
+}
+
+message GetMetricsRequest {
+  string id = 1;
+  string type = 2;
+}
+
+message GetMetricsResponse {
+  Metrics metrics = 1;
+}
+
+message UpdateMetricsRequest {
+  Metrics metrics = 1;
+}
+
+message BatchUpdateMetricsRequest {
+  repeated Metrics metrics = 1;
+}
+
+service MetricsService {
+  rpc GetMetrics(GetMetricsRequest) returns (GetMetricsResponse) {}
+  rpc UpdateMetrics(UpdateMetricsRequest) returns (google.protobuf.Empty) {}
+  rpc BatchUpdateMetrics(BatchUpdateMetricsRequest) returns (google.protobuf.Empty) {}
+}

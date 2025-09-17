@@ -9,7 +9,7 @@ import (
 
 	"github.com/ktigay/metrics-collector/internal/metric"
 	"github.com/ktigay/metrics-collector/internal/retry"
-	"github.com/ktigay/metrics-collector/internal/server"
+	"github.com/ktigay/metrics-collector/internal/server/config"
 	e "github.com/ktigay/metrics-collector/internal/server/errors"
 	"github.com/ktigay/metrics-collector/internal/server/repository"
 )
@@ -48,7 +48,7 @@ func NewMetricCollector(repo MetricRepository, logger *zap.SugaredLogger) *Metri
 }
 
 // Save собирает статистику.
-func (c *MetricCollector) Save(ctx context.Context, mt metric.Metrics) error {
+func (c *MetricCollector) Save(ctx context.Context, mt metric.Metrics) (*metric.Metrics, error) {
 	var (
 		t       metric.Type
 		memItem repository.MetricEntity
@@ -56,7 +56,7 @@ func (c *MetricCollector) Save(ctx context.Context, mt metric.Metrics) error {
 	)
 
 	if t, err = metric.ResolveType(mt.Type); err != nil {
-		return e.ErrWrongType
+		return nil, e.ErrWrongType
 	}
 
 	memItem = repository.MetricEntity{
@@ -67,12 +67,24 @@ func (c *MetricCollector) Save(ctx context.Context, mt metric.Metrics) error {
 		Value: mt.GetValue(),
 	}
 
-	return c.repo.Upsert(ctx, memItem)
+	if err = c.repo.Upsert(ctx, memItem); err != nil {
+		return nil, err
+	}
+
+	return c.Find(ctx, string(t), mt.ID)
 }
 
 // All возвращает все записи.
-func (c *MetricCollector) All(ctx context.Context) ([]repository.MetricEntity, error) {
-	return c.repo.All(ctx)
+func (c *MetricCollector) All(ctx context.Context) (*[]metric.Metrics, error) {
+	entities, err := c.repo.All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	metrics := make([]metric.Metrics, 0, len(entities))
+	for _, entity := range entities {
+		metrics = append(metrics, entity.ToMetrics())
+	}
+	return &metrics, nil
 }
 
 // Find находит запись по ключу.
@@ -105,7 +117,7 @@ func (c *MetricCollector) Remove(ctx context.Context, t, n string) error {
 }
 
 // Backup бэкап данных.
-func (c *MetricCollector) Backup(mainCtx, exitCtx context.Context, storeInterval server.ConfigInterval) error {
+func (c *MetricCollector) Backup(mainCtx, exitCtx context.Context, storeInterval config.Interval) error {
 	var repo BackupRepository
 	switch t := c.repo.(type) {
 	case BackupRepository:

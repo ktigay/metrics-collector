@@ -2,13 +2,11 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"errors"
 	"fmt"
 	"log"
 	"math"
-	"net/http"
 	"os"
 	"os/signal"
 	"sync"
@@ -17,12 +15,11 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/ktigay/metrics-collector/internal/client"
 	"github.com/ktigay/metrics-collector/internal/client/collector"
+	"github.com/ktigay/metrics-collector/internal/client/config"
 	"github.com/ktigay/metrics-collector/internal/client/sender"
-	"github.com/ktigay/metrics-collector/internal/client/sender/transport"
+	"github.com/ktigay/metrics-collector/internal/client/sender/transport/factory"
 	"github.com/ktigay/metrics-collector/internal/client/service"
-	"github.com/ktigay/metrics-collector/internal/crypto"
 	ilog "github.com/ktigay/metrics-collector/internal/log"
 	"github.com/ktigay/metrics-collector/internal/metric"
 )
@@ -38,7 +35,7 @@ type Task func(context.Context)
 
 func main() {
 	var (
-		cfg    *client.Config
+		cfg    *config.Config
 		logger *zap.SugaredLogger
 		err    error
 	)
@@ -47,7 +44,7 @@ func main() {
 		log.Printf("cannot print build info: %s", err)
 	}
 
-	if cfg, err = client.InitializeConfig(os.Args[1:]); err != nil {
+	if cfg, err = config.NewConfig(os.Args[1:]); err != nil {
 		handleExit(1)
 		return
 	}
@@ -63,13 +60,6 @@ func main() {
 
 	logger.Infof("cfg: %+v", cfg)
 
-	var cryptoKey *crypto.PublicKey
-	if cfg.CryptoKey != "" {
-		if cryptoKey, err = initPublicKey(cfg.CryptoKey); err != nil {
-			log.Fatalf("can't initialize crypto key: %v", err)
-		}
-	}
-
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
 	defer stop()
 
@@ -79,7 +69,8 @@ func main() {
 	gp := collector.NewGopsUtilCollector()
 	gpPoller := collector.NewIntervalPoller(gp, time.Duration(cfg.PollInterval)*time.Second, logger)
 
-	t := getHTTPTransport(cfg.ServerProtocol+"://"+cfg.ServerHost, cfg.HashKey, cryptoKey, logger)
+	t := factory.CreateTransport(cfg, logger)
+
 	sn := sender.NewMetricSender(t, cfg.BatchEnabled, cfg.RateLimit, logger)
 	handler := collector.NewMetricsHandler()
 	statSender := service.NewStatSenderService(sn, handler, time.Duration(cfg.ReportInterval)*time.Second, logger)
@@ -114,14 +105,6 @@ func main() {
 	logger.Debug("program exited")
 }
 
-func initPublicKey(cryptoKey string) (*crypto.PublicKey, error) {
-	file, err := os.Open(cryptoKey)
-	if err != nil {
-		return nil, err
-	}
-	return crypto.NewPublicKey(bufio.NewReader(file))
-}
-
 func handleExit(code int) {
 	os.Exit(code)
 }
@@ -132,14 +115,4 @@ Build date: %s
 Build commit: %s
 `, buildVersion, buildDate, buildCommit)
 	return err
-}
-
-func getHTTPTransport(
-	url,
-	hashKey string,
-	encryptKey *crypto.PublicKey,
-	logger *zap.SugaredLogger,
-) sender.Transport {
-	factory := transport.NewRequestFactory(http.MethodPost, url, hashKey, encryptKey)
-	return transport.NewHTTPClient(factory, logger)
 }

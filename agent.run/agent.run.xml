@@ -2,6 +2,7 @@
   <configuration default="false" name="agent" type="GoApplicationRunConfiguration" factoryName="Go Application">
     <module name="metrics-collector" />
     <working_directory value="$PROJECT_DIR$" />
+    <parameters value="-c ./agent.json" />
     <envs>
       <env name="ADDRESS" value="localhost:8091" />
     </envs>

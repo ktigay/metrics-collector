@@ -22,7 +22,7 @@ func TestMetricCollector_Save(t *testing.T) {
 		name   string
 		fields fields
 		args   args
-		want   []repository.MetricEntity
+		want   []metric.Metrics
 	}{
 		{
 			name: "Positive_test",
@@ -45,12 +45,9 @@ func TestMetricCollector_Save(t *testing.T) {
 			args: args{
 				m: []metric.Metrics{
 					{
-						Type: "counter",
-						ID:   "PollCount",
-						Delta: func() *int64 {
-							x := int64(4)
-							return &x
-						}(),
+						Type:  "counter",
+						ID:    "PollCount",
+						Delta: func() *int64 { x := int64(4); return &x }(),
 					},
 					{
 						Type: "gauge",
@@ -70,24 +67,21 @@ func TestMetricCollector_Save(t *testing.T) {
 					},
 				},
 			},
-			want: []repository.MetricEntity{
+			want: []metric.Metrics{
 				{
-					Key:   "counter:PollCount",
-					Type:  metric.TypeCounter,
-					Name:  metric.PollCount,
-					Delta: int64(9),
+					Type:  "counter",
+					ID:    "PollCount",
+					Delta: func() *int64 { x := int64(9); return &x }(),
 				},
 				{
-					Key:   "gauge:Alloc",
-					Type:  metric.TypeGauge,
-					Name:  string(metric.Alloc),
-					Value: 12.000,
+					Type:  "gauge",
+					ID:    "Alloc",
+					Value: func() *float64 { x := 12.0; return &x }(),
 				},
 				{
-					Key:   "gauge:BuckHashSys",
-					Type:  metric.TypeGauge,
-					Name:  string(metric.BuckHashSys),
-					Value: 22.000,
+					Type:  "gauge",
+					ID:    "BuckHashSys",
+					Value: func() *float64 { x := 22.0; return &x }(),
 				},
 			},
 		},
@@ -102,18 +96,18 @@ func TestMetricCollector_Save(t *testing.T) {
 			)
 
 			for _, m := range tt.args.m {
-				_ = c.Save(context.Background(), m)
+				_, _ = c.Save(context.Background(), m)
 			}
 
 			var (
-				sm  []repository.MetricEntity
+				sm  *[]metric.Metrics
 				err error
 			)
 			if sm, err = c.All(context.Background()); err != nil {
 				t.Error(err)
 			}
 			for _, m := range tt.want {
-				assert.Contains(t, sm, m)
+				assert.Contains(t, *sm, m)
 			}
 		})
 	}

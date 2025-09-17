@@ -1,4 +1,4 @@
-package client
+package config
 
 import (
 	"os"
@@ -29,6 +29,8 @@ func Test_parseFlags(t *testing.T) {
 				LogLevel:       defaultLogLevel,
 				CryptoKey:      defaultCryptoKey,
 				RateLimit:      defaultRateLimit,
+				ServerGRPCHost: defaultGRPCHost,
+				Transport:      defaultTransport,
 			},
 			wantErr: false,
 		},
@@ -49,6 +51,8 @@ func Test_parseFlags(t *testing.T) {
 				LogLevel:       defaultLogLevel,
 				CryptoKey:      defaultCryptoKey,
 				RateLimit:      defaultRateLimit,
+				ServerGRPCHost: defaultGRPCHost,
+				Transport:      defaultTransport,
 			},
 			wantErr: false,
 		},
@@ -70,6 +74,8 @@ func Test_parseFlags(t *testing.T) {
 				LogLevel:       defaultLogLevel,
 				CryptoKey:      defaultCryptoKey,
 				RateLimit:      defaultRateLimit,
+				ServerGRPCHost: defaultGRPCHost,
+				Transport:      defaultTransport,
 			},
 			wantErr: false,
 		},
@@ -91,6 +97,8 @@ func Test_parseFlags(t *testing.T) {
 				LogLevel:       defaultLogLevel,
 				CryptoKey:      defaultCryptoKey,
 				RateLimit:      defaultRateLimit,
+				ServerGRPCHost: defaultGRPCHost,
+				Transport:      defaultTransport,
 			},
 			wantErr: false,
 		},
@@ -206,6 +214,8 @@ func Test_parseFlags(t *testing.T) {
 				LogLevel:       defaultLogLevel,
 				CryptoKey:      "./certs/crypto.pem",
 				RateLimit:      defaultRateLimit,
+				ServerGRPCHost: defaultGRPCHost,
+				Transport:      defaultTransport,
 			},
 			wantErr: false,
 		},
@@ -233,6 +243,8 @@ func Test_parseFlags(t *testing.T) {
 				LogLevel:       defaultLogLevel,
 				CryptoKey:      "./certs/crypto.pem",
 				RateLimit:      defaultRateLimit,
+				ServerGRPCHost: defaultGRPCHost,
+				Transport:      defaultTransport,
 			},
 			wantErr: false,
 		},
@@ -261,6 +273,8 @@ func Test_parseFlags(t *testing.T) {
 				LogLevel:       defaultLogLevel,
 				CryptoKey:      "./certs/crypto.pem",
 				RateLimit:      defaultRateLimit,
+				ServerGRPCHost: defaultGRPCHost,
+				Transport:      defaultTransport,
 			},
 			wantErr: false,
 		},
@@ -290,13 +304,13 @@ func Test_parseFlags(t *testing.T) {
 					}
 				}
 			}
-			got, err := InitializeConfig(tt.args.flags)
+			got, err := NewConfig(tt.args.flags)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("InitializeConfig() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("NewConfig() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("InitializeConfig() got = %v, want %v", got, tt.want)
+				t.Errorf("NewConfig() got = %v, want %v", got, tt.want)
 			}
 		})
 	}

@@ -12,17 +12,28 @@ import (
 	h "github.com/ktigay/metrics-collector/internal/http"
 )
 
+// Header тип заголовок.
+type Header string
+
+const (
+	xRealIP     Header = "X-Real-Ip"
+	contentType Header = "Content-Type"
+	accept      Header = "Accept"
+)
+
 // Options опции реквеста.
 type Options struct {
 	compressType Type
 	hashKey      string
-	contentType  string
+	headers      map[string]string
 	writers      []func(w io.Writer) io.Writer
 }
 
 // NewOptions конструктор.
 func NewOptions(opt []Option) *Options {
-	opts := &Options{}
+	opts := &Options{
+		headers: make(map[string]string),
+	}
 	for _, o := range opt {
 		o(opts)
 	}
@@ -47,9 +58,10 @@ func WithHashKey(hashKey string) Option {
 }
 
 // WithContentType реквест с ContentType.
-func WithContentType(contentType string) Option {
+func WithContentType(c string) Option {
 	return func(opt *Options) {
-		opt.contentType = contentType
+		WithHeader(string(contentType), c)(opt)
+		WithHeader(string(accept), c)(opt)
 	}
 }
 
@@ -57,6 +69,20 @@ func WithContentType(contentType string) Option {
 func WithWriters(wf ...func(w io.Writer) io.Writer) Option {
 	return func(opt *Options) {
 		opt.writers = wf
+	}
+}
+
+// WithXRealIP реквест с заголовком X-Real-IP.
+func WithXRealIP(ip string) Option {
+	return func(opt *Options) {
+		WithHeader(string(xRealIP), ip)(opt)
+	}
+}
+
+// WithHeader реквест с заголовком.
+func WithHeader(key, value string) Option {
+	return func(opt *Options) {
+		opt.headers[key] = value
 	}
 }
 
@@ -104,14 +130,16 @@ func NewRequest(method, url string, requestBody []byte, opt ...Option) (*http.Re
 		return nil, err
 	}
 
-	contentType := []string{opts.contentType}
 	enc := []string{fmt.Sprint(t)}
 
 	req.Header = http.Header{
-		"Content-Type":     contentType,
-		"Accept":           contentType,
 		"Content-Encoding": enc,
 		"Accept-Encoding":  enc,
+	}
+	if len(opts.headers) > 0 {
+		for k, v := range opts.headers {
+			req.Header.Set(k, v)
+		}
 	}
 
 	rb := comp.RawBody()
