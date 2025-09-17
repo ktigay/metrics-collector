@@ -5,6 +5,8 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/ktigay/metrics-collector/internal/contracts/mapper"
+
 	"github.com/ktigay/metrics-collector/internal/contracts"
 	"github.com/ktigay/metrics-collector/internal/metric"
 )
@@ -26,7 +28,7 @@ func NewGRPCClient(conn contracts.MetricsServiceClient, logger *zap.SugaredLogge
 // Send отправка одной метрики.
 func (g *GRPCClient) Send(body metric.Metrics) ([]byte, error) {
 	req := contracts.UpdateMetricsRequest{
-		Metrics: metric.MapFromMetrics(&body),
+		Metrics: mapper.MapFromMetrics(&body),
 	}
 
 	resp, err := g.conn.UpdateMetrics(context.Background(), &req)
@@ -41,7 +43,7 @@ func (g *GRPCClient) Send(body metric.Metrics) ([]byte, error) {
 func (g *GRPCClient) SendBatch(body []metric.Metrics) ([]byte, error) {
 	mt := make([]*contracts.Metrics, 0, len(body))
 	for _, m := range body {
-		mt = append(mt, metric.MapFromMetrics(&m))
+		mt = append(mt, mapper.MapFromMetrics(&m))
 	}
 	req := contracts.BatchUpdateMetricsRequest{
 		Metrics: mt,

@@ -1,15 +1,16 @@
-package metric
+package mapper
 
 import (
 	"reflect"
 	"testing"
 
 	"github.com/ktigay/metrics-collector/internal/contracts"
+	"github.com/ktigay/metrics-collector/internal/metric"
 )
 
 func Test_MapFromMetrics(t *testing.T) {
 	type args struct {
-		m *Metrics
+		m *metric.Metrics
 	}
 	tests := []struct {
 		want *contracts.Metrics
@@ -19,7 +20,7 @@ func Test_MapFromMetrics(t *testing.T) {
 		{
 			name: "Counter_metrics",
 			args: args{
-				m: &Metrics{
+				m: &metric.Metrics{
 					Delta: func() *int64 {
 						v := int64(110)
 						return &v
@@ -37,7 +38,7 @@ func Test_MapFromMetrics(t *testing.T) {
 		{
 			name: "Gauge_metrics",
 			args: args{
-				m: &Metrics{
+				m: &metric.Metrics{
 					Value: func() *float64 {
 						v := 110.111
 						return &v
@@ -69,7 +70,7 @@ func Test_MapToMetrics(t *testing.T) {
 	tests := []struct {
 		name string
 		args args
-		want Metrics
+		want metric.Metrics
 	}{
 		{
 			name: "Counter_metrics",
@@ -80,7 +81,7 @@ func Test_MapToMetrics(t *testing.T) {
 					Type:  "counter",
 				},
 			},
-			want: Metrics{
+			want: metric.Metrics{
 				Delta: func() *int64 {
 					v := int64(110)
 					return &v
@@ -98,7 +99,7 @@ func Test_MapToMetrics(t *testing.T) {
 					Type:  "gauge",
 				},
 			},
-			want: Metrics{
+			want: metric.Metrics{
 				Value: func() *float64 {
 					v := 110.111
 					return &v

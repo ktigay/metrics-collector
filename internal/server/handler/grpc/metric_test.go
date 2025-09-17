@@ -13,7 +13,7 @@ import (
 	"github.com/ktigay/metrics-collector/internal/contracts"
 	"github.com/ktigay/metrics-collector/internal/metric"
 	e "github.com/ktigay/metrics-collector/internal/server/errors"
-	"github.com/ktigay/metrics-collector/internal/server/handler/grpc/mocks"
+	"github.com/ktigay/metrics-collector/internal/server/handler/mocks"
 )
 
 func TestMetricGrpcHandler_BatchUpdateMetrics(t *testing.T) {

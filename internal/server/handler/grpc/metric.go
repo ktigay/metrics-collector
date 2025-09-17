@@ -11,28 +11,21 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/ktigay/metrics-collector/internal/contracts"
+	"github.com/ktigay/metrics-collector/internal/contracts/mapper"
 	"github.com/ktigay/metrics-collector/internal/metric"
 	e "github.com/ktigay/metrics-collector/internal/server/errors"
+	"github.com/ktigay/metrics-collector/internal/server/handler"
 )
-
-// Collector Интерфейс сборщика статистики.
-//
-//go:generate mockgen -destination=./mocks/mock_collector.go -package=mocks github.com/ktigay/metrics-collector/internal/server/handler/grpc Collector
-type Collector interface {
-	Find(ctx context.Context, t, n string) (*metric.Metrics, error)
-	Save(ctx context.Context, mt metric.Metrics) (*metric.Metrics, error)
-	SaveAll(ctx context.Context, mt []metric.Metrics) error
-}
 
 // MetricGrpcHandler структура с обработчиками запросов.
 type MetricGrpcHandler struct {
 	contracts.UnimplementedMetricsServiceServer
-	collector Collector
+	collector handler.Collector
 	logger    *zap.SugaredLogger
 }
 
 // NewMetricGrpcHandler конструктор.
-func NewMetricGrpcHandler(collector Collector, logger *zap.SugaredLogger) *MetricGrpcHandler {
+func NewMetricGrpcHandler(collector handler.Collector, logger *zap.SugaredLogger) *MetricGrpcHandler {
 	return &MetricGrpcHandler{
 		collector: collector,
 		logger:    logger,
@@ -55,14 +48,14 @@ func (mh *MetricGrpcHandler) GetMetrics(ctx context.Context, req *contracts.GetM
 		return nil, status.Errorf(codes.Internal, "failed to find metrics: %v", err)
 	}
 
-	resp.Metrics = metric.MapFromMetrics(metrics)
+	resp.Metrics = mapper.MapFromMetrics(metrics)
 
 	return &resp, nil
 }
 
 // UpdateMetrics сохранение метрики.
 func (mh *MetricGrpcHandler) UpdateMetrics(ctx context.Context, req *contracts.UpdateMetricsRequest) (*emptypb.Empty, error) {
-	metrics := metric.MapToMetrics(req.Metrics)
+	metrics := mapper.MapToMetrics(req.Metrics)
 
 	if _, err := mh.collector.Save(ctx, metrics); err != nil {
 		mh.logger.Errorln("failed to update metrics: ", zap.Error(err))
@@ -77,7 +70,7 @@ func (mh *MetricGrpcHandler) UpdateMetrics(ctx context.Context, req *contracts.U
 func (mh *MetricGrpcHandler) BatchUpdateMetrics(ctx context.Context, req *contracts.BatchUpdateMetricsRequest) (*emptypb.Empty, error) {
 	metrics := make([]metric.Metrics, 0, len(req.Metrics))
 	for _, m := range req.Metrics {
-		metrics = append(metrics, metric.MapToMetrics(m))
+		metrics = append(metrics, mapper.MapToMetrics(m))
 	}
 
 	if err := mh.collector.SaveAll(ctx, metrics); err != nil {

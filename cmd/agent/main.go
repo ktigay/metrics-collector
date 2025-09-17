@@ -2,13 +2,11 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"errors"
 	"fmt"
 	"log"
 	"math"
-	"net/http"
 	"os"
 	"os/signal"
 	"sync"
@@ -16,16 +14,12 @@ import (
 	"time"
 
 	"go.uber.org/zap"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/ktigay/metrics-collector/internal/client/collector"
 	"github.com/ktigay/metrics-collector/internal/client/config"
 	"github.com/ktigay/metrics-collector/internal/client/sender"
-	"github.com/ktigay/metrics-collector/internal/client/sender/transport"
+	"github.com/ktigay/metrics-collector/internal/client/sender/transport/factory"
 	"github.com/ktigay/metrics-collector/internal/client/service"
-	"github.com/ktigay/metrics-collector/internal/contracts"
-	"github.com/ktigay/metrics-collector/internal/crypto"
 	ilog "github.com/ktigay/metrics-collector/internal/log"
 	"github.com/ktigay/metrics-collector/internal/metric"
 )
@@ -75,7 +69,7 @@ func main() {
 	gp := collector.NewGopsUtilCollector()
 	gpPoller := collector.NewIntervalPoller(gp, time.Duration(cfg.PollInterval)*time.Second, logger)
 
-	t := initTransport(cfg, logger)
+	t := factory.CreateTransport(cfg, logger)
 
 	sn := sender.NewMetricSender(t, cfg.BatchEnabled, cfg.RateLimit, logger)
 	handler := collector.NewMetricsHandler()
@@ -111,14 +105,6 @@ func main() {
 	logger.Debug("program exited")
 }
 
-func initPublicKey(cryptoKey string) (*crypto.PublicKey, error) {
-	file, err := os.Open(cryptoKey)
-	if err != nil {
-		return nil, err
-	}
-	return crypto.NewPublicKey(bufio.NewReader(file))
-}
-
 func handleExit(code int) {
 	os.Exit(code)
 }
@@ -129,40 +115,4 @@ Build date: %s
 Build commit: %s
 `, buildVersion, buildDate, buildCommit)
 	return err
-}
-
-func initTransport(cfg *config.Config, logger *zap.SugaredLogger) sender.Transport {
-	switch cfg.Transport {
-	case config.TransportGRPC:
-		return getGRPCTransport(cfg, logger)
-	default:
-		return getHTTPTransport(cfg, logger)
-	}
-}
-
-func getHTTPTransport(
-	cfg *config.Config,
-	logger *zap.SugaredLogger,
-) sender.Transport {
-	var (
-		cryptoKey *crypto.PublicKey
-		err       error
-	)
-	if cfg.CryptoKey != "" {
-		if cryptoKey, err = initPublicKey(cfg.CryptoKey); err != nil {
-			log.Fatalf("can't initialize crypto key: %v", err)
-		}
-	}
-
-	factory := transport.NewRequestFactory(http.MethodPost, cfg.ServerProtocol+"://"+cfg.ServerHost, cfg.HashKey, cfg.IPAddr, cryptoKey)
-	return transport.NewHTTPClient(factory, logger)
-}
-
-func getGRPCTransport(cfg *config.Config, logger *zap.SugaredLogger) sender.Transport {
-	conn, err := grpc.NewClient(cfg.ServerGRPCHost, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		log.Fatalf("can't create gRPC transport: %v", err)
-	}
-
-	return transport.NewGRPCClient(contracts.NewMetricsServiceClient(conn), logger)
 }

@@ -2,7 +2,6 @@
 package http
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/ktigay/metrics-collector/internal/metric"
 	"github.com/ktigay/metrics-collector/internal/server/errors"
+	"github.com/ktigay/metrics-collector/internal/server/handler"
 )
 
 var errStatusMap = map[error]int{
@@ -27,25 +27,14 @@ func statusFromError(err error) int {
 	return http.StatusInternalServerError
 }
 
-// Collector Интерфейс сборщика статистики.
-//
-//go:generate mockgen -destination=./mocks/mock_collector.go -package=mocks github.com/ktigay/metrics-collector/internal/server/handler/http Collector
-type Collector interface {
-	Save(ctx context.Context, mt metric.Metrics) (*metric.Metrics, error)
-	All(ctx context.Context) (*[]metric.Metrics, error)
-	Find(ctx context.Context, t, n string) (*metric.Metrics, error)
-	Remove(ctx context.Context, t, n string) error
-	SaveAll(ctx context.Context, mt []metric.Metrics) error
-}
-
 // MetricHandler структура с обработчиками запросов.
 type MetricHandler struct {
-	collector Collector
+	collector handler.Collector
 	logger    *zap.SugaredLogger
 }
 
 // NewMetricHandler конструктор.
-func NewMetricHandler(collector Collector, logger *zap.SugaredLogger) *MetricHandler {
+func NewMetricHandler(collector handler.Collector, logger *zap.SugaredLogger) *MetricHandler {
 	return &MetricHandler{
 		collector: collector,
 		logger:    logger,
